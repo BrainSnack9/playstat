@@ -59,6 +59,7 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
   return (
     <html lang={locale} className="dark" suppressHydrationWarning>
       <head>
+        <meta name="google-site-verification" content="8jWKeSdNb8M9T-sx7Tn_F5aEyGUSCpmWHl-h3xYdq6U" />
         <AdsenseScript />
       </head>
       <body className={`${inter.className} bg-background text-foreground`}>
