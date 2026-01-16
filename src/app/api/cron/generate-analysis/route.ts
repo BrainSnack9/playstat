@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { openai, AI_MODELS, TOKEN_LIMITS } from '@/lib/openai'
 import {
   MATCH_ANALYSIS_PROMPT,
@@ -10,8 +9,15 @@ import {
   type MatchAnalysisInputData,
 } from '@/lib/ai/prompts'
 import { addHours } from 'date-fns'
+import type { PrismaClient } from '@prisma/client'
 
 const CRON_SECRET = process.env.CRON_SECRET
+
+// 동적 prisma 가져오기
+async function getPrisma(): Promise<PrismaClient> {
+  const { prisma } = await import('@/lib/prisma')
+  return prisma
+}
 
 /**
  * GET /api/cron/generate-analysis
@@ -31,6 +37,7 @@ export async function GET(request: Request) {
     )
   }
 
+  const prisma = await getPrisma()
   const startTime = Date.now()
   const results: { matchId: string; success: boolean; error?: string }[] = []
 
@@ -46,7 +53,7 @@ export async function GET(request: Request) {
           lte: in48Hours,
         },
         status: 'SCHEDULED',
-        matchAnalysis: null, // 분석이 없는 것만
+        matchAnalysis: null,
       },
       include: {
         league: true,
@@ -63,7 +70,7 @@ export async function GET(request: Request) {
           },
         },
       },
-      take: 5, // 한 번에 최대 5개만 처리 (API 비용 고려)
+      take: 5,
     })
 
     for (const match of matchesNeedingAnalysis) {
@@ -127,7 +134,7 @@ export async function GET(request: Request) {
           })
 
           const englishResponse = await openai.chat.completions.create({
-            model: AI_MODELS.SUMMARY, // 비용 절감
+            model: AI_MODELS.SUMMARY,
             messages: [{ role: 'user', content: englishPrompt }],
             max_tokens: TOKEN_LIMITS.ANALYSIS,
             temperature: 0.7,

@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { footballApi, getCurrentFootballSeason } from '@/lib/api/sports-api'
 import { addHours } from 'date-fns'
+import type { PrismaClient } from '@prisma/client'
 
 const CRON_SECRET = process.env.CRON_SECRET
+
+// 동적 prisma 가져오기
+async function getPrisma(): Promise<PrismaClient> {
+  const { prisma } = await import('@/lib/prisma')
+  return prisma
+}
 
 /**
  * GET /api/cron/collect-team-stats
@@ -16,6 +22,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const prisma = await getPrisma()
   const startTime = Date.now()
   const results: { matchId: string; teamsUpdated: string[]; errors: string[] }[] = []
 
@@ -57,6 +64,7 @@ export async function GET(request: Request) {
       if (!match.homeTeam.seasonStats || !match.homeTeam.recentMatches) {
         try {
           await collectTeamStats(
+            prisma,
             match.homeTeam.id,
             match.homeTeam.externalId!,
             match.league.externalId!,
@@ -72,6 +80,7 @@ export async function GET(request: Request) {
       if (!match.awayTeam.seasonStats || !match.awayTeam.recentMatches) {
         try {
           await collectTeamStats(
+            prisma,
             match.awayTeam.id,
             match.awayTeam.externalId!,
             match.league.externalId!,
@@ -86,6 +95,7 @@ export async function GET(request: Request) {
       // 상대전적 수집
       try {
         await collectHeadToHead(
+          prisma,
           match.homeTeam.id,
           match.awayTeam.id,
           match.homeTeam.externalId!,
@@ -135,6 +145,7 @@ export async function GET(request: Request) {
 }
 
 async function collectTeamStats(
+  prisma: PrismaClient,
   teamId: string,
   externalTeamId: string,
   externalLeagueId: string,
@@ -231,6 +242,7 @@ async function collectTeamStats(
 }
 
 async function collectHeadToHead(
+  prisma: PrismaClient,
   teamAId: string,
   teamBId: string,
   externalTeamAId: string,

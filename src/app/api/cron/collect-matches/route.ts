@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { footballApi, LEAGUE_IDS, getCurrentFootballSeason } from '@/lib/api/sports-api'
 import { format, addDays } from 'date-fns'
 import slugify from 'slugify'
+import type { PrismaClient } from '@prisma/client'
 
 // Vercel Cron 인증
 const CRON_SECRET = process.env.CRON_SECRET
+
+// 동적 prisma 가져오기
+async function getPrisma(): Promise<PrismaClient> {
+  const { prisma } = await import('@/lib/prisma')
+  return prisma
+}
 
 /**
  * GET /api/cron/collect-matches
@@ -19,6 +25,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const prisma = await getPrisma()
   const startTime = Date.now()
   const results: { league: string; matchesAdded: number; errors: string[] }[] = []
 
@@ -50,7 +57,7 @@ export async function GET(request: Request) {
           dbLeague = await prisma.league.create({
             data: {
               name: league.name,
-              country: 'Europe', // 기본값, 실제로는 API에서 가져옴
+              country: 'Europe',
               sportType: 'FOOTBALL',
               externalId: String(league.id),
               season,
@@ -86,14 +93,8 @@ export async function GET(request: Request) {
             }
 
             // 홈팀/원정팀 확인 또는 생성
-            const homeTeam = await findOrCreateTeam(
-              fixture.teams.home,
-              dbLeague.id
-            )
-            const awayTeam = await findOrCreateTeam(
-              fixture.teams.away,
-              dbLeague.id
-            )
+            const homeTeam = await findOrCreateTeam(prisma, fixture.teams.home, dbLeague.id)
+            const awayTeam = await findOrCreateTeam(prisma, fixture.teams.away, dbLeague.id)
 
             // 경기 생성
             const matchSlug = createMatchSlug(
@@ -140,7 +141,7 @@ export async function GET(request: Request) {
         result: results.every((r) => r.errors.length === 0) ? 'success' : 'partial',
         details: results,
         duration,
-        apiCalls: results.reduce((sum) => sum + 1, 0), // 리그당 1회
+        apiCalls: results.reduce((sum) => sum + 1, 0),
       },
     })
 
@@ -170,6 +171,7 @@ export async function GET(request: Request) {
 
 // 팀 찾기 또는 생성
 async function findOrCreateTeam(
+  prisma: PrismaClient,
   teamData: { id: number; name: string; logo: string },
   leagueId: string
 ) {
