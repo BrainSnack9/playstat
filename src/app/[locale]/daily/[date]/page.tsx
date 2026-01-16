@@ -13,11 +13,12 @@ import {
   Star,
 } from 'lucide-react'
 import { Link } from '@/i18n/routing'
-import { format, parse, isValid, startOfDay } from 'date-fns'
+import { format, parse, isValid, startOfDay, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { ensureDailyReportEnglish } from '@/lib/ai/translate'
+import { FormBadge } from '@/components/form-badge'
 
 interface Props {
   params: Promise<{ locale: string; date: string }>
@@ -54,7 +55,8 @@ async function getDailyReport(dateStr: string) {
       if (!isValid(parsed)) {
         return null
       }
-      targetDate = startOfDay(parsed)
+      // UTC 기준으로 날짜 고정 (DB 저장 방식에 맞춤)
+      targetDate = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 0, 0, 0))
     }
 
     const report = await prisma.dailyReport.findUnique({
@@ -62,7 +64,7 @@ async function getDailyReport(dateStr: string) {
     })
 
     return report
-  } catch {
+  } catch (error) {
     return null
   }
 }
@@ -249,29 +251,6 @@ function JsonLd({
   )
 }
 
-function FormBadge({ form }: { form: string | null }) {
-  if (!form) return null
-  const formArray = form.split(',').slice(0, 5)
-  return (
-    <div className="flex gap-0.5">
-      {formArray.map((result, i) => (
-        <span
-          key={i}
-          className={`flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold text-white ${
-            result === 'W'
-              ? 'bg-green-500'
-              : result === 'D'
-                ? 'bg-gray-400'
-                : 'bg-red-500'
-          }`}
-        >
-          {result}
-        </span>
-      ))}
-    </div>
-  )
-}
-
 export default async function DailyReportPage({ params }: Props) {
   const { locale, date: dateStr } = await params
   setRequestLocale(locale)
@@ -317,7 +296,15 @@ export default async function DailyReportPage({ params }: Props) {
       content = JSON.parse(summaryToParse) as ReportContent
       hotMatches = (report.hotMatches as unknown as HotMatch[]) || []
     } catch {
-      content = null
+      // JSON 파싱 실패 시 일반 텍스트 요약으로 처리
+      content = {
+        title: isEn ? `${dateFormatted} Football Analysis` : `${dateKo} 축구 경기 분석`,
+        summary: (isEn && report.summaryEn ? report.summaryEn : report.summary) || "",
+        sections: [],
+        keywords: [],
+        metaDescription: ""
+      }
+      hotMatches = (report.hotMatches as unknown as HotMatch[]) || []
     }
   }
 
@@ -335,287 +322,349 @@ export default async function DailyReportPage({ params }: Props) {
     <>
       <JsonLd report={report} dateStr={dateStr} matches={matches} />
 
-      <div className="container py-8">
+      <div className="container px-6 py-8 md:px-8">
         {/* Breadcrumb */}
-        <nav className="mb-4 text-sm text-muted-foreground">
-          <ol className="flex items-center gap-1">
+        <nav className="mb-6 text-sm text-muted-foreground max-w-6xl mx-auto">
+          <ol className="flex items-center justify-start gap-1">
             <li>
-              <Link href="/" className="hover:text-primary">
+              <Link href="/" className="hover:text-primary transition-colors">
                 {tCommon('home')}
               </Link>
             </li>
-            <ChevronRight className="h-3 w-3" />
+            <ChevronRight className="h-3 w-3 opacity-50" />
             <li>
-              <Link href="/daily/today" className="hover:text-primary">
+              <Link href="/daily/today" className="hover:text-primary transition-colors">
                 {tCommon('daily_report')}
               </Link>
             </li>
-            <ChevronRight className="h-3 w-3" />
-            <li className="text-foreground">{dateShort}</li>
+            <ChevronRight className="h-3 w-3 opacity-50" />
+            <li className="text-foreground font-medium">{dateShort}</li>
           </ol>
         </nav>
 
         {/* Page Header - H1 for SEO */}
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">
+        <header className="mb-10 text-left max-w-6xl mx-auto">
+          <h1 className="text-3xl font-extrabold mb-3 break-keep sm:text-4xl">
             {content?.title || (isEn ? `${dateFormatted} Football Analysis` : `${dateKo} 축구 경기 분석`)}
           </h1>
-          <p className="text-muted-foreground flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            {dateFormatted}
-            <span className="mx-2">•</span>
-            <Trophy className="h-4 w-4" />
-            {matches.length}{isEn ? ' Matches' : '개 경기'}
-          </p>
+          <div className="text-muted-foreground flex items-center justify-start gap-4 text-sm sm:text-base">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="h-4 w-4 text-primary" />
+              {dateFormatted}
+            </span>
+            <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+            <span className="flex items-center gap-1.5">
+              <Trophy className="h-4 w-4 text-primary" />
+              {matches.length}{isEn ? ' Matches' : '개 경기'}
+            </span>
+          </div>
         </header>
 
-        {/* AI Summary */}
+        {/* AI Summary - Strategic Insights */}
         {content?.summary && (
-          <Card className="mb-8 border-primary/20 bg-primary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                {isEn ? "Today's Football Summary" : '오늘의 축구 요약'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground leading-relaxed">
-                {content.summary}
-              </p>
-            </CardContent>
-          </Card>
+          <div className="mb-12 max-w-6xl mx-auto">
+            <Card className="border-primary/20 bg-primary/5 shadow-md overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Sparkles className="h-24 w-24 text-primary" />
+              </div>
+              <CardHeader className="text-left pb-2">
+                <CardTitle className="flex items-center justify-start gap-2 text-xl font-black text-primary">
+                  <Sparkles className="h-5 w-5" />
+                  {isEn ? "Today's Strategic Insights" : '오늘의 핵심 관전 인사이트'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {content.summary.split('\n').filter(line => line.trim()).map((line, i) => (
+                    <div key={i} className="flex gap-3 items-start group">
+                      <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0 group-hover:scale-150 transition-transform" />
+                      <p className="text-muted-foreground leading-relaxed text-left break-keep text-base font-medium">
+                        {line.replace(/^\d+\.\s*/, '')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
-        {/* Main Content Grid */}
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Left Column - Match List */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Hot Matches */}
-            {hotMatches.length > 0 && (
-              <section>
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Star className="h-5 w-5 text-yellow-500" />
-                  {tDaily('hot_matches')}
-                </h2>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {hotMatches.map((hot, i) => {
-                    const match = matches.find((m) => m.id === hot.matchId)
-                    if (!match) return null
+        {/* Main Content Grid - Centered Container */}
+        <div className="max-w-6xl mx-auto">
+          <div className="grid gap-8 lg:grid-cols-3">
+          {/* Left Column - Match List (2/3) */}
+          <div className="lg:col-span-2 space-y-10">
+            {/* Hot Matches - Filter and show only if valid matches exist */}
+            {(() => {
+              const validHotMatches = hotMatches.filter(hot => 
+                matches.some(m => m.id === hot.matchId)
+              );
 
-                    return (
-                      <Link
-                        key={i}
-                        href={`/match/${match.slug || match.id}`}
-                      >
-                        <Card className="h-full transition-all hover:shadow-md hover:border-primary/50">
-                          <CardContent className="p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="secondary" className="text-xs">
-                                {match.league.name}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {format(match.kickoffAt, 'HH:mm')}
-                              </span>
-                            </div>
-                            <h3 className="font-semibold mb-1">{hot.title}</h3>
-                            <p className="text-sm text-muted-foreground mb-2">
-                              {hot.preview}
-                            </p>
-                            <p className="text-xs text-primary flex items-center gap-1">
-                              <TrendingUp className="h-3 w-3" />
-                              {hot.keyPoint}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </section>
-            )}
+              if (validHotMatches.length === 0) return null;
 
-            {/* Matches by League */}
-            <section>
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Trophy className="h-5 w-5" />
-                {isEn ? 'Matches by League' : '리그별 경기 일정'}
-              </h2>
+              return (
+                <section>
+                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-left">
+                    <Star className="h-5 w-5 text-yellow-500" />
+                    {tDaily('hot_matches')}
+                  </h2>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {validHotMatches.map((hot, i) => {
+                      const match = matches.find((m) => m.id === hot.matchId)!;
 
-              {Object.entries(matchesByLeague).map(([leagueName, leagueMatches]) => (
-                <div key={leagueName} className="mb-6">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    {leagueMatches[0]?.league.logoUrl && (
-                      <Image
-                        src={leagueMatches[0].league.logoUrl}
-                        alt={leagueName}
-                        width={20}
-                        height={20}
-                        className="rounded"
-                      />
-                    )}
-                    {leagueName}
-                    <Badge variant="outline" className="text-xs">
-                      {leagueMatches.length}{isEn ? ' matches' : '경기'}
-                    </Badge>
-                  </h3>
-
-                  <div className="space-y-2">
-                    {leagueMatches.map((match) => (
-                      <Link
-                        key={match.id}
-                        href={`/match/${match.slug || match.id}`}
-                      >
-                        <Card className="transition-all hover:shadow-sm hover:border-primary/30">
-                          <CardContent className="p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3 flex-1">
-                                {/* Time */}
-                                <div className="text-sm font-medium w-12 text-center">
-                                  {format(match.kickoffAt, 'HH:mm')}
-                                </div>
-
-                                {/* Teams */}
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    {match.homeTeam.logoUrl && (
-                                      <Image
-                                        src={match.homeTeam.logoUrl}
-                                        alt={match.homeTeam.name}
-                                        width={20}
-                                        height={20}
-                                        className="rounded"
-                                      />
-                                    )}
-                                    <span className="font-medium text-sm">
-                                      {match.homeTeam.name}
-                                    </span>
-                                    {match.homeTeam.seasonStats?.rank && (
-                                      <span className="text-xs text-muted-foreground">
-                                        ({match.homeTeam.seasonStats.rank}{isEn ? 'th' : '위'})
-                                      </span>
-                                    )}
-                                    <FormBadge
-                                      form={match.homeTeam.seasonStats?.form || null}
-                                      size="sm"
-                                    />
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {match.awayTeam.logoUrl && (
-                                      <Image
-                                        src={match.awayTeam.logoUrl}
-                                        alt={match.awayTeam.name}
-                                        width={20}
-                                        height={20}
-                                        className="rounded"
-                                      />
-                                    )}
-                                    <span className="font-medium text-sm">
-                                      {match.awayTeam.name}
-                                    </span>
-                                    {match.awayTeam.seasonStats?.rank && (
-                                      <span className="text-xs text-muted-foreground">
-                                        ({match.awayTeam.seasonStats.rank}{isEn ? 'th' : '위'})
-                                      </span>
-                                    )}
-                                    <FormBadge
-                                      form={match.awayTeam.seasonStats?.form || null}
-                                      size="sm"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* AI Analysis Badge */}
-                              {match.matchAnalysis && (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-xs bg-primary/10 text-primary"
-                                >
-                                  <Sparkles className="h-3 w-3 mr-1" />
-                                  {isEn ? 'AI Analysis' : 'AI 분석'}
+                      return (
+                        <Link
+                          key={i}
+                          href={`/match/${match.slug || match.id}`}
+                        >
+                          <Card className="h-full transition-all hover:shadow-md hover:border-primary/50">
+                            <CardContent className="p-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="secondary" className="text-xs">
+                                  {match.league.name}
                                 </Badge>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    ))}
+                                <span className="text-xs text-muted-foreground">
+                                  {format(match.kickoffAt, 'HH:mm')}
+                                </span>
+                              </div>
+                              <h3 className="font-semibold mb-1 text-left">{hot.title}</h3>
+                              <p className="text-sm text-muted-foreground mb-2 text-left line-clamp-2">
+                                {hot.preview}
+                              </p>
+                              <p className="text-xs text-primary flex items-center gap-1 text-left font-bold">
+                                <TrendingUp className="h-3 w-3" />
+                                {hot.keyPoint}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })()}
+
+              {/* Matches by League */}
+              <section>
+                <div className="mb-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-left">
+                    <Trophy className="h-5 w-5 text-primary" />
+                    {isEn ? 'Matches by League' : '리그별 경기 일정'}
+                  </h2>
+
+                  {/* Weekly Date Picker */}
+                  <div className="w-full sm:w-auto">
+                    <Card className="overflow-hidden border-primary/10 shadow-sm bg-background/50 backdrop-blur-sm">
+                      <CardContent className="p-1.5">
+                        <div className="flex justify-between gap-1">
+                          {[-3, -2, -1, 0, 1, 2, 3].map((offset) => {
+                            const d = addDays(parsed, offset)
+                            const dStr = format(d, 'yyyy-MM-dd')
+                            const isCurrent = offset === 0
+                            const dayName = format(d, 'EEE', { locale: isEn ? undefined : ko })
+                            const dayNum = format(d, 'd')
+
+                            return (
+                              <Link
+                                key={offset}
+                                href={`/daily/${dStr}`}
+                                className={`flex min-w-[40px] flex-col items-center py-1.5 px-2 rounded-lg transition-all ${
+                                  isCurrent
+                                    ? 'bg-primary text-primary-foreground shadow-md'
+                                    : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                                }`}
+                              >
+                                <span className={`text-[9px] font-bold uppercase mb-0.5 ${isCurrent ? 'text-primary-foreground/80' : 'text-muted-foreground/60'}`}>
+                                  {dayName}
+                                </span>
+                                <span className="text-xs font-black">{dayNum}</span>
+                              </Link>
+                            )
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 </div>
-              ))}
 
-              {matches.length === 0 && (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                    <p className="text-muted-foreground">
-                      {tHome('no_matches_scheduled')}
-                    </p>
+                {Object.entries(matchesByLeague).map(([leagueName, leagueMatches]) => (
+                  <div key={leagueName} className="mb-8">
+                    <h3 className="font-semibold mb-4 flex items-center gap-2 text-left">
+                      {leagueMatches[0]?.league.logoUrl && (
+                        <Image
+                          src={leagueMatches[0].league.logoUrl}
+                          alt={leagueName}
+                          width={20}
+                          height={20}
+                          className="rounded"
+                        />
+                      )}
+                      {leagueName}
+                      <Badge variant="outline" className="text-xs">
+                        {leagueMatches.length}{isEn ? ' matches' : '경기'}
+                      </Badge>
+                    </h3>
+
+                    <div className="flex flex-col gap-2">
+                      {leagueMatches.map((match) => (
+                        <Link
+                          key={match.id}
+                          href={`/match/${match.slug || match.id}`}
+                        >
+                          <Card className="transition-all hover:shadow-sm hover:border-primary/30">
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 flex-1">
+                                  {/* Time */}
+                                  <div className="text-sm font-medium w-12 text-center">
+                                    {format(match.kickoffAt, 'HH:mm')}
+                                  </div>
+
+                                  {/* Teams */}
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      {match.homeTeam.logoUrl && (
+                                        <Image
+                                          src={match.homeTeam.logoUrl}
+                                          alt={match.homeTeam.name}
+                                          width={20}
+                                          height={20}
+                                          className="rounded"
+                                        />
+                                      )}
+                                      <span className="font-medium text-sm">
+                                        {match.homeTeam.name}
+                                      </span>
+                                      {match.homeTeam.seasonStats?.rank && (
+                                        <span className="text-xs text-muted-foreground">
+                                          ({match.homeTeam.seasonStats.rank}{isEn ? 'th' : '위'})
+                                        </span>
+                                      )}
+                                      <FormBadge
+                                        form={match.homeTeam.seasonStats?.form || null}
+                                        size="sm"
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {match.awayTeam.logoUrl && (
+                                        <Image
+                                          src={match.awayTeam.logoUrl}
+                                          alt={match.awayTeam.name}
+                                          width={20}
+                                          height={20}
+                                          className="rounded"
+                                        />
+                                      )}
+                                      <span className="font-medium text-sm">
+                                        {match.awayTeam.name}
+                                      </span>
+                                      {match.awayTeam.seasonStats?.rank && (
+                                        <span className="text-xs text-muted-foreground">
+                                          ({match.awayTeam.seasonStats.rank}{isEn ? 'th' : '위'})
+                                        </span>
+                                      )}
+                                      <FormBadge
+                                        form={match.awayTeam.seasonStats?.form || null}
+                                        size="sm"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* AI Analysis Badge */}
+                                {match.matchAnalysis && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs bg-primary/10 text-primary"
+                                  >
+                                    <Sparkles className="h-3 w-3 mr-1" />
+                                    {isEn ? 'AI Analysis' : 'AI 분석'}
+                                  </Badge>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {matches.length === 0 && (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                      <p className="text-muted-foreground">
+                        {tHome('no_matches_scheduled')}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </section>
+            </div>
+
+            {/* Right Column - Sidebar (1/3) */}
+            <aside className="space-y-6">
+              <div className="flex items-center gap-2 px-1 mb-4">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                <h3 className="text-xl font-bold">{isEn ? 'AI Insights' : 'AI 심층 분석'}</h3>
+              </div>
+
+              {/* AI Deep Analysis Sections */}
+              {content?.sections && content.sections.length > 0 ? (
+                content.sections.map((section, i) => (
+                  <Card key={i} className="border-none shadow-sm bg-muted/30">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        {section.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line text-left">
+                        {section.content}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <Card className="border-none shadow-sm bg-muted/10 border-dashed border-2">
+                  <CardContent className="p-8 text-center text-muted-foreground italic">
+                    {isEn ? 'No detailed analysis sections available for this date.' : '해당 날짜의 심층 분석 섹션이 없습니다.'}
                   </CardContent>
                 </Card>
               )}
-            </section>
+
+              {/* Related Keywords */}
+              <div className="pt-4">
+                <div className="flex items-center gap-2 px-1 mb-4">
+                  <Clock className="h-4 w-4 text-primary" />
+                  <h3 className="text-lg font-bold">{isEn ? 'Keywords' : '관련 키워드'}</h3>
+                </div>
+                <Card className="border-none shadow-sm bg-muted/30">
+                  <CardContent className="p-4">
+                    <div className="flex flex-wrap gap-2">
+                      {content?.keywords && content.keywords.length > 0 ? (
+                        content.keywords.map((keyword, i) => (
+                          <Badge key={i} variant="outline" className="text-xs bg-background">
+                            {keyword}
+                          </Badge>
+                        ))
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">
+                          {isEn ? 'No related keywords found.' : '관련 키워드가 없습니다.'}
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </aside>
           </div>
-
-          {/* Right Column - Sidebar */}
-          <aside className="space-y-6">
-            {/* AI Sections */}
-            {content?.sections?.map((section, i) => (
-              <Card key={i}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">{section.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground whitespace-pre-line">
-                    {section.content}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-
-            {/* Keywords for SEO */}
-            {content?.keywords && content.keywords.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">{isEn ? 'Related Keywords' : '관련 키워드'}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {content.keywords.map((keyword, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">
-                        {keyword}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Navigation to other dates */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">{isEn ? 'Other Dates' : '다른 날짜'}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {[-2, -1, 1, 2].map((offset) => {
-                  const d = new Date(parsed)
-                  d.setDate(d.getDate() + offset)
-                  const dStr = format(d, 'yyyy-MM-dd')
-                  const dFormattedSidebar = format(d, isEn ? 'MMM d (EEE)' : 'M월 d일 (EEE)', { locale: isEn ? undefined : ko })
-                  return (
-                    <Link
-                      key={offset}
-                      href={`/daily/${dStr}`}
-                      className="block text-sm hover:text-primary transition-colors"
-                    >
-                      {dFormattedSidebar}
-                    </Link>
-                  )
-                })}
-              </CardContent>
-            </Card>
-          </aside>
         </div>
+
+
       </div>
     </>
   )

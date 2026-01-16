@@ -44,128 +44,105 @@ export async function GET(request: Request) {
 
   const prisma = await getPrisma()
   const startTime = Date.now()
-  const results: { league: string; matchesAdded: number; matchesUpdated: number; errors: string[] }[] = []
+  const results: { matchesAdded: number; matchesUpdated: number; errors: string[] } = { matchesAdded: 0, matchesUpdated: 0, errors: [] }
   let totalApiCalls = 0
 
   try {
     const today = format(new Date(), 'yyyy-MM-dd')
     const nextWeek = format(addDays(new Date(), 7), 'yyyy-MM-dd')
 
-    for (const league of LEAGUES_TO_COLLECT) {
-      const leagueResult = { league: league.name, matchesAdded: 0, matchesUpdated: 0, errors: [] as string[] }
+    // 모든 리그 정보를 먼저 가져오거나 확인
+    const dbLeagues = await prisma.league.findMany({
+      where: { code: { in: LEAGUES_TO_COLLECT.map(l => l.code) } }
+    })
+    
+    const leagueMap = new Map(dbLeagues.map(l => [l.code, l]))
 
+    // 모든 지원 리그의 경기를 한 번에 조회 (API 호출 1회)
+    const matchesResponse = await footballDataApi.getMatchesByDateRange(today, nextWeek)
+    totalApiCalls++
+
+    for (const match of matchesResponse.matches) {
       try {
-        // 리그가 DB에 있는지 확인, 없으면 생성
-        let dbLeague = await prisma.league.findFirst({
-          where: { code: league.code },
-        })
+        const competitionCode = match.competition.code
+        const leagueInfo = LEAGUES_TO_COLLECT.find(l => l.code === competitionCode)
+        
+        // 우리가 지원하는 리그가 아니면 스킵
+        if (!leagueInfo) continue
 
-        // 리그 정보 가져오기 (처음이거나 업데이트 필요시)
+        let dbLeague = leagueMap.get(competitionCode)
         if (!dbLeague) {
-          try {
-            const competitionData = await footballDataApi.getCompetition(league.code)
-            totalApiCalls++
-
-            dbLeague = await prisma.league.create({
-              data: {
-                name: competitionData.name,
-                country: competitionData.area.name,
-                sportType: 'FOOTBALL',
-                externalId: String(competitionData.id),
-                code: league.code,
-                logoUrl: competitionData.emblem,
-                season: competitionData.currentSeason?.id,
-                currentMatchday: competitionData.currentSeason?.currentMatchday,
-                isActive: true,
-              },
-            })
-          } catch {
-            // API 호출 실패시 기본 데이터로 생성
-            dbLeague = await prisma.league.create({
-              data: {
-                name: league.name,
-                country: league.country,
-                sportType: 'FOOTBALL',
-                externalId: String(COMPETITION_IDS[league.code as keyof typeof COMPETITION_IDS]),
-                code: league.code,
-                isActive: true,
-              },
-            })
-          }
-        }
-
-        // 경기 목록 조회
-        const matchesResponse = await footballDataApi.getCompetitionMatches(league.code, {
-          dateFrom: today,
-          dateTo: nextWeek,
-        })
-        totalApiCalls++
-
-        for (const match of matchesResponse.matches) {
-          try {
-            // 이미 DB에 있는지 확인
-            const existingMatch = await prisma.match.findFirst({
-              where: { externalId: String(match.id) },
-            })
-
-            if (existingMatch) {
-              // 이미 있으면 상태/스코어만 업데이트
-              await prisma.match.update({
-                where: { id: existingMatch.id },
-                data: {
-                  status: mapStatus(match.status),
-                  homeScore: match.score.fullTime.home,
-                  awayScore: match.score.fullTime.away,
-                  halfTimeHome: match.score.halfTime.home,
-                  halfTimeAway: match.score.halfTime.away,
-                },
-              })
-              leagueResult.matchesUpdated++
-              continue
+          // 리그가 없으면 새로 생성
+          dbLeague = await prisma.league.create({
+            data: {
+              name: match.competition.name,
+              country: leagueInfo.country,
+              sportType: 'FOOTBALL',
+              externalId: String(match.competition.id),
+              code: competitionCode,
+              logoUrl: match.competition.emblem,
+              isActive: true,
             }
-
-            // 홈팀/원정팀 확인 또는 생성
-            const homeTeam = await findOrCreateTeam(prisma, match.homeTeam, dbLeague.id)
-            const awayTeam = await findOrCreateTeam(prisma, match.awayTeam, dbLeague.id)
-
-            // 경기 생성
-            const matchSlug = createMatchSlug(
-              league.slug,
-              match.homeTeam.shortName || match.homeTeam.name,
-              match.awayTeam.shortName || match.awayTeam.name,
-              match.utcDate
-            )
-
-            await prisma.match.create({
-              data: {
-                leagueId: dbLeague.id,
-                homeTeamId: homeTeam.id,
-                awayTeamId: awayTeam.id,
-                sportType: 'FOOTBALL',
-                kickoffAt: new Date(match.utcDate),
-                status: mapStatus(match.status),
-                homeScore: match.score.fullTime.home,
-                awayScore: match.score.fullTime.away,
-                halfTimeHome: match.score.halfTime.home,
-                halfTimeAway: match.score.halfTime.away,
-                matchday: match.matchday,
-                stage: match.stage,
-                venue: match.venue,
-                slug: matchSlug,
-                externalId: String(match.id),
-              },
-            })
-
-            leagueResult.matchesAdded++
-          } catch (error) {
-            leagueResult.errors.push(`Match ${match.id}: ${String(error)}`)
-          }
+          })
+          leagueMap.set(competitionCode, dbLeague)
         }
-      } catch (error) {
-        leagueResult.errors.push(`League error: ${String(error)}`)
-      }
 
-      results.push(leagueResult)
+        // 이미 DB에 있는지 확인
+        const existingMatch = await prisma.match.findFirst({
+          where: { externalId: String(match.id) },
+        })
+
+        if (existingMatch) {
+          await prisma.match.update({
+            where: { id: existingMatch.id },
+            data: {
+              status: mapStatus(match.status),
+              homeScore: match.score.fullTime.home,
+              awayScore: match.score.fullTime.away,
+              halfTimeHome: match.score.halfTime.home,
+              halfTimeAway: match.score.halfTime.away,
+            },
+          })
+          results.matchesUpdated++
+          continue
+        }
+
+        // 홈팀/원정팀 확인 또는 생성
+        const homeTeam = await findOrCreateTeam(prisma, match.homeTeam, dbLeague.id)
+        const awayTeam = await findOrCreateTeam(prisma, match.awayTeam, dbLeague.id)
+
+        // 경기 생성
+        const matchSlug = createMatchSlug(
+          leagueInfo.slug,
+          match.homeTeam.shortName || match.homeTeam.name,
+          match.awayTeam.shortName || match.awayTeam.name,
+          match.utcDate
+        )
+
+        await prisma.match.create({
+          data: {
+            leagueId: dbLeague.id,
+            homeTeamId: homeTeam.id,
+            awayTeamId: awayTeam.id,
+            sportType: 'FOOTBALL',
+            kickoffAt: new Date(match.utcDate),
+            status: mapStatus(match.status),
+            homeScore: match.score.fullTime.home,
+            awayScore: match.score.fullTime.away,
+            halfTimeHome: match.score.halfTime.home,
+            halfTimeAway: match.score.halfTime.away,
+            matchday: match.matchday,
+            stage: match.stage,
+            venue: match.venue,
+            slug: matchSlug,
+            externalId: String(match.id),
+          },
+        })
+
+        results.matchesAdded++
+      } catch (error) {
+        results.errors.push(`Match ${match.id}: ${String(error)}`)
+      }
     }
 
     // 스케줄러 로그 기록
@@ -173,7 +150,7 @@ export async function GET(request: Request) {
     await prisma.schedulerLog.create({
       data: {
         jobName: 'collect-matches',
-        result: results.every((r) => r.errors.length === 0) ? 'success' : 'partial',
+        result: results.errors.length === 0 ? 'success' : 'partial',
         details: results,
         duration,
         apiCalls: totalApiCalls,

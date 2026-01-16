@@ -53,7 +53,7 @@ Return a valid JSON object with this structure:
 {
   "title": "SEO 최적화된 제목 (날짜 + 주요 경기 포함, 60자 이내)",
   "metaDescription": "메타 설명 (주요 경기 언급, 155자 이내)",
-  "summary": "오늘의 축구 경기 종합 요약 (3-5문장)",
+  "summary": "오늘의 핵심 관전 인사이트 (날카로운 전술/기록적 분석 3가지를 '1. 내용 \n2. 내용' 형식으로 작성)",
   "sections": [
     {
       "type": "highlight_matches",
@@ -230,18 +230,29 @@ export async function GET(request: Request) {
     // 영어 번역 추가
     let summaryEn: string | null = null
     try {
-      const { translateAndCache } = await import('@/lib/ai/translate')
-      summaryEn = await translateAndCache(
-        JSON.stringify({
-          title: parsed.title,
-          metaDescription: parsed.metaDescription,
-          summary: parsed.summary,
-          sections: parsed.sections,
-          keywords: parsed.keywords,
-        }),
-        'daily report content (JSON)',
-        async () => {}
-      )
+      console.log('[Cron] Translating daily report to English...')
+      const translateResponse = await openai.chat.completions.create({
+        model: AI_MODELS.SUMMARY,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a professional sports translator. Translate the provided JSON content from Korean to natural English. Return ONLY the translated JSON. Do not include any other text.'
+          },
+          {
+            role: 'user',
+            content: JSON.stringify({
+              title: parsed.title,
+              metaDescription: parsed.metaDescription,
+              summary: parsed.summary,
+              sections: parsed.sections,
+              keywords: parsed.keywords,
+            })
+          }
+        ],
+        temperature: 0.3,
+        response_format: { type: 'json_object' }
+      })
+      summaryEn = translateResponse.choices[0]?.message?.content || null
     } catch (error) {
       console.warn('English translation for daily report failed:', error)
     }

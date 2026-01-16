@@ -104,11 +104,43 @@ export async function ensureDailyReportEnglish(report: any) {
   if (!report || report.summaryEn) return report
 
   try {
-    const translatedSummary = await translateAndCache(
-      report.summary,
-      'daily report content (JSON)',
-      async (t) => {}
-    )
+    let translatedSummary = ''
+    
+    // JSON 형식인지 확인
+    try {
+      const data = JSON.parse(report.summary)
+      
+      console.log('[Translate] Translating Daily Report JSON fields...')
+      
+      if (!openai) {
+        throw new Error('OpenAI not configured')
+      }
+
+      const response = await openai.chat.completions.create({
+        model: AI_MODELS.SUMMARY,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a professional sports translator. Translate the provided JSON content from Korean to natural English. Return ONLY the translated JSON. Do not include any other text.'
+          },
+          {
+            role: 'user',
+            content: report.summary
+          }
+        ],
+        temperature: 0.3,
+        response_format: { type: 'json_object' }
+      })
+      
+      translatedSummary = response.choices[0]?.message?.content || ''
+    } catch {
+      // 일반 텍스트인 경우
+      translatedSummary = await translateAndCache(
+        report.summary,
+        'daily report summary text',
+        async () => {}
+      )
+    }
 
     if (translatedSummary) {
       await prisma.dailyReport.update({
