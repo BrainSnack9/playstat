@@ -3,8 +3,6 @@
  * Free Plan 제약: 분당 10회, 월 약 2,000회
  */
 
-import { prisma } from '@/lib/prisma'
-
 // 제한 설정
 const RATE_LIMITS = {
   CALLS_PER_MINUTE: 10,
@@ -59,6 +57,7 @@ export async function logApiCall(
   response?: unknown
 ): Promise<void> {
   try {
+    const { prisma } = await import('@/lib/prisma')
     await prisma.apiCallLog.create({
       data: {
         apiType,
@@ -76,20 +75,26 @@ export async function logApiCall(
  * 이번 달 API 호출 횟수 조회
  */
 export async function getMonthlyApiCalls(): Promise<number> {
-  const startOfMonth = new Date()
-  startOfMonth.setDate(1)
-  startOfMonth.setHours(0, 0, 0, 0)
+  try {
+    const { prisma } = await import('@/lib/prisma')
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
 
-  const count = await prisma.apiCallLog.count({
-    where: {
-      calledAt: {
-        gte: startOfMonth,
+    const count = await prisma.apiCallLog.count({
+      where: {
+        calledAt: {
+          gte: startOfMonth,
+        },
+        success: true,
       },
-      success: true,
-    },
-  })
+    })
 
-  return count
+    return count
+  } catch {
+    console.warn('Could not get monthly API calls count')
+    return 0
+  }
 }
 
 /**
