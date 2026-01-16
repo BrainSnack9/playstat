@@ -2,10 +2,9 @@ import { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { format } from 'date-fns'
 import { ko, enUS } from 'date-fns/locale'
-import { Calendar, Clock, Trophy } from 'lucide-react'
+import { Calendar, Clock } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 
 interface Props {
@@ -32,72 +31,60 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: t('today_matches'),
-    description: 'Today\'s football, NBA, and MLB matches with AI analysis',
+    description: 'Today\'s football matches with AI analysis',
   }
 }
 
-// Demo matches data
-const demoMatches: {
-  football: DemoMatch[]
-  basketball: DemoMatch[]
-  baseball: DemoMatch[]
-} = {
-  football: [
-    {
-      id: '1',
-      homeTeam: { name: 'Arsenal', shortName: 'ARS' },
-      awayTeam: { name: 'Chelsea', shortName: 'CHE' },
-      league: { name: 'Premier League', slug: 'epl' },
-      kickoffAt: new Date(new Date().setHours(20, 0)).toISOString(),
-      status: 'SCHEDULED',
-      slug: 'epl/arsenal-vs-chelsea',
-    },
-    {
-      id: '2',
-      homeTeam: { name: 'Liverpool', shortName: 'LIV' },
-      awayTeam: { name: 'Manchester City', shortName: 'MCI' },
-      league: { name: 'Premier League', slug: 'epl' },
-      kickoffAt: new Date(new Date().setHours(17, 30)).toISOString(),
-      status: 'LIVE',
-      homeScore: 2,
-      awayScore: 1,
-      slug: 'epl/liverpool-vs-manchester-city',
-    },
-    {
-      id: '3',
-      homeTeam: { name: 'Barcelona', shortName: 'BAR' },
-      awayTeam: { name: 'Real Madrid', shortName: 'RMA' },
-      league: { name: 'La Liga', slug: 'laliga' },
-      kickoffAt: new Date(new Date().setHours(22, 0)).toISOString(),
-      status: 'SCHEDULED',
-      slug: 'laliga/barcelona-vs-real-madrid',
-    },
-  ],
-  basketball: [
-    {
-      id: '4',
-      homeTeam: { name: 'LA Lakers', shortName: 'LAL' },
-      awayTeam: { name: 'Boston Celtics', shortName: 'BOS' },
-      league: { name: 'NBA', slug: 'nba' },
-      kickoffAt: new Date(new Date().setHours(11, 0)).toISOString(),
-      status: 'FINISHED',
-      homeScore: 112,
-      awayScore: 108,
-      slug: 'nba/lakers-vs-celtics',
-    },
-  ],
-  baseball: [
-    {
-      id: '5',
-      homeTeam: { name: 'LA Dodgers', shortName: 'LAD' },
-      awayTeam: { name: 'NY Yankees', shortName: 'NYY' },
-      league: { name: 'MLB', slug: 'mlb' },
-      kickoffAt: new Date(new Date().setHours(10, 0)).toISOString(),
-      status: 'SCHEDULED',
-      slug: 'mlb/dodgers-vs-yankees',
-    },
-  ],
-}
+// Demo matches data (Football only)
+const demoMatches: DemoMatch[] = [
+  {
+    id: '1',
+    homeTeam: { name: 'Arsenal', shortName: 'ARS' },
+    awayTeam: { name: 'Chelsea', shortName: 'CHE' },
+    league: { name: 'Premier League', slug: 'epl' },
+    kickoffAt: new Date(new Date().setHours(20, 0)).toISOString(),
+    status: 'SCHEDULED',
+    slug: 'epl/arsenal-vs-chelsea',
+  },
+  {
+    id: '2',
+    homeTeam: { name: 'Liverpool', shortName: 'LIV' },
+    awayTeam: { name: 'Manchester City', shortName: 'MCI' },
+    league: { name: 'Premier League', slug: 'epl' },
+    kickoffAt: new Date(new Date().setHours(17, 30)).toISOString(),
+    status: 'LIVE',
+    homeScore: 2,
+    awayScore: 1,
+    slug: 'epl/liverpool-vs-manchester-city',
+  },
+  {
+    id: '3',
+    homeTeam: { name: 'Barcelona', shortName: 'BAR' },
+    awayTeam: { name: 'Real Madrid', shortName: 'RMA' },
+    league: { name: 'La Liga', slug: 'laliga' },
+    kickoffAt: new Date(new Date().setHours(22, 0)).toISOString(),
+    status: 'SCHEDULED',
+    slug: 'laliga/barcelona-vs-real-madrid',
+  },
+  {
+    id: '4',
+    homeTeam: { name: 'Bayern Munich', shortName: 'BAY' },
+    awayTeam: { name: 'Borussia Dortmund', shortName: 'BVB' },
+    league: { name: 'Bundesliga', slug: 'bundesliga' },
+    kickoffAt: new Date(new Date().setHours(21, 30)).toISOString(),
+    status: 'SCHEDULED',
+    slug: 'bundesliga/bayern-vs-dortmund',
+  },
+  {
+    id: '5',
+    homeTeam: { name: 'Inter Milan', shortName: 'INT' },
+    awayTeam: { name: 'AC Milan', shortName: 'ACM' },
+    league: { name: 'Serie A', slug: 'serie-a' },
+    kickoffAt: new Date(new Date().setHours(22, 45)).toISOString(),
+    status: 'SCHEDULED',
+    slug: 'serie-a/inter-vs-milan',
+  },
+]
 
 function MatchCard({ match }: { match: DemoMatch }) {
   const kickoffTime = format(new Date(match.kickoffAt), 'HH:mm')
@@ -182,79 +169,17 @@ export default async function TodayMatchesPage({ params }: Props) {
         </p>
       </div>
 
-      <Tabs defaultValue="all" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="all">전체</TabsTrigger>
-          <TabsTrigger value="football">축구</TabsTrigger>
-          <TabsTrigger value="basketball">농구</TabsTrigger>
-          <TabsTrigger value="baseball">야구</TabsTrigger>
-        </TabsList>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {demoMatches.map((match) => (
+          <MatchCard key={match.id} match={match} />
+        ))}
+      </div>
 
-        <TabsContent value="all" className="space-y-8">
-          {/* Football */}
-          <div>
-            <h2 className="mb-4 flex items-center text-xl font-semibold">
-              <Trophy className="mr-2 h-5 w-5" />
-              축구
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {demoMatches.football.map((match) => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
-          </div>
-
-          {/* Basketball */}
-          <div>
-            <h2 className="mb-4 flex items-center text-xl font-semibold">
-              <Trophy className="mr-2 h-5 w-5" />
-              농구
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {demoMatches.basketball.map((match) => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
-          </div>
-
-          {/* Baseball */}
-          <div>
-            <h2 className="mb-4 flex items-center text-xl font-semibold">
-              <Trophy className="mr-2 h-5 w-5" />
-              야구
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {demoMatches.baseball.map((match) => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="football">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {demoMatches.football.map((match) => (
-              <MatchCard key={match.id} match={match} />
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="basketball">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {demoMatches.basketball.map((match) => (
-              <MatchCard key={match.id} match={match} />
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="baseball">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {demoMatches.baseball.map((match) => (
-              <MatchCard key={match.id} match={match} />
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+      {demoMatches.length === 0 && (
+        <div className="py-12 text-center text-muted-foreground">
+          오늘 예정된 경기가 없습니다.
+        </div>
+      )}
     </div>
   )
 }

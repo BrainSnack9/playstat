@@ -1,40 +1,22 @@
 /**
  * API 호출 제한 관리자
- * Free Plan 제약: 분당 10회, 월 약 2,000회
+ * Free Plan 제약: 하루 100회
  */
 
 // 제한 설정
 const RATE_LIMITS = {
-  CALLS_PER_MINUTE: 10,
-  CALLS_PER_MONTH: 2000,
-  DELAY_BETWEEN_CALLS_MS: 6500, // 10 calls/min = 6초 간격 + 여유
+  CALLS_PER_DAY: 100,
+  DELAY_BETWEEN_CALLS_MS: 1000, // 최소 1초 간격
 }
 
 // 메모리 캐시 (최근 호출 시간)
 let lastCallTime = 0
-let callsInCurrentMinute = 0
-let minuteResetTime = Date.now()
 
 /**
  * API 호출 전 rate limit 체크 및 대기
  */
 export async function waitForRateLimit(): Promise<void> {
   const now = Date.now()
-
-  // 분당 카운터 리셋
-  if (now - minuteResetTime > 60000) {
-    callsInCurrentMinute = 0
-    minuteResetTime = now
-  }
-
-  // 분당 제한 체크
-  if (callsInCurrentMinute >= RATE_LIMITS.CALLS_PER_MINUTE) {
-    const waitTime = 60000 - (now - minuteResetTime)
-    console.log(`Rate limit reached. Waiting ${waitTime}ms...`)
-    await delay(waitTime + 1000)
-    callsInCurrentMinute = 0
-    minuteResetTime = Date.now()
-  }
 
   // 마지막 호출 이후 최소 대기 시간
   const timeSinceLastCall = now - lastCallTime
@@ -44,7 +26,6 @@ export async function waitForRateLimit(): Promise<void> {
   }
 
   lastCallTime = Date.now()
-  callsInCurrentMinute++
 }
 
 /**
@@ -72,19 +53,18 @@ export async function logApiCall(
 }
 
 /**
- * 이번 달 API 호출 횟수 조회
+ * 오늘 API 호출 횟수 조회
  */
-export async function getMonthlyApiCalls(): Promise<number> {
+export async function getDailyApiCalls(): Promise<number> {
   try {
     const { prisma } = await import('@/lib/prisma')
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
 
     const count = await prisma.apiCallLog.count({
       where: {
         calledAt: {
-          gte: startOfMonth,
+          gte: startOfDay,
         },
         success: true,
       },
@@ -92,17 +72,25 @@ export async function getMonthlyApiCalls(): Promise<number> {
 
     return count
   } catch {
-    console.warn('Could not get monthly API calls count')
+    console.warn('Could not get daily API calls count')
     return 0
   }
 }
 
 /**
- * 월간 API 호출 가능 여부 체크
+ * 일간 API 호출 가능 여부 체크
  */
 export async function canMakeApiCall(): Promise<boolean> {
-  const monthlyCount = await getMonthlyApiCalls()
-  return monthlyCount < RATE_LIMITS.CALLS_PER_MONTH
+  const dailyCount = await getDailyApiCalls()
+  return dailyCount < RATE_LIMITS.CALLS_PER_DAY
+}
+
+/**
+ * 남은 API 호출 횟수 조회
+ */
+export async function getRemainingApiCalls(): Promise<number> {
+  const dailyCount = await getDailyApiCalls()
+  return Math.max(0, RATE_LIMITS.CALLS_PER_DAY - dailyCount)
 }
 
 /**
@@ -120,10 +108,10 @@ export async function executeWithRateLimit<T>(
   endpoint: string,
   apiCallFn: () => Promise<T>
 ): Promise<T> {
-  // 월간 제한 체크
+  // 일간 제한 체크
   const canCall = await canMakeApiCall()
   if (!canCall) {
-    throw new Error('Monthly API call limit reached')
+    throw new Error('Daily API call limit reached (100/day)')
   }
 
   // Rate limit 대기
