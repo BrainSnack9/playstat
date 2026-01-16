@@ -4,6 +4,14 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // 빌드 시 타입/린트 체크 스킵 (CI에서 별도로 처리)
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   // ISR/SSG 설정
   experimental: {
     staleTimes: {
