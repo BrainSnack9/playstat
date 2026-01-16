@@ -1,0 +1,70 @@
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import { NextIntlClientProvider } from 'next-intl'
+import { getMessages, setRequestLocale } from 'next-intl/server'
+import { notFound } from 'next/navigation'
+import { locales, type Locale } from '@/i18n/config'
+import { Header } from '@/components/layout/header'
+import { Footer } from '@/components/layout/footer'
+import '../globals.css'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: {
+    template: '%s | PlayStat',
+    default: 'PlayStat - AI Sports Analysis Platform',
+  },
+  description: 'AI-powered sports analysis platform for Football, NBA, and MLB',
+  keywords: ['sports', 'analysis', 'football', 'NBA', 'MLB', 'AI', 'soccer', 'EPL', 'K-League'],
+  authors: [{ name: 'PlayStat' }],
+  creator: 'PlayStat',
+  openGraph: {
+    type: 'website',
+    siteName: 'PlayStat',
+    locale: 'ko_KR',
+    alternateLocale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    creator: '@playstat',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+}
+
+export function generateStaticParams() {
+  return locales.map((locale) => ({ locale }))
+}
+
+interface RootLayoutProps {
+  children: React.ReactNode
+  params: Promise<{ locale: string }>
+}
+
+export default async function RootLayout({ children, params }: RootLayoutProps) {
+  const { locale } = await params
+
+  if (!locales.includes(locale as Locale)) {
+    notFound()
+  }
+
+  setRequestLocale(locale)
+  const messages = await getMessages()
+
+  return (
+    <html lang={locale} className="dark" suppressHydrationWarning>
+      <body className={`${inter.className} bg-background text-foreground`}>
+        <NextIntlClientProvider messages={messages}>
+          <div className="flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
+        </NextIntlClientProvider>
+      </body>
+    </html>
+  )
+}

@@ -1,0 +1,115 @@
+{
+  "common": {
+    "home": "홈",
+    "matches": "경기",
+    "leagues": "리그",
+    "teams": "팀",
+    "players": "선수",
+    "news": "뉴스",
+    "analysis": "분석",
+    "daily_report": "데일리 리포트",
+    "search": "검색",
+    "loading": "로딩 중...",
+    "error": "오류가 발생했습니다",
+    "no_data": "데이터가 없습니다",
+    "view_all": "전체 보기",
+    "view_more": "더 보기",
+    "share": "공유",
+    "back": "뒤로"
+  },
+  "home": {
+    "title": "PlayStat - AI 스포츠 분석 플랫폼",
+    "description": "AI가 분석하는 축구, NBA, MLB 경기 분석과 인사이트",
+    "today_matches": "오늘의 경기",
+    "hot_matches": "주목 경기",
+    "latest_news": "최신 뉴스",
+    "featured_analysis": "추천 분석"
+  },
+  "match": {
+    "upcoming": "예정",
+    "live": "진행 중",
+    "finished": "종료",
+    "postponed": "연기",
+    "cancelled": "취소",
+    "kickoff": "킥오프",
+    "venue": "경기장",
+    "round": "라운드",
+    "vs": "vs",
+    "home": "홈",
+    "away": "원정",
+    "analysis": "경기 분석",
+    "summary": "요약",
+    "tactics": "전술 분석",
+    "key_points": "핵심 포인트",
+    "risk_factors": "위험 변수",
+    "positive_factors": "긍정적 요소",
+    "expected_flow": "예상 경기 흐름",
+    "head_to_head": "상대 전적",
+    "recent_form": "최근 폼",
+    "stats": "통계"
+  },
+  "team": {
+    "overview": "개요",
+    "squad": "스쿼드",
+    "fixtures": "경기 일정",
+    "results": "결과",
+    "statistics": "통계",
+    "analysis": "팀 분석",
+    "strengths": "강점",
+    "weaknesses": "약점",
+    "tactics": "전술 스타일",
+    "founded": "창단",
+    "venue": "홈 경기장",
+    "city": "연고지"
+  },
+  "player": {
+    "overview": "개요",
+    "statistics": "통계",
+    "nationality": "국적",
+    "position": "포지션",
+    "age": "나이",
+    "height": "키",
+    "weight": "체중",
+    "number": "등번호"
+  },
+  "league": {
+    "standings": "순위표",
+    "fixtures": "경기 일정",
+    "results": "결과",
+    "top_scorers": "득점 순위",
+    "top_assists": "도움 순위"
+  },
+  "news": {
+    "latest": "최신 뉴스",
+    "football": "축구",
+    "basketball": "농구",
+    "baseball": "야구",
+    "related_teams": "관련 팀",
+    "read_more": "자세히 보기",
+    "source": "출처",
+    "published_at": "발행일"
+  },
+  "daily_report": {
+    "title": "데일리 리포트",
+    "description": "오늘의 스포츠 하이라이트와 주요 분석",
+    "hot_matches": "주목 경기",
+    "key_news": "핵심 뉴스",
+    "insights": "오늘의 인사이트"
+  },
+  "seo": {
+    "site_name": "PlayStat",
+    "default_description": "AI 기반 스포츠 분석 플랫폼. 축구, NBA, MLB 경기 분석, 팀 분석, 선수 정보를 제공합니다."
+  },
+  "footer": {
+    "about": "소개",
+    "contact": "문의",
+    "privacy": "개인정보처리방침",
+    "terms": "이용약관",
+    "copyright": "© {year} PlayStat. All rights reserved."
+  },
+  "sports": {
+    "football": "축구",
+    "basketball": "농구",
+    "baseball": "야구"
+  }
+}

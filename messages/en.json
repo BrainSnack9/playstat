@@ -1,0 +1,115 @@
+{
+  "common": {
+    "home": "Home",
+    "matches": "Matches",
+    "leagues": "Leagues",
+    "teams": "Teams",
+    "players": "Players",
+    "news": "News",
+    "analysis": "Analysis",
+    "daily_report": "Daily Report",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "no_data": "No data available",
+    "view_all": "View All",
+    "view_more": "View More",
+    "share": "Share",
+    "back": "Back"
+  },
+  "home": {
+    "title": "PlayStat - AI Sports Analysis Platform",
+    "description": "AI-powered analysis and insights for Football, NBA, and MLB",
+    "today_matches": "Today's Matches",
+    "hot_matches": "Featured Matches",
+    "latest_news": "Latest News",
+    "featured_analysis": "Featured Analysis"
+  },
+  "match": {
+    "upcoming": "Upcoming",
+    "live": "Live",
+    "finished": "Finished",
+    "postponed": "Postponed",
+    "cancelled": "Cancelled",
+    "kickoff": "Kickoff",
+    "venue": "Venue",
+    "round": "Round",
+    "vs": "vs",
+    "home": "Home",
+    "away": "Away",
+    "analysis": "Match Analysis",
+    "summary": "Summary",
+    "tactics": "Tactical Analysis",
+    "key_points": "Key Points",
+    "risk_factors": "Risk Factors",
+    "positive_factors": "Positive Factors",
+    "expected_flow": "Expected Match Flow",
+    "head_to_head": "Head to Head",
+    "recent_form": "Recent Form",
+    "stats": "Statistics"
+  },
+  "team": {
+    "overview": "Overview",
+    "squad": "Squad",
+    "fixtures": "Fixtures",
+    "results": "Results",
+    "statistics": "Statistics",
+    "analysis": "Team Analysis",
+    "strengths": "Strengths",
+    "weaknesses": "Weaknesses",
+    "tactics": "Tactical Style",
+    "founded": "Founded",
+    "venue": "Home Stadium",
+    "city": "City"
+  },
+  "player": {
+    "overview": "Overview",
+    "statistics": "Statistics",
+    "nationality": "Nationality",
+    "position": "Position",
+    "age": "Age",
+    "height": "Height",
+    "weight": "Weight",
+    "number": "Number"
+  },
+  "league": {
+    "standings": "Standings",
+    "fixtures": "Fixtures",
+    "results": "Results",
+    "top_scorers": "Top Scorers",
+    "top_assists": "Top Assists"
+  },
+  "news": {
+    "latest": "Latest News",
+    "football": "Football",
+    "basketball": "Basketball",
+    "baseball": "Baseball",
+    "related_teams": "Related Teams",
+    "read_more": "Read More",
+    "source": "Source",
+    "published_at": "Published"
+  },
+  "daily_report": {
+    "title": "Daily Report",
+    "description": "Today's sports highlights and key analysis",
+    "hot_matches": "Featured Matches",
+    "key_news": "Key News",
+    "insights": "Today's Insights"
+  },
+  "seo": {
+    "site_name": "PlayStat",
+    "default_description": "AI-powered sports analysis platform. Get analysis for Football, NBA, MLB matches, teams, and players."
+  },
+  "footer": {
+    "about": "About",
+    "contact": "Contact",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "copyright": "© {year} PlayStat. All rights reserved."
+  },
+  "sports": {
+    "football": "Football",
+    "basketball": "Basketball",
+    "baseball": "Baseball"
+  }
+}
