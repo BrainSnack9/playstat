@@ -180,11 +180,41 @@ export async function GET(request: Request) {
       },
     })
 
+    // chain=true면 후속 작업들 순차 호출
+    const url = new URL(request.url)
+    const shouldChain = url.searchParams.get('chain') === 'true'
+    const chainResults: { job: string; success: boolean; error?: string }[] = []
+
+    if (shouldChain && CRON_SECRET) {
+      const baseUrl = url.origin
+      const cronJobs = [
+        '/api/cron/collect-team-data',
+        '/api/cron/generate-analysis',
+        '/api/cron/generate-daily-report',
+      ]
+
+      for (const job of cronJobs) {
+        try {
+          const response = await fetch(`${baseUrl}${job}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${CRON_SECRET}`,
+            },
+          })
+          const data = await response.json()
+          chainResults.push({ job, success: data.success !== false })
+        } catch (error) {
+          chainResults.push({ job, success: false, error: String(error) })
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       duration,
       apiCalls: totalApiCalls,
       results,
+      chainResults: shouldChain ? chainResults : undefined,
     })
   } catch (error) {
     console.error('Cron collect-matches error:', error)

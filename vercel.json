@@ -2,24 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/collect-matches",
+      "path": "/api/cron/collect-matches?chain=true",
       "schedule": "0 18 * * *"
     },
     {
-      "path": "/api/cron/collect-team-data",
-      "schedule": "30 18 * * *"
-    },
-    {
-      "path": "/api/cron/generate-analysis",
-      "schedule": "0 19 * * *"
-    },
-    {
-      "path": "/api/cron/generate-daily-report",
-      "schedule": "0 20 * * *"
-    },
-    {
       "path": "/api/cron/cleanup",
-      "schedule": "30 20 * * *"
+      "schedule": "0 3 * * 0"
     }
   ],
   "headers": [
