@@ -11,6 +11,9 @@ import { ArrowRight, Trophy, Calendar, ChartBar } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 
+// 빌드 시 외부 API fetch 방지 (뉴스 RSS, DB 쿼리 등)
+export const dynamic = 'force-dynamic'
+
 interface Props {
   params: Promise<{ locale: string }>
 }

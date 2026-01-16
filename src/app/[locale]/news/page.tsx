@@ -8,6 +8,9 @@ import { ko } from 'date-fns/locale'
 import Image from 'next/image'
 import { collectAllFootballNews, type NewsItem } from '@/lib/api/news-api'
 
+// 빌드 시 RSS fetch 방지 - 런타임에만 실행
+export const dynamic = 'force-dynamic'
+
 interface Props {
   params: Promise<{ locale: string }>
 }
