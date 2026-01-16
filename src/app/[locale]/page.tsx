@@ -46,24 +46,29 @@ interface FeaturedLeague {
 }
 
 async function getFeaturedLeagues(): Promise<FeaturedLeague[]> {
-  const leagues = await prisma.league.findMany({
-    where: {
-      code: { in: FEATURED_LEAGUE_CODES },
-    },
-    select: {
-      id: true,
-      name: true,
-      code: true,
-      country: true,
-      logoUrl: true,
-    },
-    orderBy: { name: 'asc' },
-  })
+  try {
+    const leagues = await prisma.league.findMany({
+      where: {
+        code: { in: FEATURED_LEAGUE_CODES },
+      },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        country: true,
+        logoUrl: true,
+      },
+      orderBy: { name: 'asc' },
+    })
 
-  // 정렬 순서 맞추기
-  return FEATURED_LEAGUE_CODES.map((code) =>
-    leagues.find((l: FeaturedLeague) => l.code === code)
-  ).filter((league): league is FeaturedLeague => league !== undefined)
+    // 정렬 순서 맞추기
+    return FEATURED_LEAGUE_CODES.map((code) =>
+      leagues.find((l: FeaturedLeague) => l.code === code)
+    ).filter((league): league is FeaturedLeague => league !== undefined)
+  } catch (error) {
+    console.error('Failed to fetch featured leagues:', error)
+    return []
+  }
 }
 
 export default async function HomePage({ params }: Props) {
