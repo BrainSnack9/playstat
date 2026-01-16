@@ -39,9 +39,9 @@ async function apiRequest<T>(
   endpoint: string,
   params: Record<string, string | number> = {}
 ): Promise<T[]> {
-  const apiKey = process.env.API_FOOTBALL_KEY
+  const apiKey = process.env.API_SPORTS_KEY
   if (!apiKey) {
-    throw new Error('API_FOOTBALL_KEY not configured')
+    throw new Error('API_SPORTS_KEY not configured')
   }
 
   return executeWithRateLimit(apiType, endpoint, async () => {
