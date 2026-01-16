@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     const now = new Date()
     const in48Hours = addHours(now, 48)
 
-    // 48시간 이내 경기 중 아직 분석이 없는 것들 조회
+    // 48시간 이내 경기 중 아직 분석이 없는 것들 또는 영문 분석이 누락된 것들 조회
     const matchesNeedingAnalysis = await prisma.match.findMany({
       where: {
         kickoffAt: {
@@ -53,10 +53,14 @@ export async function GET(request: Request) {
           lte: in48Hours,
         },
         status: { in: ['SCHEDULED', 'TIMED'] },
-        matchAnalysis: null,
+        OR: [
+          { matchAnalysis: null },
+          { matchAnalysis: { summaryEn: null } }
+        ]
       },
       include: {
         league: true,
+        matchAnalysis: true,
         homeTeam: {
           include: {
             seasonStats: true,
@@ -75,6 +79,14 @@ export async function GET(request: Request) {
 
     for (const match of matchesNeedingAnalysis) {
       try {
+        // 이미 국문 분석이 있고 영문만 없는 경우 번역만 수행
+        if (match.matchAnalysis && !match.matchAnalysis.summaryEn) {
+          const { ensureMatchAnalysisEnglish } = await import('@/lib/ai/translate')
+          await ensureMatchAnalysisEnglish(match.matchAnalysis)
+          results.push({ matchId: match.id, success: true })
+          continue
+        }
+
         // 팀 스탯이 없으면 스킵
         if (!match.homeTeam.seasonStats || !match.homeTeam.recentMatches) {
           results.push({
@@ -126,30 +138,11 @@ export async function GET(request: Request) {
 
         const parsedKorean = parseMatchAnalysisResponse(koreanContent)
 
-        // 영어 분석 생성 (선택적)
-        let parsedEnglish: ReturnType<typeof parseMatchAnalysisResponse> | null = null
-        try {
-          const englishPrompt = fillPrompt(MATCH_ANALYSIS_PROMPT_EN, {
-            matchData: formatMatchDataForAI(inputData),
-          })
-
-          const englishResponse = await openai.chat.completions.create({
-            model: AI_MODELS.SUMMARY,
-            messages: [{ role: 'user', content: englishPrompt }],
-            max_tokens: TOKEN_LIMITS.ANALYSIS,
-            temperature: 0.7,
-          })
-
-          const englishContent = englishResponse.choices[0]?.message?.content
-          if (englishContent) {
-            parsedEnglish = parseMatchAnalysisResponse(englishContent)
-          }
-        } catch (error) {
-          console.warn('English analysis failed:', error)
-        }
-
-        // DB에 저장
-        await prisma.matchAnalysis.create({
+        // 영어 분석 생성 (번역 API 사용으로 변경하여 일관성 유지)
+        const { ensureMatchAnalysisEnglish } = await import('@/lib/ai/translate')
+        
+        // DB에 먼저 저장
+        const newAnalysis = await prisma.matchAnalysis.create({
           data: {
             matchId: match.id,
             summary: parsedKorean.summary,
@@ -157,14 +150,12 @@ export async function GET(request: Request) {
             seasonTrends: parsedKorean.seasonTrends,
             tacticalAnalysis: parsedKorean.tacticalAnalysis,
             keyPoints: parsedKorean.keyPoints,
-            summaryEn: parsedEnglish?.summary,
-            recentFlowAnalysisEn: parsedEnglish?.recentFlowAnalysis,
-            seasonTrendsEn: parsedEnglish?.seasonTrends,
-            tacticalAnalysisEn: parsedEnglish?.tacticalAnalysis,
-            keyPointsEn: parsedEnglish?.keyPoints,
             inputDataSnapshot: JSON.parse(JSON.stringify(inputData)),
           },
         })
+
+        // 즉시 영문 번역 수행
+        await ensureMatchAnalysisEnglish(newAnalysis)
 
         results.push({ matchId: match.id, success: true })
       } catch (error) {

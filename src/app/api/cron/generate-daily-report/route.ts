@@ -227,6 +227,25 @@ export async function GET(request: Request) {
 
     const parsed = JSON.parse(content)
 
+    // 영어 번역 추가
+    let summaryEn: string | null = null
+    try {
+      const { translateAndCache } = await import('@/lib/ai/translate')
+      summaryEn = await translateAndCache(
+        JSON.stringify({
+          title: parsed.title,
+          metaDescription: parsed.metaDescription,
+          summary: parsed.summary,
+          sections: parsed.sections,
+          keywords: parsed.keywords,
+        }),
+        'daily report content (JSON)',
+        async () => {}
+      )
+    } catch (error) {
+      console.warn('English translation for daily report failed:', error)
+    }
+
     // DB에 저장
     const report = await prisma.dailyReport.create({
       data: {
@@ -239,6 +258,7 @@ export async function GET(request: Request) {
           sections: parsed.sections,
           keywords: parsed.keywords,
         }),
+        summaryEn, // 영문 요약 추가
         hotMatches: parsed.hotMatches || [],
         keyNews: [],
         insights: parsed.sections?.find((s: { type: string }) => s.type === 'key_storylines')?.content || null,

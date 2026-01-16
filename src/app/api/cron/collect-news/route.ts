@@ -50,7 +50,7 @@ export async function GET(request: Request) {
         }
 
         // 새 뉴스 저장
-        await prisma.news.create({
+        const newNews = await prisma.news.create({
           data: {
             title: news.title,
             titleEn: news.title,
@@ -64,6 +64,10 @@ export async function GET(request: Request) {
             publishedAt: news.publishedAt,
           },
         })
+
+        // 뉴스 제목/요약 영문 번역 (만약 news.summary가 한글이라면)
+        // (기존 API에서 이미 summaryEn이 오고 있다면 생략 가능하지만,
+        // 확실히 하기 위해 필요한 경우 번역 로직 추가 가능)
 
         newsAdded++
       } catch (error) {
