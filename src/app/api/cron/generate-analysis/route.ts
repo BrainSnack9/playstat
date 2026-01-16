@@ -10,6 +10,7 @@ import {
 } from '@/lib/ai/prompts'
 import { addHours } from 'date-fns'
 import type { PrismaClient } from '@prisma/client'
+import { analyzeTeamTrend, getMatchCombinedTrend } from '@/lib/ai/trend-engine'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -296,6 +297,21 @@ function buildAnalysisInput(
   const h2hData = h2h?.matchesJson as H2HData | null
   const h2hMatches = h2hData?.matches || (Array.isArray(h2hData) ? h2hData : [])
 
+  // 트렌드 분석 추가
+  const homeTrends = analyzeTeamTrend(
+    match.homeTeam.name,
+    '',
+    match.homeTeam.recentMatches?.matchesJson,
+    match.homeTeam.seasonStats
+  )
+  const awayTrends = analyzeTeamTrend(
+    match.awayTeam.name,
+    '',
+    match.awayTeam.recentMatches?.matchesJson,
+    match.awayTeam.seasonStats
+  )
+  const combinedTrend = getMatchCombinedTrend(homeTrends, awayTrends)
+
   return {
     match: {
       sport_type: 'football',
@@ -303,6 +319,11 @@ function buildAnalysisInput(
       kickoff_at: match.kickoffAt.toISOString(),
       home_team: match.homeTeam.name,
       away_team: match.awayTeam.name,
+    },
+    trends: {
+      home: homeTrends.map(t => t.description),
+      away: awayTrends.map(t => t.description),
+      combined: combinedTrend?.description,
     },
     home: {
       recent_5: homeRecent.slice(0, 5).map((m) => ({

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { TodayMatches } from '@/components/matches/today-matches'
+import { HotTrends } from '@/components/matches/hot-trends'
 import { LatestNews, LatestNewsSkeleton } from '@/components/news/latest-news'
 import { ArrowRight, Trophy, Calendar, ChartBar } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
@@ -117,6 +118,10 @@ export default async function HomePage({ params }: Props) {
         </div>
       </section>
 
+      <Suspense fallback={null}>
+        <HotTrends locale={locale} />
+      </Suspense>
+
       <Separator className="mb-12" />
 
       {/* Featured Leagues */}
@@ -167,7 +172,7 @@ export default async function HomePage({ params }: Props) {
           </Button>
         </div>
         <Suspense fallback={<div className="text-center py-8">{common('loading')}</div>}>
-          <TodayMatches />
+          <TodayMatches locale={locale} />
         </Suspense>
       </section>
 

@@ -12,6 +12,11 @@ export interface MatchAnalysisInputData {
     home_team: string
     away_team: string
   }
+  trends?: {
+    home: string[]
+    away: string[]
+    combined?: string
+  }
   home: {
     recent_5: Array<{
       date: string
@@ -75,6 +80,7 @@ Write a pre-match preview analysis based on this data.
 ## Absolute Rules (Must Follow)
 - NEVER mention odds, probability, betting, picks, or predicted scores
 - Focus on team strengths, weaknesses, recent form, and season trends
+- PAY SPECIAL ATTENTION to the 'trends' field in the input data and reflect it in your analysis
 - Always include home/away tendencies
 - Clearly summarize the last 5 matches trend
 - Explain the style differences between the two teams
@@ -117,6 +123,7 @@ Write a pre-match preview analysis based on this data.
 ## Absolute Rules (Must Follow)
 - NEVER mention odds, probability, betting, picks, or predicted scores
 - Focus on team strengths, weaknesses, recent form, and season trends
+- PAY SPECIAL ATTENTION to the 'trends' field in the input data and reflect it in your analysis
 - Always include home/away tendencies
 - Clearly summarize the last 5 matches trend
 - Explain the style differences between the two teams
