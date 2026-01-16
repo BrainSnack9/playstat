@@ -281,12 +281,16 @@ export const LEAGUE_IDS = {
 
 /**
  * 현재 시즌 가져오기 (축구)
+ * Free Plan: 2022-2024 시즌만 접근 가능
  */
 export function getCurrentFootballSeason(): number {
-  const now = new Date()
-  const month = now.getMonth() + 1
-  const year = now.getFullYear()
-  return month < 8 ? year - 1 : year
+  // Free Plan 제한으로 2024 시즌 고정
+  // 유료 플랜 업그레이드 시 아래 로직 사용
+  // const now = new Date()
+  // const month = now.getMonth() + 1
+  // const year = now.getFullYear()
+  // return month < 8 ? year - 1 : year
+  return 2024
 }
 
 /**

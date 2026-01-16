@@ -52,7 +52,7 @@ export async function GET(request: Request) {
           gte: now,
           lte: in48Hours,
         },
-        status: 'SCHEDULED',
+        status: { in: ['SCHEDULED', 'TIMED'] },
         matchAnalysis: null,
       },
       include: {
@@ -212,6 +212,23 @@ export async function GET(request: Request) {
   }
 }
 
+// H2H 데이터 구조 (새로운 Football-Data.org 형식)
+interface H2HData {
+  matches?: Array<{
+    date: string
+    score: string
+    winner: string
+    homeTeam: string
+    awayTeam: string
+  }>
+  aggregates?: {
+    numberOfMatches: number
+    totalGoals: number
+    homeTeam: { id: number; name: string; wins: number; draws: number; losses: number }
+    awayTeam: { id: number; name: string; wins: number; draws: number; losses: number }
+  }
+}
+
 function buildAnalysisInput(
   match: {
     league: { name: string }
@@ -227,8 +244,12 @@ function buildAnalysisInput(
         losses: number
         goalsFor: number | null
         goalsAgainst: number | null
+        goalDifference: number | null
+        form: string | null
         homeAvgFor: number | null
         homeAvgAgainst: number | null
+        homeGoalsFor: number | null
+        homeGoalsAgainst: number | null
       } | null
       recentMatches: {
         matchesJson: unknown
@@ -246,8 +267,12 @@ function buildAnalysisInput(
         losses: number
         goalsFor: number | null
         goalsAgainst: number | null
+        goalDifference: number | null
+        form: string | null
         awayAvgFor: number | null
         awayAvgAgainst: number | null
+        awayGoalsFor: number | null
+        awayGoalsAgainst: number | null
       } | null
       recentMatches: {
         matchesJson: unknown
@@ -265,6 +290,7 @@ function buildAnalysisInput(
     result: 'W' | 'D' | 'L'
     score: string
     isHome: boolean
+    competition?: string
   }> || []
   const awayRecent = match.awayTeam.recentMatches?.matchesJson as Array<{
     date: string
@@ -272,7 +298,12 @@ function buildAnalysisInput(
     result: 'W' | 'D' | 'L'
     score: string
     isHome: boolean
+    competition?: string
   }> || []
+
+  // H2H 데이터 파싱 (새 형식 지원)
+  const h2hData = h2h?.matchesJson as H2HData | null
+  const h2hMatches = h2hData?.matches || (Array.isArray(h2hData) ? h2hData : [])
 
   return {
     match: {
@@ -332,14 +363,10 @@ function buildAnalysisInput(
         away_avg_allowed: awayStats.awayAvgAgainst ?? undefined,
       },
     },
-    h2h: h2h?.matchesJson
-      ? (h2h.matchesJson as Array<{ date: string; score: string; winner: string; homeTeam: string; awayTeam: string }>).map(
-          (m) => ({
-            date: m.date,
-            result: `${m.homeTeam} ${m.score} ${m.awayTeam}`,
-            winner: m.winner,
-          })
-        )
-      : [],
+    h2h: h2hMatches.map((m) => ({
+      date: m.date,
+      result: `${m.homeTeam} ${m.score} ${m.awayTeam}`,
+      winner: m.winner,
+    })),
   }
 }

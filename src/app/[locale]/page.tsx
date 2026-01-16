@@ -1,12 +1,15 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Metadata } from 'next'
+import { Suspense } from 'react'
 import { Link } from '@/i18n/routing'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { TodayMatches } from '@/components/matches/today-matches'
-import { LatestNews } from '@/components/news/latest-news'
-import { ArrowRight, Trophy, Calendar, Newspaper, ChartBar } from 'lucide-react'
+import { LatestNews, LatestNewsSkeleton } from '@/components/news/latest-news'
+import { ArrowRight, Trophy, Calendar, ChartBar } from 'lucide-react'
+import { prisma } from '@/lib/prisma'
+import Image from 'next/image'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -28,9 +31,46 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
+// 주요 리그 코드 (football-data.org 기준)
+const FEATURED_LEAGUE_CODES = ['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL']
+
+interface FeaturedLeague {
+  id: string
+  name: string
+  code: string | null
+  country: string
+  logoUrl: string | null
+}
+
+async function getFeaturedLeagues(): Promise<FeaturedLeague[]> {
+  const leagues = await prisma.league.findMany({
+    where: {
+      code: { in: FEATURED_LEAGUE_CODES },
+    },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      country: true,
+      logoUrl: true,
+    },
+    orderBy: { name: 'asc' },
+  })
+
+  // 정렬 순서 맞추기
+  return FEATURED_LEAGUE_CODES.map((code) =>
+    leagues.find((l: FeaturedLeague) => l.code === code)
+  ).filter((league): league is FeaturedLeague => league !== undefined)
+}
+
 export default async function HomePage({ params }: Props) {
   const { locale } = await params
   setRequestLocale(locale)
+
+  const t = await getTranslations({ locale, namespace: 'home' })
+  const common = await getTranslations({ locale, namespace: 'common' })
+
+  const featuredLeagues = await getFeaturedLeagues()
 
   return (
     <div className="container py-8">
@@ -40,19 +80,19 @@ export default async function HomePage({ params }: Props) {
           <span className="gradient-text">PlayStat</span>
         </h1>
         <p className="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground">
-          AI 기반 스포츠 분석 플랫폼. 축구, NBA, MLB 경기를 더 깊이 이해하세요.
+          {t('hero_description')}
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <Button asChild size="lg">
             <Link href="/matches/today">
               <Calendar className="mr-2 h-5 w-5" />
-              오늘의 경기
+              {t('today_matches')}
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg">
-            <Link href="/daily-report">
+            <Link href="/daily/today">
               <ChartBar className="mr-2 h-5 w-5" />
-              데일리 리포트
+              {common('daily_report')}
             </Link>
           </Button>
         </div>
@@ -63,26 +103,31 @@ export default async function HomePage({ params }: Props) {
       {/* Featured Leagues */}
       <section className="mb-12">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="section-title">주요 리그</h2>
+          <h2 className="section-title">{t('featured_leagues')}</h2>
           <Button asChild variant="ghost">
             <Link href="/leagues">
-              전체 보기 <ArrowRight className="ml-2 h-4 w-4" />
+              {common('view_all')} <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
         </div>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-          {[
-            { name: 'Premier League', slug: 'epl', country: 'England' },
-            { name: 'La Liga', slug: 'laliga', country: 'Spain' },
-            { name: 'Serie A', slug: 'serie-a', country: 'Italy' },
-            { name: 'Bundesliga', slug: 'bundesliga', country: 'Germany' },
-            { name: 'Champions League', slug: 'ucl', country: 'Europe' },
-            { name: 'K League 1', slug: 'k-league', country: 'Korea' },
-          ].map((league) => (
-            <Link key={league.slug} href={`/league/${league.slug}`}>
-              <Card className="transition-shadow hover:shadow-md">
-                <CardContent className="flex flex-col items-center p-4 text-center">
-                  <Trophy className="mb-2 h-8 w-8 text-primary" />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+          {featuredLeagues.map((league) => (
+            <Link key={league.id} href={`/league/${league.code?.toLowerCase()}`}>
+              <Card className="transition-shadow hover:shadow-md h-full">
+                <CardContent className="flex flex-col items-center justify-center p-4 text-center h-full">
+                  {league.logoUrl ? (
+                    <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-lg bg-white p-1">
+                      <Image
+                        src={league.logoUrl}
+                        alt={league.name}
+                        width={40}
+                        height={40}
+                        className="object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <Trophy className="mb-2 h-12 w-12 text-primary" />
+                  )}
                   <h3 className="font-semibold text-sm">{league.name}</h3>
                   <p className="text-xs text-muted-foreground">{league.country}</p>
                 </CardContent>
@@ -95,74 +140,33 @@ export default async function HomePage({ params }: Props) {
       {/* Today's Matches */}
       <section className="mb-12">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="section-title">오늘의 경기</h2>
+          <h2 className="section-title">{t('today_matches')}</h2>
           <Button asChild variant="ghost">
             <Link href="/matches/today">
-              전체 보기 <ArrowRight className="ml-2 h-4 w-4" />
+              {common('view_all')} <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
         </div>
-        <TodayMatches />
+        <Suspense fallback={<div className="text-center py-8">{common('loading')}</div>}>
+          <TodayMatches />
+        </Suspense>
       </section>
 
       {/* Latest News */}
       <section className="mb-12">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="section-title">최신 뉴스</h2>
+          <h2 className="section-title">{t('latest_news')}</h2>
           <Button asChild variant="ghost">
             <Link href="/news">
-              전체 보기 <ArrowRight className="ml-2 h-4 w-4" />
+              {common('view_all')} <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
         </div>
-        <LatestNews />
+        <Suspense fallback={<LatestNewsSkeleton />}>
+          <LatestNews />
+        </Suspense>
       </section>
 
-      {/* Features */}
-      <section>
-        <h2 className="section-title mb-6 text-center">PlayStat의 특징</h2>
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <ChartBar className="mr-2 h-5 w-5 text-primary" />
-                AI 경기 분석
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                최신 AI 기술로 경기를 심층 분석합니다. 전술, 선수 역할, 팀 트렌드를 한눈에 파악하세요.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Newspaper className="mr-2 h-5 w-5 text-primary" />
-                실시간 뉴스 요약
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                전 세계 스포츠 뉴스를 AI가 핵심만 요약해 드립니다. 바쁜 일상 속에서도 스포츠 소식을 놓치지 마세요.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Trophy className="mr-2 h-5 w-5 text-primary" />
-                멀티 스포츠 지원
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                축구는 물론 NBA, MLB까지. 다양한 스포츠의 분석과 인사이트를 한 곳에서 만나보세요.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
     </div>
   )
 }

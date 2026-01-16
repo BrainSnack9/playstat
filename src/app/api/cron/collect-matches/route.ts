@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server'
-import { footballApi, LEAGUE_IDS, getCurrentFootballSeason } from '@/lib/api/sports-api'
+import {
+  footballDataApi,
+  FREE_COMPETITIONS,
+  COMPETITION_IDS,
+  type Match as FDMatch,
+} from '@/lib/api/football-data'
 import { format, addDays } from 'date-fns'
 import slugify from 'slugify'
-import type { PrismaClient } from '@prisma/client'
+import type { PrismaClient, MatchStatus } from '@prisma/client'
 
 // Vercel Cron 인증
 const CRON_SECRET = process.env.CRON_SECRET
@@ -13,10 +18,22 @@ async function getPrisma(): Promise<PrismaClient> {
   return prisma
 }
 
+// 수집할 무료 리그 목록
+const LEAGUES_TO_COLLECT = [
+  { code: FREE_COMPETITIONS.PREMIER_LEAGUE, name: 'Premier League', country: 'England', slug: 'epl' },
+  { code: FREE_COMPETITIONS.LA_LIGA, name: 'La Liga', country: 'Spain', slug: 'laliga' },
+  { code: FREE_COMPETITIONS.SERIE_A, name: 'Serie A', country: 'Italy', slug: 'serie-a' },
+  { code: FREE_COMPETITIONS.BUNDESLIGA, name: 'Bundesliga', country: 'Germany', slug: 'bundesliga' },
+  { code: FREE_COMPETITIONS.LIGUE_1, name: 'Ligue 1', country: 'France', slug: 'ligue1' },
+  { code: FREE_COMPETITIONS.CHAMPIONS_LEAGUE, name: 'Champions League', country: 'Europe', slug: 'ucl' },
+  { code: FREE_COMPETITIONS.EREDIVISIE, name: 'Eredivisie', country: 'Netherlands', slug: 'eredivisie' },
+  { code: FREE_COMPETITIONS.PRIMEIRA_LIGA, name: 'Primeira Liga', country: 'Portugal', slug: 'primeira-liga' },
+]
+
 /**
  * GET /api/cron/collect-matches
- * 크론: 오늘/내일 경기 일정 수집
- * 실행: 매일 06:00 KST
+ * 크론: 오늘~7일 후 경기 일정 수집
+ * Football-Data.org API 사용
  */
 export async function GET(request: Request) {
   // 인증 체크
@@ -27,81 +44,96 @@ export async function GET(request: Request) {
 
   const prisma = await getPrisma()
   const startTime = Date.now()
-  const results: { league: string; matchesAdded: number; errors: string[] }[] = []
+  const results: { league: string; matchesAdded: number; matchesUpdated: number; errors: string[] }[] = []
+  let totalApiCalls = 0
 
   try {
     const today = format(new Date(), 'yyyy-MM-dd')
-    const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd')
-    const season = getCurrentFootballSeason()
+    const nextWeek = format(addDays(new Date(), 7), 'yyyy-MM-dd')
 
-    // 수집할 리그 목록
-    const leaguesToCollect = [
-      { id: LEAGUE_IDS.EPL, name: 'Premier League', slug: 'epl' },
-      { id: LEAGUE_IDS.LALIGA, name: 'La Liga', slug: 'laliga' },
-      { id: LEAGUE_IDS.SERIE_A, name: 'Serie A', slug: 'serie-a' },
-      { id: LEAGUE_IDS.BUNDESLIGA, name: 'Bundesliga', slug: 'bundesliga' },
-      { id: LEAGUE_IDS.UCL, name: 'Champions League', slug: 'ucl' },
-      { id: LEAGUE_IDS.K_LEAGUE_1, name: 'K League 1', slug: 'k-league' },
-    ]
-
-    for (const league of leaguesToCollect) {
-      const leagueResult = { league: league.name, matchesAdded: 0, errors: [] as string[] }
+    for (const league of LEAGUES_TO_COLLECT) {
+      const leagueResult = { league: league.name, matchesAdded: 0, matchesUpdated: 0, errors: [] as string[] }
 
       try {
         // 리그가 DB에 있는지 확인, 없으면 생성
         let dbLeague = await prisma.league.findFirst({
-          where: { externalId: String(league.id) },
+          where: { code: league.code },
         })
 
+        // 리그 정보 가져오기 (처음이거나 업데이트 필요시)
         if (!dbLeague) {
-          dbLeague = await prisma.league.create({
-            data: {
-              name: league.name,
-              country: 'Europe',
-              sportType: 'FOOTBALL',
-              externalId: String(league.id),
-              season,
-              isActive: true,
-            },
-          })
+          try {
+            const competitionData = await footballDataApi.getCompetition(league.code)
+            totalApiCalls++
+
+            dbLeague = await prisma.league.create({
+              data: {
+                name: competitionData.name,
+                country: competitionData.area.name,
+                sportType: 'FOOTBALL',
+                externalId: String(competitionData.id),
+                code: league.code,
+                logoUrl: competitionData.emblem,
+                season: competitionData.currentSeason?.id,
+                currentMatchday: competitionData.currentSeason?.currentMatchday,
+                isActive: true,
+              },
+            })
+          } catch {
+            // API 호출 실패시 기본 데이터로 생성
+            dbLeague = await prisma.league.create({
+              data: {
+                name: league.name,
+                country: league.country,
+                sportType: 'FOOTBALL',
+                externalId: String(COMPETITION_IDS[league.code as keyof typeof COMPETITION_IDS]),
+                code: league.code,
+                isActive: true,
+              },
+            })
+          }
         }
 
-        // 오늘/내일 경기 조회
-        const fixtures = await footballApi.getFixturesByLeague(league.id, season, {
-          from: today,
-          to: tomorrow,
+        // 경기 목록 조회
+        const matchesResponse = await footballDataApi.getCompetitionMatches(league.code, {
+          dateFrom: today,
+          dateTo: nextWeek,
         })
+        totalApiCalls++
 
-        for (const fixture of fixtures) {
+        for (const match of matchesResponse.matches) {
           try {
             // 이미 DB에 있는지 확인
             const existingMatch = await prisma.match.findFirst({
-              where: { externalId: String(fixture.fixture.id) },
+              where: { externalId: String(match.id) },
             })
 
             if (existingMatch) {
-              // 이미 있으면 상태만 업데이트
+              // 이미 있으면 상태/스코어만 업데이트
               await prisma.match.update({
                 where: { id: existingMatch.id },
                 data: {
-                  status: mapStatus(fixture.fixture.status.short),
-                  homeScore: fixture.goals.home,
-                  awayScore: fixture.goals.away,
+                  status: mapStatus(match.status),
+                  homeScore: match.score.fullTime.home,
+                  awayScore: match.score.fullTime.away,
+                  halfTimeHome: match.score.halfTime.home,
+                  halfTimeAway: match.score.halfTime.away,
                 },
               })
+              leagueResult.matchesUpdated++
               continue
             }
 
             // 홈팀/원정팀 확인 또는 생성
-            const homeTeam = await findOrCreateTeam(prisma, fixture.teams.home, dbLeague.id)
-            const awayTeam = await findOrCreateTeam(prisma, fixture.teams.away, dbLeague.id)
+            const homeTeam = await findOrCreateTeam(prisma, match.homeTeam, dbLeague.id)
+            const awayTeam = await findOrCreateTeam(prisma, match.awayTeam, dbLeague.id)
 
             // 경기 생성
             const matchSlug = createMatchSlug(
               league.slug,
-              fixture.teams.home.name,
-              fixture.teams.away.name,
-              fixture.fixture.date
+              match.homeTeam.shortName || match.homeTeam.name,
+              match.awayTeam.shortName || match.awayTeam.name,
+              match.utcDate
             )
 
             await prisma.match.create({
@@ -110,20 +142,23 @@ export async function GET(request: Request) {
                 homeTeamId: homeTeam.id,
                 awayTeamId: awayTeam.id,
                 sportType: 'FOOTBALL',
-                kickoffAt: new Date(fixture.fixture.date),
-                status: mapStatus(fixture.fixture.status.short),
-                homeScore: fixture.goals.home,
-                awayScore: fixture.goals.away,
-                venue: fixture.fixture.venue?.name,
-                round: fixture.league.round,
+                kickoffAt: new Date(match.utcDate),
+                status: mapStatus(match.status),
+                homeScore: match.score.fullTime.home,
+                awayScore: match.score.fullTime.away,
+                halfTimeHome: match.score.halfTime.home,
+                halfTimeAway: match.score.halfTime.away,
+                matchday: match.matchday,
+                stage: match.stage,
+                venue: match.venue,
                 slug: matchSlug,
-                externalId: String(fixture.fixture.id),
+                externalId: String(match.id),
               },
             })
 
             leagueResult.matchesAdded++
           } catch (error) {
-            leagueResult.errors.push(`Fixture ${fixture.fixture.id}: ${String(error)}`)
+            leagueResult.errors.push(`Match ${match.id}: ${String(error)}`)
           }
         }
       } catch (error) {
@@ -141,13 +176,14 @@ export async function GET(request: Request) {
         result: results.every((r) => r.errors.length === 0) ? 'success' : 'partial',
         details: results,
         duration,
-        apiCalls: results.reduce((sum) => sum + 1, 0),
+        apiCalls: totalApiCalls,
       },
     })
 
     return NextResponse.json({
       success: true,
       duration,
+      apiCalls: totalApiCalls,
       results,
     })
   } catch (error) {
@@ -172,7 +208,7 @@ export async function GET(request: Request) {
 // 팀 찾기 또는 생성
 async function findOrCreateTeam(
   prisma: PrismaClient,
-  teamData: { id: number; name: string; logo: string },
+  teamData: FDMatch['homeTeam'],
   leagueId: string
 ) {
   let team = await prisma.team.findFirst({
@@ -184,8 +220,9 @@ async function findOrCreateTeam(
       data: {
         leagueId,
         name: teamData.name,
-        shortName: teamData.name.slice(0, 3).toUpperCase(),
-        logoUrl: teamData.logo,
+        shortName: teamData.shortName,
+        tla: teamData.tla,
+        logoUrl: teamData.crest,
         externalId: String(teamData.id),
         sportType: 'FOOTBALL',
       },
@@ -195,22 +232,18 @@ async function findOrCreateTeam(
   return team
 }
 
-// 경기 상태 매핑
-function mapStatus(apiStatus: string): 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' | 'CANCELLED' {
-  const statusMap: Record<string, 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' | 'CANCELLED'> = {
-    TBD: 'SCHEDULED',
-    NS: 'SCHEDULED',
-    '1H': 'LIVE',
-    HT: 'LIVE',
-    '2H': 'LIVE',
-    ET: 'LIVE',
-    P: 'LIVE',
-    FT: 'FINISHED',
-    AET: 'FINISHED',
-    PEN: 'FINISHED',
-    PST: 'POSTPONED',
-    CANC: 'CANCELLED',
-    ABD: 'CANCELLED',
+// 경기 상태 매핑 (Football-Data.org -> Prisma enum)
+function mapStatus(apiStatus: FDMatch['status']): MatchStatus {
+  const statusMap: Record<FDMatch['status'], MatchStatus> = {
+    SCHEDULED: 'SCHEDULED',
+    TIMED: 'TIMED',
+    IN_PLAY: 'LIVE',
+    PAUSED: 'LIVE',
+    FINISHED: 'FINISHED',
+    SUSPENDED: 'SUSPENDED',
+    POSTPONED: 'POSTPONED',
+    CANCELLED: 'CANCELLED',
+    AWARDED: 'FINISHED',
   }
   return statusMap[apiStatus] || 'SCHEDULED'
 }

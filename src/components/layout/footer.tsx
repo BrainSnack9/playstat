@@ -2,85 +2,68 @@
 
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/routing'
-import { Separator } from '@/components/ui/separator'
-import { Trophy } from 'lucide-react'
+import Image from 'next/image'
 
 export function Footer() {
-  const t = useTranslations('footer')
+  const t = useTranslations('common')
+  const footer = useTranslations('footer')
   const currentYear = new Date().getFullYear()
 
   return (
-    <footer className="border-t bg-background">
-      <div className="container py-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+    <footer className="border-t bg-muted/30">
+      <div className="container py-6">
+        <div className="flex flex-col items-center gap-6">
           {/* Brand */}
-          <div className="space-y-4">
-            <Link href="/" className="flex items-center space-x-2">
-              <Trophy className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">PlayStat</span>
+          <Link href="/" className="flex items-center space-x-2">
+            <Image
+              src="/app-icon-512.png"
+              alt="PlayStat"
+              width={24}
+              height={24}
+              className="rounded"
+            />
+            <span className="font-semibold">PlayStat</span>
+          </Link>
+
+          {/* Main Navigation */}
+          <nav className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
+            <Link href="/matches/today" className="hover:text-primary transition-colors">
+              {t('matches')}
             </Link>
-            <p className="text-sm text-muted-foreground">
-              AI-powered sports analysis platform
-            </p>
-          </div>
+            <Link href="/leagues" className="hover:text-primary transition-colors">
+              {t('leagues')}
+            </Link>
+            <Link href="/daily/today" className="hover:text-primary transition-colors">
+              {t('daily_report')}
+            </Link>
+          </nav>
 
-          {/* Quick Links */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold">Quick Links</h4>
-            <nav className="flex flex-col space-y-2">
-              <Link href="/matches/today" className="text-sm text-muted-foreground hover:text-primary">
-                Today&apos;s Matches
-              </Link>
-              <Link href="/leagues" className="text-sm text-muted-foreground hover:text-primary">
-                Leagues
-              </Link>
-              <Link href="/news" className="text-sm text-muted-foreground hover:text-primary">
-                News
-              </Link>
-            </nav>
-          </div>
+          {/* Legal Links */}
+          <nav className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
+            <Link href="/about" className="hover:text-primary transition-colors">
+              {footer('about')}
+            </Link>
+            <span className="text-muted-foreground/50">|</span>
+            <Link href="/privacy" className="hover:text-primary transition-colors">
+              {footer('privacy')}
+            </Link>
+            <span className="text-muted-foreground/50">|</span>
+            <Link href="/terms" className="hover:text-primary transition-colors">
+              {footer('terms')}
+            </Link>
+          </nav>
 
-          {/* Sports */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold">Sports</h4>
-            <nav className="flex flex-col space-y-2">
-              <Link href="/league/epl" className="text-sm text-muted-foreground hover:text-primary">
-                Premier League
-              </Link>
-              <Link href="/league/laliga" className="text-sm text-muted-foreground hover:text-primary">
-                La Liga
-              </Link>
-              <Link href="/league/ucl" className="text-sm text-muted-foreground hover:text-primary">
-                Champions League
-              </Link>
-            </nav>
-          </div>
-
-          {/* Legal */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold">Legal</h4>
-            <nav className="flex flex-col space-y-2">
-              <Link href="/about" className="text-sm text-muted-foreground hover:text-primary">
-                {t('about')}
-              </Link>
-              <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary">
-                {t('privacy')}
-              </Link>
-              <Link href="/terms" className="text-sm text-muted-foreground hover:text-primary">
-                {t('terms')}
-              </Link>
-            </nav>
-          </div>
-        </div>
-
-        <Separator className="my-8" />
-
-        <div className="flex flex-col items-center justify-between space-y-4 md:flex-row md:space-y-0">
-          <p className="text-sm text-muted-foreground">
-            {t('copyright', { year: currentYear })}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Sports data provided by API-Football
+          {/* Copyright */}
+          <p className="text-xs text-muted-foreground text-center">
+            © {currentYear} PlayStat. Data by{' '}
+            <a
+              href="https://www.football-data.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-primary underline"
+            >
+              Football-Data.org
+            </a>
           </p>
         </div>
       </div>

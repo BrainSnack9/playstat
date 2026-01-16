@@ -17,22 +17,25 @@ enum SportType {
 
 // 리그 테이블
 model League {
-  id          String    @id @default(cuid())
-  name        String
-  country     String
-  sportType   SportType @default(FOOTBALL)
-  externalId  String?   @unique
-  logoUrl     String?
-  season      Int?      // 현재 시즌
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  name            String
+  country         String
+  sportType       SportType @default(FOOTBALL)
+  externalId      String?   @unique     // Football-Data.org competition ID
+  code            String?   @unique     // Football-Data.org competition code (e.g., "PL", "BL1")
+  logoUrl         String?
+  season          Int?      // 현재 시즌
+  currentMatchday Int?      // 현재 라운드
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   teams   Team[]
   matches Match[]
 
   @@index([sportType])
   @@index([country])
+  @@index([code])
 }
 
 // 팀 테이블
@@ -41,12 +44,14 @@ model Team {
   leagueId    String
   name        String
   shortName   String?
+  tla         String?   // 3글자 약어 (e.g., "MUN", "ARS")
   logoUrl     String?
-  externalId  String?   @unique
+  externalId  String?   @unique  // Football-Data.org team ID
   sportType   SportType @default(FOOTBALL)
   founded     Int?
   venue       String?
   city        String?
+  clubColors  String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -66,52 +71,62 @@ model Team {
 
 // 선수 테이블
 model Player {
-  id          String    @id @default(cuid())
-  teamId      String
-  name        String
-  position    String?
-  nationality String?
-  birthDate   DateTime?
-  height      Int?
-  weight      Int?
-  number      Int?
-  photoUrl    String?
-  externalId  String?   @unique
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  teamId          String
+  name            String
+  firstName       String?
+  lastName        String?
+  position        String?   // Goalkeeper, Defence, Midfield, Offence
+  nationality     String?
+  birthDate       DateTime?
+  shirtNumber     Int?
+  photoUrl        String?
+  marketValue     Int?      // 시장 가치 (유로)
+  contractStart   DateTime?
+  contractEnd     DateTime?
+  externalId      String?   @unique  // Football-Data.org person ID
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([teamId])
   @@index([name])
+  @@index([position])
 }
 
-// 경기 상태 enum
+// 경기 상태 enum (Football-Data.org 상태와 매핑)
 enum MatchStatus {
-  SCHEDULED
-  LIVE
-  FINISHED
-  POSTPONED
-  CANCELLED
+  SCHEDULED   // 예정
+  TIMED       // 시간 확정
+  LIVE        // 진행 중 (IN_PLAY, PAUSED)
+  FINISHED    // 종료
+  POSTPONED   // 연기
+  CANCELLED   // 취소
+  SUSPENDED   // 중단
 }
 
 // 경기 테이블
 model Match {
-  id           String      @id @default(cuid())
-  leagueId     String
-  homeTeamId   String
-  awayTeamId   String
-  sportType    SportType   @default(FOOTBALL)
-  kickoffAt    DateTime
-  status       MatchStatus @default(SCHEDULED)
-  homeScore    Int?
-  awayScore    Int?
-  round        String?
-  venue        String?
-  slug         String?     @unique
-  externalId   String?     @unique
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id            String      @id @default(cuid())
+  leagueId      String
+  homeTeamId    String
+  awayTeamId    String
+  sportType     SportType   @default(FOOTBALL)
+  kickoffAt     DateTime
+  status        MatchStatus @default(SCHEDULED)
+  homeScore     Int?
+  awayScore     Int?
+  halfTimeHome  Int?        // 전반전 홈 스코어
+  halfTimeAway  Int?        // 전반전 원정 스코어
+  matchday      Int?        // 라운드 번호
+  round         String?     // 라운드 문자열 (예: "Regular Season - 20")
+  stage         String?     // 스테이지 (예: "GROUP_STAGE", "FINAL")
+  venue         String?
+  slug          String?     @unique
+  externalId    String?     @unique  // Football-Data.org match ID
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   league        League         @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   homeTeam      Team           @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Cascade)
@@ -125,6 +140,7 @@ model Match {
   @@index([homeTeamId])
   @@index([awayTeamId])
   @@index([sportType])
+  @@index([matchday])
 }
 
 // 경기 스탯 테이블 (실시간/캐시용)
@@ -156,6 +172,8 @@ model TeamSeasonStats {
   points           Int?      // 승점 (축구)
   goalsFor         Int?      // 득점 (축구)
   goalsAgainst     Int?      // 실점 (축구)
+  goalDifference   Int?      // 골득실차
+  form             String?   // 최근 폼 (예: "W,W,D,L,W")
 
   // 농구/야구 공통
   pointsScored     Float?    // 평균 득점 (농구/야구)
@@ -164,11 +182,19 @@ model TeamSeasonStats {
   // 홈/원정 성향
   homeGames        Int       @default(0)
   homeWins         Int       @default(0)
+  homeDraws        Int?
+  homeLosses       Int?
+  homeGoalsFor     Int?
+  homeGoalsAgainst Int?
   homeAvgFor       Float?    // 홈 평균 득점
   homeAvgAgainst   Float?    // 홈 평균 실점
 
   awayGames        Int       @default(0)
   awayWins         Int       @default(0)
+  awayDraws        Int?
+  awayLosses       Int?
+  awayGoalsFor     Int?
+  awayGoalsAgainst Int?
   awayAvgFor       Float?    // 원정 평균 득점
   awayAvgAgainst   Float?    // 원정 평균 실점
 

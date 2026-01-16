@@ -1,28 +1,17 @@
 import { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { cookies } from 'next/headers'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
 import { ko, enUS } from 'date-fns/locale'
 import { Calendar, Clock } from 'lucide-react'
-import { Link } from '@/i18n/routing'
+import { prisma } from '@/lib/prisma'
+import Image from 'next/image'
+import { getTodayRangeInTimezone } from '@/lib/timezone'
+import { MatchCard } from '@/components/match-card'
 
 interface Props {
   params: Promise<{ locale: string }>
-}
-
-type MatchStatus = 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' | 'CANCELLED'
-
-interface DemoMatch {
-  id: string
-  homeTeam: { name: string; shortName: string }
-  awayTeam: { name: string; shortName: string }
-  league: { name: string; slug: string }
-  kickoffAt: string
-  status: MatchStatus
-  homeScore?: number
-  awayScore?: number
-  slug: string
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -31,124 +20,83 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: t('today_matches'),
-    description: 'Today\'s football matches with AI analysis',
+    description: "Today's football matches with AI analysis",
   }
 }
 
-// Demo matches data (Football only)
-const demoMatches: DemoMatch[] = [
-  {
-    id: '1',
-    homeTeam: { name: 'Arsenal', shortName: 'ARS' },
-    awayTeam: { name: 'Chelsea', shortName: 'CHE' },
-    league: { name: 'Premier League', slug: 'epl' },
-    kickoffAt: new Date(new Date().setHours(20, 0)).toISOString(),
-    status: 'SCHEDULED',
-    slug: 'epl/arsenal-vs-chelsea',
-  },
-  {
-    id: '2',
-    homeTeam: { name: 'Liverpool', shortName: 'LIV' },
-    awayTeam: { name: 'Manchester City', shortName: 'MCI' },
-    league: { name: 'Premier League', slug: 'epl' },
-    kickoffAt: new Date(new Date().setHours(17, 30)).toISOString(),
-    status: 'LIVE',
-    homeScore: 2,
-    awayScore: 1,
-    slug: 'epl/liverpool-vs-manchester-city',
-  },
-  {
-    id: '3',
-    homeTeam: { name: 'Barcelona', shortName: 'BAR' },
-    awayTeam: { name: 'Real Madrid', shortName: 'RMA' },
-    league: { name: 'La Liga', slug: 'laliga' },
-    kickoffAt: new Date(new Date().setHours(22, 0)).toISOString(),
-    status: 'SCHEDULED',
-    slug: 'laliga/barcelona-vs-real-madrid',
-  },
-  {
-    id: '4',
-    homeTeam: { name: 'Bayern Munich', shortName: 'BAY' },
-    awayTeam: { name: 'Borussia Dortmund', shortName: 'BVB' },
-    league: { name: 'Bundesliga', slug: 'bundesliga' },
-    kickoffAt: new Date(new Date().setHours(21, 30)).toISOString(),
-    status: 'SCHEDULED',
-    slug: 'bundesliga/bayern-vs-dortmund',
-  },
-  {
-    id: '5',
-    homeTeam: { name: 'Inter Milan', shortName: 'INT' },
-    awayTeam: { name: 'AC Milan', shortName: 'ACM' },
-    league: { name: 'Serie A', slug: 'serie-a' },
-    kickoffAt: new Date(new Date().setHours(22, 45)).toISOString(),
-    status: 'SCHEDULED',
-    slug: 'serie-a/inter-vs-milan',
-  },
-]
+interface MatchData {
+  todayMatches: Awaited<ReturnType<typeof prisma.match.findMany>>
+  upcomingMatches: Awaited<ReturnType<typeof prisma.match.findMany>>
+}
 
-function MatchCard({ match }: { match: DemoMatch }) {
-  const kickoffTime = format(new Date(match.kickoffAt), 'HH:mm')
+async function getMatches(timezone: string): Promise<MatchData> {
+  // 사용자 타임존 기준 오늘의 시작/끝
+  const { start, end } = getTodayRangeInTimezone(timezone)
 
-  const statusColors = {
-    SCHEDULED: 'bg-blue-500',
-    LIVE: 'bg-red-500 animate-pulse',
-    FINISHED: 'bg-gray-500',
-    POSTPONED: 'bg-yellow-500',
-    CANCELLED: 'bg-gray-400',
+  try {
+    // 오늘 경기 조회
+    const todayMatches = await prisma.match.findMany({
+      where: {
+        kickoffAt: {
+          gte: start,
+          lte: end,
+        },
+        sportType: 'FOOTBALL',
+      },
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+        league: true,
+        matchAnalysis: true,
+      },
+      orderBy: {
+        kickoffAt: 'asc',
+      },
+    })
+
+    // 다가오는 경기 조회 (오늘 이후 7일)
+    const weekLater = new Date(end.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+    const upcomingMatches = await prisma.match.findMany({
+      where: {
+        kickoffAt: {
+          gt: end, // 오늘 이후
+          lte: weekLater,
+        },
+        sportType: 'FOOTBALL',
+      },
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+        league: true,
+        matchAnalysis: true,
+      },
+      orderBy: {
+        kickoffAt: 'asc',
+      },
+      take: 30,
+    })
+
+    return { todayMatches, upcomingMatches }
+  } catch {
+    return { todayMatches: [], upcomingMatches: [] }
   }
+}
 
-  const statusLabels = {
-    SCHEDULED: '예정',
-    LIVE: '진행중',
-    FINISHED: '종료',
-    POSTPONED: '연기',
-    CANCELLED: '취소',
-  }
+type MatchWithRelations = MatchData['todayMatches'][number]
 
-  return (
-    <Link href={`/match/${match.slug}`}>
-      <Card className="match-card">
-        <CardContent className="p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">{match.league.name}</span>
-            <Badge className={`${statusColors[match.status]} text-white`}>
-              {statusLabels[match.status]}
-            </Badge>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                  <span className="text-xs font-bold">{match.homeTeam.shortName}</span>
-                </div>
-                <span className="font-medium">{match.homeTeam.name}</span>
-              </div>
-              <span className="text-2xl font-bold">
-                {match.status !== 'SCHEDULED' ? match.homeScore : '-'}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                  <span className="text-xs font-bold">{match.awayTeam.shortName}</span>
-                </div>
-                <span className="font-medium">{match.awayTeam.name}</span>
-              </div>
-              <span className="text-2xl font-bold">
-                {match.status !== 'SCHEDULED' ? match.awayScore : '-'}
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-center justify-center text-sm text-muted-foreground">
-            <Clock className="mr-1 h-4 w-4" />
-            {kickoffTime}
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+// 리그별로 경기 그룹화하는 헬퍼 함수
+function groupMatchesByLeague(matches: MatchWithRelations[]) {
+  return matches.reduce(
+    (acc, match) => {
+      const leagueName = match.league.name
+      if (!acc[leagueName]) {
+        acc[leagueName] = []
+      }
+      acc[leagueName].push(match)
+      return acc
+    },
+    {} as Record<string, MatchWithRelations[]>
   )
 }
 
@@ -156,28 +104,130 @@ export default async function TodayMatchesPage({ params }: Props) {
   const { locale } = await params
   setRequestLocale(locale)
 
+  const t = await getTranslations({ locale, namespace: 'home' })
+
+  // 쿠키에서 타임존 가져오기 (기본값: Asia/Seoul)
+  const cookieStore = await cookies()
+  const timezone = cookieStore.get('timezone')?.value || 'Asia/Seoul'
+
   const dateLocale = locale === 'ko' ? ko : enUS
-  const today = format(new Date(), 'yyyy년 MM월 dd일 (EEEE)', { locale: dateLocale })
+  const today = format(new Date(), locale === 'ko' ? 'yyyy년 MM월 dd일 (EEEE)' : 'EEEE, MMMM d, yyyy', {
+    locale: dateLocale,
+  })
+
+  const { todayMatches, upcomingMatches } = await getMatches(timezone)
+
+  const todayByLeague = groupMatchesByLeague(todayMatches)
+  const upcomingByLeague = groupMatchesByLeague(upcomingMatches)
+
+  const hasNoMatches = todayMatches.length === 0 && upcomingMatches.length === 0
 
   return (
     <div className="container py-8">
+      {/* 페이지 헤더 */}
       <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">오늘의 경기</h1>
+        <h1 className="mb-2 text-3xl font-bold">
+          {t('match_schedule')}
+        </h1>
         <p className="flex items-center text-muted-foreground">
           <Calendar className="mr-2 h-5 w-5" />
           {today}
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {demoMatches.map((match) => (
-          <MatchCard key={match.id} match={match} />
-        ))}
-      </div>
+      {hasNoMatches ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <p className="text-muted-foreground">
+              {t('no_matches_scheduled')}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t('run_cron_message')}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-12">
+          {/* 오늘의 경기 섹션 */}
+          <section>
+            <h2 className="mb-6 text-2xl font-bold flex items-center gap-2">
+              <span className="flex h-3 w-3 rounded-full bg-green-500 animate-pulse" />
+              {t('today_matches')}
+            </h2>
 
-      {demoMatches.length === 0 && (
-        <div className="py-12 text-center text-muted-foreground">
-          오늘 예정된 경기가 없습니다.
+            {todayMatches.length === 0 ? (
+              <Card className="bg-muted/30">
+                <CardContent className="py-8 text-center">
+                  <Calendar className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+                  <p className="text-muted-foreground">
+                    {t('no_matches_today')}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {Object.entries(todayByLeague).map(([leagueName, leagueMatches]) => (
+                  <div key={leagueName}>
+                    <h3 className="mb-3 text-lg font-semibold flex items-center gap-2">
+                      {leagueMatches[0].league.logoUrl && (
+                        <Image
+                          src={leagueMatches[0].league.logoUrl}
+                          alt={leagueName}
+                          width={24}
+                          height={24}
+                          className="rounded"
+                        />
+                      )}
+                      {leagueName}
+                    </h3>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {leagueMatches.map((match) => (
+                        <MatchCard key={match.id} match={match} locale={locale} showDate={false} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* 다가오는 경기 섹션 */}
+          {upcomingMatches.length > 0 && (
+            <section>
+              <h2 className="mb-6 text-2xl font-bold flex items-center gap-2">
+                <Clock className="h-6 w-6 text-muted-foreground" />
+                {t('upcoming_matches')}
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({t('next_7_days')})
+                </span>
+              </h2>
+
+              <div className="space-y-6">
+                {Object.entries(upcomingByLeague).map(([leagueName, leagueMatches]) => (
+                  <div key={leagueName}>
+                    <h3 className="mb-3 text-lg font-semibold flex items-center gap-2">
+                      {leagueMatches[0].league.logoUrl && (
+                        <Image
+                          src={leagueMatches[0].league.logoUrl}
+                          alt={leagueName}
+                          width={24}
+                          height={24}
+                          className="rounded"
+                        />
+                      )}
+                      {leagueName}
+                    </h3>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {leagueMatches.map((match) => (
+                        <MatchCard key={match.id} match={match} locale={locale} showDate={true} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>

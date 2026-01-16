@@ -6,6 +6,8 @@ import { notFound } from 'next/navigation'
 import { locales, type Locale } from '@/i18n/config'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
+import { TimezoneDetector } from '@/components/timezone-detector'
+import { AdsenseScript } from '@/components/adsense'
 import '../globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -56,8 +58,12 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
 
   return (
     <html lang={locale} className="dark" suppressHydrationWarning>
+      <head>
+        <AdsenseScript />
+      </head>
       <body className={`${inter.className} bg-background text-foreground`}>
         <NextIntlClientProvider messages={messages}>
+          <TimezoneDetector />
           <div className="flex min-h-screen flex-col">
             <Header />
             <main className="flex-1">{children}</main>

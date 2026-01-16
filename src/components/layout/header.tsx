@@ -16,7 +16,8 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import { Menu, Trophy, Newspaper, Calendar, Users, ChartBar } from 'lucide-react'
+import { Menu, Newspaper, Calendar, Users, ChartBar, Trophy } from 'lucide-react'
+import Image from 'next/image'
 import { LanguageSwitcher } from './language-switcher'
 
 const mainNav = [
@@ -42,7 +43,7 @@ const mainNav = [
   },
   {
     key: 'daily_report',
-    href: '/daily-report',
+    href: '/daily/today',
     icon: ChartBar,
   },
 ]
@@ -56,7 +57,13 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
-          <Trophy className="h-6 w-6 text-primary" />
+          <Image
+            src="/app-icon-512.png"
+            alt="PlayStat"
+            width={28}
+            height={28}
+            className="rounded"
+          />
           <span className="text-xl font-bold">PlayStat</span>
         </Link>
 

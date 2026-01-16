@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://playstat.com'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://playstat.space'
 const SITE_NAME = 'PlayStat'
 
 export interface SEOConfig {

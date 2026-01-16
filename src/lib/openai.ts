@@ -21,10 +21,10 @@ if (process.env.NODE_ENV !== 'production' && openai) {
   globalForOpenAI.openai = openai
 }
 
-// Model configurations
+// Model configurations - 모든 작업에 gpt-4o-mini 사용 (비용 절감)
 export const AI_MODELS = {
-  ANALYSIS: 'gpt-4o', // 경기 분석용
-  SUMMARY: 'gpt-4o-mini', // 뉴스 요약 등 저비용 작업
+  ANALYSIS: 'gpt-4o-mini',
+  SUMMARY: 'gpt-4o-mini',
 } as const
 
 // Token limits

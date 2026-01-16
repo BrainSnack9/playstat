@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 import { prisma } from '@/lib/prisma'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://playstat.com'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://playstat.space'
 
 // 빌드 시 동적으로 생성
 export const dynamic = 'force-dynamic'
@@ -33,10 +33,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
-      url: `${SITE_URL}/daily-report`,
+      url: `${SITE_URL}/about`,
       lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.7,
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+    {
+      url: `${SITE_URL}/privacy`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/terms`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.3,
     },
   ]
 
@@ -88,7 +100,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
       }))
 
-    return [...staticPages, ...leaguePages, ...teamPages, ...matchPages]
+    // 동적 페이지: 데일리 리포트 (최근 30일)
+    const dailyReports = await prisma.dailyReport.findMany({
+      select: { date: true, updatedAt: true },
+      orderBy: { date: 'desc' },
+      take: 30,
+    })
+
+    const dailyPages: MetadataRoute.Sitemap = dailyReports.map((report) => {
+      const dateStr = report.date.toISOString().split('T')[0]
+      return {
+        url: `${SITE_URL}/daily/${dateStr}`,
+        lastModified: report.updatedAt,
+        changeFrequency: 'daily' as const,
+        priority: 0.9, // 높은 우선순위 (SEO 중요)
+      }
+    })
+
+    // 오늘 날짜 데일리 페이지 추가 (리포트가 없어도)
+    const today = new Date().toISOString().split('T')[0]
+    const hasTodayReport = dailyReports.some(
+      (r) => r.date.toISOString().split('T')[0] === today
+    )
+    if (!hasTodayReport) {
+      dailyPages.unshift({
+        url: `${SITE_URL}/daily/${today}`,
+        lastModified: new Date(),
+        changeFrequency: 'hourly' as const,
+        priority: 1, // 오늘 경기는 최고 우선순위
+      })
+    }
+
+    return [...staticPages, ...dailyPages, ...leaguePages, ...teamPages, ...matchPages]
   } catch {
     console.warn('Sitemap: DB connection failed, returning static pages only')
     return staticPages

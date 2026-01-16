@@ -2,6 +2,8 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
+const isDev = process.env.NODE_ENV === 'development';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // 빌드 시 타입/린트 체크 스킵 (CI에서 별도로 처리)
@@ -12,9 +14,12 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // ISR/SSG 설정
+  // ISR/SSG 설정 (개발 환경에서는 캐시 최소화)
   experimental: {
-    staleTimes: {
+    staleTimes: isDev ? {
+      dynamic: 0,
+      static: 0,
+    } : {
       dynamic: 30,
       static: 180,
     },
@@ -30,6 +35,31 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'media-*.api-sports.io',
+      },
+      {
+        protocol: 'https',
+        hostname: 'crests.football-data.org',
+      },
+      // 뉴스 이미지 소스
+      {
+        protocol: 'https',
+        hostname: 'ichef.bbci.co.uk',
+      },
+      {
+        protocol: 'https',
+        hostname: 'a.espncdn.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'e0.365dm.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.newsapi.org',
+      },
+      {
+        protocol: 'https',
+        hostname: '**',
       },
     ],
   },

@@ -1,83 +1,207 @@
 import { Metadata } from 'next'
-import { setRequestLocale } from 'next-intl/server'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Users, Trophy } from 'lucide-react'
-import { Link } from '@/i18n/routing'
+import { Users, Search } from 'lucide-react'
+import { prisma } from '@/lib/prisma'
+import { TeamCard } from '@/components/team-card'
 
 interface Props {
   params: Promise<{ locale: string }>
+  searchParams: Promise<{ league?: string; search?: string }>
 }
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'team' })
   return {
-    title: '팀 목록',
-    description: '축구 팀 목록과 분석',
+    title: t('page_title'),
+    description: t('page_description'),
   }
 }
 
-// Demo teams data (Football only)
-const teams = [
-  { id: '1', name: 'Arsenal', shortName: 'ARS', league: 'Premier League', country: 'England' },
-  { id: '2', name: 'Chelsea', shortName: 'CHE', league: 'Premier League', country: 'England' },
-  { id: '3', name: 'Liverpool', shortName: 'LIV', league: 'Premier League', country: 'England' },
-  { id: '4', name: 'Manchester City', shortName: 'MCI', league: 'Premier League', country: 'England' },
-  { id: '5', name: 'Manchester United', shortName: 'MUN', league: 'Premier League', country: 'England' },
-  { id: '6', name: 'Tottenham', shortName: 'TOT', league: 'Premier League', country: 'England' },
-  { id: '7', name: 'Real Madrid', shortName: 'RMA', league: 'La Liga', country: 'Spain' },
-  { id: '8', name: 'Barcelona', shortName: 'BAR', league: 'La Liga', country: 'Spain' },
-  { id: '9', name: 'Atletico Madrid', shortName: 'ATM', league: 'La Liga', country: 'Spain' },
-  { id: '10', name: 'Bayern Munich', shortName: 'BAY', league: 'Bundesliga', country: 'Germany' },
-  { id: '11', name: 'Borussia Dortmund', shortName: 'BVB', league: 'Bundesliga', country: 'Germany' },
-  { id: '12', name: 'Inter Milan', shortName: 'INT', league: 'Serie A', country: 'Italy' },
-  { id: '13', name: 'AC Milan', shortName: 'ACM', league: 'Serie A', country: 'Italy' },
-  { id: '14', name: 'Juventus', shortName: 'JUV', league: 'Serie A', country: 'Italy' },
-  { id: '15', name: 'Paris Saint-Germain', shortName: 'PSG', league: 'Ligue 1', country: 'France' },
-]
+async function getTeams() {
+  try {
+    const teams = await prisma.team.findMany({
+      where: {
+        sportType: 'FOOTBALL',
+      },
+      include: {
+        league: true,
+        seasonStats: {
+          select: {
+            rank: true,
+            points: true,
+          },
+        },
+      },
+      orderBy: [
+        { league: { name: 'asc' } },
+        { name: 'asc' },
+      ],
+    })
+    return teams
+  } catch {
+    return []
+  }
+}
 
-function TeamCard({ team }: { team: (typeof teams)[0] }) {
-  return (
-    <Link href={`/team/${team.id}`}>
-      <Card className="transition-shadow hover:shadow-md">
-        <CardContent className="flex items-center p-4">
-          <div className="mr-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-            <span className="text-lg font-bold text-primary">{team.shortName}</span>
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold">{team.name}</h3>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Trophy className="h-3 w-3" />
-              {team.league}
-            </div>
-          </div>
-          <Badge variant="outline">{team.country}</Badge>
-        </CardContent>
-      </Card>
-    </Link>
+async function getLeagues() {
+  try {
+    // code가 있는 리그만 가져옴 (API에서 수집된 실제 리그)
+    const leagues = await prisma.league.findMany({
+      where: {
+        sportType: 'FOOTBALL',
+        code: { not: null },
+      },
+      orderBy: { name: 'asc' },
+    })
+    return leagues
+  } catch {
+    return []
+  }
+}
+
+type TeamWithRelations = Awaited<ReturnType<typeof getTeams>>[number]
+
+function groupTeamsByLeague(teams: TeamWithRelations[]) {
+  return teams.reduce(
+    (acc, team) => {
+      const leagueName = team.league.name
+      if (!acc[leagueName]) {
+        acc[leagueName] = {
+          league: team.league,
+          teams: [],
+        }
+      }
+      acc[leagueName].teams.push(team)
+      return acc
+    },
+    {} as Record<string, { league: TeamWithRelations['league']; teams: TeamWithRelations[] }>
   )
 }
 
-export default async function TeamsPage({ params }: Props) {
+export default async function TeamsPage({ params, searchParams }: Props) {
   const { locale } = await params
+  const { league: leagueFilter, search } = await searchParams
   setRequestLocale(locale)
+
+  const t = await getTranslations({ locale, namespace: 'team' })
+
+  let teams = await getTeams()
+  const leagues = await getLeagues()
+
+  // Filter by league if specified
+  if (leagueFilter) {
+    teams = teams.filter((team) => team.league.code === leagueFilter)
+  }
+
+  // Filter by search if specified
+  if (search) {
+    const searchLower = search.toLowerCase()
+    teams = teams.filter(
+      (team) =>
+        team.name.toLowerCase().includes(searchLower) ||
+        team.shortName?.toLowerCase().includes(searchLower) ||
+        team.tla?.toLowerCase().includes(searchLower)
+    )
+  }
+
+  const teamsByLeague = groupTeamsByLeague(teams)
+  const hasTeams = teams.length > 0
 
   return (
     <div className="container py-8">
       <div className="mb-8">
         <h1 className="mb-2 flex items-center text-3xl font-bold">
           <Users className="mr-3 h-8 w-8" />
-          팀 목록
+          {t('page_title')}
         </h1>
         <p className="text-muted-foreground">
-          전 세계 주요 축구 팀들의 분석과 정보를 확인하세요
+          {t('page_description')}
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {teams.map((team) => (
-          <TeamCard key={team.id} team={team} />
-        ))}
-      </div>
+      {/* League Filter */}
+      {leagues.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          <a
+            href="/teams"
+            className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+              !leagueFilter
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted hover:bg-muted/80'
+            }`}
+          >
+            {t('all')}
+          </a>
+          {leagues.map((league) => (
+            <a
+              key={league.id}
+              href={`/teams?league=${league.code}`}
+              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                leagueFilter === league.code
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted hover:bg-muted/80'
+              }`}
+            >
+              {league.name}
+            </a>
+          ))}
+        </div>
+      )}
+
+      {hasTeams ? (
+        <div className="space-y-8">
+          {Object.entries(teamsByLeague).map(([leagueName, { league, teams: leagueTeams }]) => (
+            <section key={leagueName}>
+              <h2 className="mb-4 text-xl font-bold flex items-center gap-2">
+                {league.logoUrl && (
+                  <img
+                    src={league.logoUrl}
+                    alt={leagueName}
+                    className="h-6 w-6 rounded"
+                  />
+                )}
+                {leagueName}
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({leagueTeams.length} {t('teams')})
+                </span>
+              </h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {leagueTeams.map((team) => (
+                  <TeamCard
+                    key={team.id}
+                    team={{
+                      id: team.id,
+                      name: team.name,
+                      shortName: team.shortName,
+                      tla: team.tla,
+                      logoUrl: team.logoUrl,
+                      league: {
+                        name: team.league.name,
+                        country: team.league.country,
+                      },
+                    }}
+                    locale={locale}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Search className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <p className="text-muted-foreground">
+              {t('no_teams')}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t('run_cron_message')}
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

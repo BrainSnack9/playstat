@@ -1,148 +1,65 @@
 import { Metadata } from 'next'
-import { setRequestLocale } from 'next-intl/server'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import {
-  Trophy,
   Calendar,
   Clock,
-  MapPin,
   TrendingUp,
   AlertTriangle,
   CheckCircle,
-  ChartBar
+  ChartBar,
+  ChevronLeft,
+  Sparkles,
 } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 import { format } from 'date-fns'
-import { ko } from 'date-fns/locale'
+import { ko, enUS } from 'date-fns/locale'
+import { prisma } from '@/lib/prisma'
+import Image from 'next/image'
+
+// 마크다운 **bold** 텍스트를 일반 텍스트로 변환
+function stripMarkdownBold(text: string): string {
+  return text.replace(/\*\*(.*?)\*\*/g, '$1')
+}
 
 interface Props {
   params: Promise<{ locale: string; slug: string }>
 }
 
-type MatchStatus = 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' | 'CANCELLED'
-
-// Demo match data
-const matchData: Record<string, {
-  id: string
-  homeTeam: { id: string; name: string; shortName: string; recentForm: string }
-  awayTeam: { id: string; name: string; shortName: string; recentForm: string }
-  league: { name: string; slug: string }
-  kickoffAt: string
-  status: MatchStatus
-  venue: string
-  round: string
-  homeScore?: number
-  awayScore?: number
-  analysis: {
-    summary: string
-    tactics: string
-    keyPoints: string[]
-    riskFactors: string[]
-    positiveFactors: string[]
-    expectedFlow: string
+async function getMatch(slug: string) {
+  try {
+    const match = await prisma.match.findUnique({
+      where: { slug },
+      include: {
+        homeTeam: {
+          include: {
+            seasonStats: true,
+          },
+        },
+        awayTeam: {
+          include: {
+            seasonStats: true,
+          },
+        },
+        league: true,
+        matchAnalysis: true,
+      },
+    })
+    return match
+  } catch {
+    return null
   }
-  headToHead: Array<{ result: string; date: string }>
-}> = {
-  'arsenal-vs-chelsea': {
-    id: '1',
-    homeTeam: {
-      id: '1',
-      name: 'Arsenal',
-      shortName: 'ARS',
-      recentForm: 'WWWDW',
-    },
-    awayTeam: {
-      id: '2',
-      name: 'Chelsea',
-      shortName: 'CHE',
-      recentForm: 'WDWLW',
-    },
-    league: { name: 'Premier League', slug: 'epl' },
-    kickoffAt: new Date(new Date().setHours(20, 0)).toISOString(),
-    status: 'SCHEDULED',
-    venue: 'Emirates Stadium',
-    round: 'Round 20',
-    analysis: {
-      summary: `아스널과 첼시의 런던 더비는 항상 긴장감 넘치는 경기입니다.
-아스널은 홈에서 강력한 모습을 보여주고 있으며, 최근 5경기 중 4승을 기록했습니다.
-첼시는 원정에서 다소 불안한 모습을 보이고 있지만, 최근 폼이 살아나고 있습니다.`,
-      tactics: `아스널은 아르테타 감독 하에 높은 압박과 빠른 전환 플레이를 기반으로 합니다.
-첼시는 포체티노 감독의 지휘 아래 점유율 기반의 축구를 구사하며, 윙어 활용이 핵심입니다.
-두 팀 모두 4-3-3 포메이션을 선호하며, 중원 싸움이 승패를 가를 것으로 예상됩니다.`,
-      keyPoints: [
-        '아스널의 홈 경기 연승 행진 지속 여부',
-        '첼시 공격진의 골 결정력',
-        '중원에서의 볼 지배권 경쟁',
-      ],
-      riskFactors: [
-        '아스널 주축 선수의 체력 부담',
-        '첼시의 수비 불안정성',
-      ],
-      positiveFactors: [
-        '아스널의 탄탄한 홈 경기력',
-        '첼시의 상승세와 젊은 선수들의 활약',
-      ],
-      expectedFlow: `경기 초반에는 아스널이 홈의 이점을 살려 적극적인 공세를 펼칠 것으로 보입니다. 첼시는 단단한 수비 조직력으로 아스널의 공격을 막으면서 역습 기회를 노릴 것입니다. 후반으로 갈수록 체력 소모가 커지면서 교체 선수들의 역할이 중요해질 것이며, 세트피스 상황이 결정적인 기회가 될 수 있습니다.`,
-    },
-    headToHead: [
-      { result: 'Arsenal 2 - 0 Chelsea', date: '2024-10-15' },
-      { result: 'Chelsea 1 - 1 Arsenal', date: '2024-04-20' },
-      { result: 'Arsenal 3 - 1 Chelsea', date: '2023-10-28' },
-    ],
-  },
-  'liverpool-vs-manchester-city': {
-    id: '2',
-    homeTeam: {
-      id: '3',
-      name: 'Liverpool',
-      shortName: 'LIV',
-      recentForm: 'WWWWW',
-    },
-    awayTeam: {
-      id: '4',
-      name: 'Manchester City',
-      shortName: 'MCI',
-      recentForm: 'WDWWW',
-    },
-    league: { name: 'Premier League', slug: 'epl' },
-    kickoffAt: new Date(new Date().setHours(17, 30)).toISOString(),
-    status: 'LIVE',
-    homeScore: 2,
-    awayScore: 1,
-    venue: 'Anfield',
-    round: 'Round 20',
-    analysis: {
-      summary: `프리미어리그 최고의 빅매치입니다.
-리버풀은 안필드에서 무패 행진을 이어가고 있습니다.
-맨시티는 최근 몇 시즌 동안 안정적인 성적을 유지하고 있습니다.`,
-      tactics: `리버풀은 높은 프레싱과 빠른 역습을 기반으로 합니다.
-맨시티는 점유율 축구와 정교한 패스 플레이가 특징입니다.`,
-      keyPoints: [
-        '중원 지배력 경쟁',
-        '수비 라인의 안정성',
-        '세트피스 활용',
-      ],
-      riskFactors: [
-        '부상 선수 복귀 여부',
-        '레드카드 리스크',
-      ],
-      positiveFactors: [
-        '양 팀 모두 최상의 컨디션',
-        '팬들의 열정적인 응원',
-      ],
-      expectedFlow: `치열한 중원 싸움이 예상되며, 두 팀 모두 수비적으로 신중하게 접근할 것입니다.`,
-    },
-    headToHead: [],
-  },
 }
+
+type MatchWithRelations = NonNullable<Awaited<ReturnType<typeof getMatch>>>
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const match = matchData[slug as keyof typeof matchData]
+  const match = await getMatch(slug)
 
   if (!match) {
     return { title: 'Match Not Found' }
@@ -153,21 +70,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: `AI analysis for ${match.homeTeam.name} vs ${match.awayTeam.name} match in ${match.league.name}`,
     openGraph: {
       title: `${match.homeTeam.name} vs ${match.awayTeam.name}`,
-      description: match.analysis.summary.split('\n')[0],
+      description: match.matchAnalysis?.summary?.slice(0, 150) || `${match.league.name} 경기 분석`,
     },
   }
 }
 
-function FormBadge({ form }: { form: string }) {
+function FormBadge({ form }: { form: string | null }) {
+  if (!form) return null
+
+  const formArray = form.split(',').slice(0, 5)
+
   return (
-    <div className="flex gap-1">
-      {form.split('').map((result, i) => (
+    <div className="flex gap-1 mt-2">
+      {formArray.map((result, i) => (
         <span
           key={i}
           className={`flex h-6 w-6 items-center justify-center rounded text-xs font-bold text-white ${
-            result === 'W' ? 'bg-green-500' :
-            result === 'D' ? 'bg-gray-400' :
-            'bg-red-500'
+            result === 'W' ? 'bg-green-500' : result === 'D' ? 'bg-gray-400' : 'bg-red-500'
           }`}
         >
           {result}
@@ -177,49 +96,135 @@ function FormBadge({ form }: { form: string }) {
   )
 }
 
+const STATUS_STYLES: Record<string, string> = {
+  SCHEDULED: 'bg-blue-500',
+  TIMED: 'bg-blue-500',
+  LIVE: 'bg-red-500 animate-pulse',
+  IN_PLAY: 'bg-red-500 animate-pulse',
+  FINISHED: 'bg-gray-500',
+  POSTPONED: 'bg-yellow-500',
+  CANCELLED: 'bg-gray-400',
+  SUSPENDED: 'bg-orange-500',
+  PAUSED: 'bg-yellow-500',
+}
+
+const STATUS_KEYS: Record<string, string> = {
+  SCHEDULED: 'upcoming',
+  TIMED: 'upcoming',
+  IN_PLAY: 'live',
+  LIVE: 'live',
+  PAUSED: 'paused',
+  FINISHED: 'finished',
+  POSTPONED: 'postponed',
+  CANCELLED: 'cancelled',
+  SUSPENDED: 'suspended',
+}
+
+function MatchStatusBadge({ status, label }: { status: string; label: string }) {
+  const className = STATUS_STYLES[status] || STATUS_STYLES.SCHEDULED
+  return <Badge className={className}>{label}</Badge>
+}
+
 export default async function MatchPage({ params }: Props) {
   const { locale, slug } = await params
   setRequestLocale(locale)
 
-  const match = matchData[slug as keyof typeof matchData]
+  const t = await getTranslations({ locale, namespace: 'match' })
+  const match = await getMatch(slug)
 
   if (!match) {
     notFound()
   }
 
-  const kickoffDate = format(new Date(match.kickoffAt), 'yyyy년 MM월 dd일 (EEEE)', { locale: ko })
+  const dateLocale = locale === 'ko' ? ko : enUS
+  const dateFormat = locale === 'ko' ? 'yyyy년 MM월 dd일 (EEEE)' : 'MMMM d, yyyy (EEEE)'
+  const kickoffDate = format(new Date(match.kickoffAt), dateFormat, { locale: dateLocale })
   const kickoffTime = format(new Date(match.kickoffAt), 'HH:mm')
+
+  // Get status label
+  const statusKey = STATUS_KEYS[match.status] || 'upcoming'
+  const statusLabel = t(statusKey as 'upcoming' | 'live' | 'finished' | 'postponed' | 'cancelled' | 'paused' | 'suspended')
+
+  // Parse AI analysis if available
+  const analysis = match.matchAnalysis
+  let parsedAnalysis: {
+    summary?: string
+    recentFlowAnalysis?: string
+    seasonTrends?: string
+    tacticalAnalysis?: string
+    keyPoints?: string[]
+  } | null = null
+
+  if (analysis) {
+    parsedAnalysis = {
+      summary: analysis.summary || undefined,
+      recentFlowAnalysis: analysis.recentFlowAnalysis || undefined,
+      seasonTrends: analysis.seasonTrends || undefined,
+      tacticalAnalysis: analysis.tacticalAnalysis || undefined,
+      keyPoints: analysis.keyPoints as string[] | undefined,
+    }
+  }
 
   return (
     <div className="container py-8">
+      {/* Back Navigation */}
+      <div className="mb-4">
+        <Link
+          href="/matches/today"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          {t('back_to_list')}
+        </Link>
+      </div>
+
       {/* Match Header */}
       <Card className="mb-8">
         <CardContent className="p-6">
           <div className="mb-4 flex items-center justify-between">
-            <Link href={`/league/${match.league.slug}`} className="text-sm text-muted-foreground hover:text-primary">
-              <Trophy className="mr-1 inline h-4 w-4" />
-              {match.league.name}
-            </Link>
-            <Badge className={match.status === 'LIVE' ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}>
-              {match.status === 'LIVE' ? '진행중' : match.status === 'FINISHED' ? '종료' : '예정'}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {match.league.logoUrl && (
+                <Image
+                  src={match.league.logoUrl}
+                  alt={match.league.name}
+                  width={24}
+                  height={24}
+                  className="rounded"
+                />
+              )}
+              <span className="text-sm text-muted-foreground">{match.league.name}</span>
+              {match.matchday && (
+                <span className="text-sm text-muted-foreground">• {t('round')} {match.matchday}</span>
+              )}
+            </div>
+            <MatchStatusBadge status={match.status} label={statusLabel} />
           </div>
 
           <div className="flex items-center justify-between">
             {/* Home Team */}
             <div className="flex flex-1 flex-col items-center">
-              <Link href={`/team/${match.homeTeam.id}`} className="flex flex-col items-center hover:opacity-80">
-                <div className="mb-2 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-                  <span className="text-xl font-bold">{match.homeTeam.shortName}</span>
-                </div>
-                <h2 className="text-xl font-bold">{match.homeTeam.name}</h2>
-              </Link>
-              <FormBadge form={match.homeTeam.recentForm} />
+              <div className="flex flex-col items-center">
+                {match.homeTeam.logoUrl ? (
+                  <Image
+                    src={match.homeTeam.logoUrl}
+                    alt={match.homeTeam.name}
+                    width={80}
+                    height={80}
+                    className="mb-2 rounded"
+                  />
+                ) : (
+                  <div className="mb-2 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+                    <span className="text-xl font-bold">{match.homeTeam.tla || match.homeTeam.shortName}</span>
+                  </div>
+                )}
+                <h2 className="text-xl font-bold text-center">{match.homeTeam.name}</h2>
+              </div>
+              <FormBadge form={match.homeTeam.seasonStats?.form || null} />
             </div>
 
             {/* Score / Time */}
             <div className="flex flex-col items-center px-8">
-              {match.status === 'SCHEDULED' ? (
+              {match.status === 'SCHEDULED' || match.status === 'TIMED' ? (
                 <>
                   <span className="text-4xl font-bold">VS</span>
                   <div className="mt-2 flex items-center text-sm text-muted-foreground">
@@ -229,20 +234,30 @@ export default async function MatchPage({ params }: Props) {
                 </>
               ) : (
                 <span className="text-5xl font-bold">
-                  {match.homeScore} - {match.awayScore}
+                  {match.homeScore ?? 0} - {match.awayScore ?? 0}
                 </span>
               )}
             </div>
 
             {/* Away Team */}
             <div className="flex flex-1 flex-col items-center">
-              <Link href={`/team/${match.awayTeam.id}`} className="flex flex-col items-center hover:opacity-80">
-                <div className="mb-2 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-                  <span className="text-xl font-bold">{match.awayTeam.shortName}</span>
-                </div>
-                <h2 className="text-xl font-bold">{match.awayTeam.name}</h2>
-              </Link>
-              <FormBadge form={match.awayTeam.recentForm} />
+              <div className="flex flex-col items-center">
+                {match.awayTeam.logoUrl ? (
+                  <Image
+                    src={match.awayTeam.logoUrl}
+                    alt={match.awayTeam.name}
+                    width={80}
+                    height={80}
+                    className="mb-2 rounded"
+                  />
+                ) : (
+                  <div className="mb-2 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+                    <span className="text-xl font-bold">{match.awayTeam.tla || match.awayTeam.shortName}</span>
+                  </div>
+                )}
+                <h2 className="text-xl font-bold text-center">{match.awayTeam.name}</h2>
+              </div>
+              <FormBadge form={match.awayTeam.seasonStats?.form || null} />
             </div>
           </div>
 
@@ -253,161 +268,216 @@ export default async function MatchPage({ params }: Props) {
               <Calendar className="mr-1 h-4 w-4" />
               {kickoffDate}
             </div>
-            <div className="flex items-center">
-              <MapPin className="mr-1 h-4 w-4" />
-              {match.venue}
-            </div>
-            <div className="flex items-center">
-              <Trophy className="mr-1 h-4 w-4" />
-              {match.round}
-            </div>
+            {match.matchAnalysis && (
+              <div className="flex items-center text-primary">
+                <Sparkles className="mr-1 h-4 w-4" />
+                {t('ai_analysis_completed')}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Analysis Tabs */}
-      <Tabs defaultValue="analysis" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="analysis">AI 분석</TabsTrigger>
-          <TabsTrigger value="tactics">전술 분석</TabsTrigger>
-          <TabsTrigger value="h2h">상대 전적</TabsTrigger>
-          <TabsTrigger value="stats">통계</TabsTrigger>
-        </TabsList>
+      {/* Analysis Content */}
+      {parsedAnalysis ? (
+        <Tabs defaultValue="analysis" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="analysis">{t('ai_analysis')}</TabsTrigger>
+            <TabsTrigger value="tactical">{t('tactics')}</TabsTrigger>
+            <TabsTrigger value="stats">{t('team_stats')}</TabsTrigger>
+          </TabsList>
 
-        {/* AI Analysis */}
-        <TabsContent value="analysis" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <ChartBar className="mr-2 h-5 w-5" />
-                경기 분석 요약
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-line text-muted-foreground">{match.analysis.summary}</p>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center text-lg">
-                  <TrendingUp className="mr-2 h-5 w-5 text-primary" />
-                  핵심 포인트
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {match.analysis.keyPoints.map((point, i) => (
-                    <li key={i} className="flex items-start">
-                      <span className="mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                        {i + 1}
-                      </span>
-                      {point}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
-            <div className="space-y-6">
+          {/* AI Analysis */}
+          <TabsContent value="analysis" className="space-y-6">
+            {parsedAnalysis.summary && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center text-lg">
-                    <AlertTriangle className="mr-2 h-5 w-5 text-yellow-500" />
-                    위험 변수
+                  <CardTitle className="flex items-center">
+                    <ChartBar className="mr-2 h-5 w-5" />
+                    {t('three_line_summary')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ul className="space-y-2">
-                    {match.analysis.riskFactors.map((factor, i) => (
-                      <li key={i} className="flex items-center text-sm">
-                        <span className="mr-2 h-2 w-2 rounded-full bg-yellow-500" />
-                        {factor}
-                      </li>
-                    ))}
-                  </ul>
+                  <p className="whitespace-pre-line text-muted-foreground">{stripMarkdownBold(parsedAnalysis.summary)}</p>
                 </CardContent>
               </Card>
+            )}
 
+            {parsedAnalysis.recentFlowAnalysis && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="mr-2 h-5 w-5" />
+                    {t('recent_5_games_analysis')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="whitespace-pre-line text-muted-foreground">{stripMarkdownBold(parsedAnalysis.recentFlowAnalysis)}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {parsedAnalysis.seasonTrends && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <ChartBar className="mr-2 h-5 w-5" />
+                    {t('season_trends')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="whitespace-pre-line text-muted-foreground">{stripMarkdownBold(parsedAnalysis.seasonTrends)}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {parsedAnalysis.keyPoints && parsedAnalysis.keyPoints.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center text-lg">
                     <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
-                    긍정적 요소
+                    {t('key_viewing_points')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2">
-                    {match.analysis.positiveFactors.map((factor, i) => (
-                      <li key={i} className="flex items-center text-sm">
-                        <span className="mr-2 h-2 w-2 rounded-full bg-green-500" />
-                        {factor}
+                    {parsedAnalysis.keyPoints.map((point, i) => (
+                      <li key={i} className="flex items-start">
+                        <span className="mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                          {i + 1}
+                        </span>
+                        {point}
                       </li>
                     ))}
                   </ul>
                 </CardContent>
               </Card>
+            )}
+          </TabsContent>
+
+          {/* Tactical Analysis */}
+          <TabsContent value="tactical">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <AlertTriangle className="mr-2 h-5 w-5" />
+                  {t('tactical_analysis')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {parsedAnalysis.tacticalAnalysis ? (
+                  <p className="whitespace-pre-line text-muted-foreground">{stripMarkdownBold(parsedAnalysis.tacticalAnalysis)}</p>
+                ) : (
+                  <p className="text-center text-muted-foreground">{t('no_tactical_data')}</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Team Stats */}
+          <TabsContent value="stats">
+            <div className="grid gap-6 md:grid-cols-2">
+              <TeamStatsCard team={match.homeTeam} title={t('home_team')} translations={t} />
+              <TeamStatsCard team={match.awayTeam} title={t('away_team')} translations={t} />
             </div>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>예상 경기 흐름</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">{match.analysis.expectedFlow}</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Tactics */}
-        <TabsContent value="tactics">
-          <Card>
-            <CardHeader>
-              <CardTitle>전술 분석</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-line text-muted-foreground">{match.analysis.tactics}</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Head to Head */}
-        <TabsContent value="h2h">
-          <Card>
-            <CardHeader>
-              <CardTitle>상대 전적</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {match.headToHead.length > 0 ? (
-                <div className="space-y-2">
-                  {match.headToHead.map((record, i) => (
-                    <div key={i} className="flex items-center justify-between rounded-lg bg-muted p-3">
-                      <span className="font-medium">{record.result}</span>
-                      <span className="text-sm text-muted-foreground">{record.date}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground">상대 전적 데이터가 없습니다.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Stats */}
-        <TabsContent value="stats">
-          <Card>
-            <CardHeader>
-              <CardTitle>경기 통계</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-center text-muted-foreground">경기 시작 후 통계가 업데이트됩니다.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Sparkles className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <p className="text-muted-foreground">{t('no_analysis_yet')}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t('analysis_auto_generate')}
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
+  )
+}
+
+type TranslationFunction = Awaited<ReturnType<typeof getTranslations<'match'>>>
+
+function TeamStatsCard({ team, title, translations: t }: { team: MatchWithRelations['homeTeam']; title: string; translations: TranslationFunction }) {
+  const stats = team.seasonStats
+
+  if (!stats) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            {team.logoUrl && (
+              <Image src={team.logoUrl} alt={team.name} width={24} height={24} className="rounded" />
+            )}
+            {title}: {team.name}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-center text-muted-foreground">{t('no_season_stats')}</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          {team.logoUrl && (
+            <Image src={team.logoUrl} alt={team.name} width={24} height={24} className="rounded" />
+          )}
+          {title}: {team.name}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <p className="text-2xl font-bold">{stats.rank || '-'}</p>
+            <p className="text-xs text-muted-foreground">{t('rank')}</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.points || 0}</p>
+            <p className="text-xs text-muted-foreground">{t('points')}</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.gamesPlayed || 0}</p>
+            <p className="text-xs text-muted-foreground">{t('games')}</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-green-600">{stats.wins || 0}</p>
+            <p className="text-xs text-muted-foreground">{t('win')}</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-500">{stats.draws || 0}</p>
+            <p className="text-xs text-muted-foreground">{t('draw')}</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-red-600">{stats.losses || 0}</p>
+            <p className="text-xs text-muted-foreground">{t('loss')}</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.goalsFor || 0}</p>
+            <p className="text-xs text-muted-foreground">{t('goals_for')}</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.goalsAgainst || 0}</p>
+            <p className="text-xs text-muted-foreground">{t('goals_against')}</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold">
+              {((stats.goalsFor || 0) - (stats.goalsAgainst || 0)) > 0 ? '+' : ''}
+              {(stats.goalsFor || 0) - (stats.goalsAgainst || 0)}
+            </p>
+            <p className="text-xs text-muted-foreground">{t('goal_difference')}</p>
+          </div>
+        </div>
+        {stats.form && (
+          <div className="mt-4 flex justify-center">
+            <FormBadge form={stats.form} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
