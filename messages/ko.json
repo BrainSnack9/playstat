@@ -20,7 +20,8 @@
   "home": {
     "title": "PlayStat - AI 스포츠 분석 플랫폼",
     "description": "AI가 분석하는 축구, NBA, MLB 경기 분석과 인사이트",
-    "hero_description": "AI 기반 축구 데이터 분석 플랫폼. 유럽 5대 리그와 챔피언스리그의 경기를 더 깊이 이해하세요.",
+    "hero_description": "복잡한 기록 대신 핵심만 짚어드립니다. AI가 분석한 오늘의 경기와 데일리 리포트로 더 깊이 있는 직관을 즐기세요.",
+    "hero_title": "승리를 위한 데이터, AI 스포츠 분석",
     "today_matches": "오늘의 경기",
     "hot_matches": "주목 경기",
     "latest_news": "최신 뉴스",

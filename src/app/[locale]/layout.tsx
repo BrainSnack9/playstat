@@ -8,6 +8,7 @@ import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import { TimezoneDetector } from '@/components/timezone-detector'
 import { AdsenseScript } from '@/components/adsense'
+import { Analytics } from '@vercel/analytics/next'
 import '../globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -71,6 +72,7 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
             <Footer />
           </div>
         </NextIntlClientProvider>
+        <Analytics />
       </body>
     </html>
   )

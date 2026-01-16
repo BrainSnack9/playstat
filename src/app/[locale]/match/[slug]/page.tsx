@@ -20,6 +20,12 @@ import { format } from 'date-fns'
 import { ko, enUS } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
+import { CACHE_REVALIDATE } from '@/lib/cache'
+import { generateMetadata as buildMetadata, generateMatchSEO, generateMatchJsonLd } from '@/lib/seo'
+import { FormBadge } from '@/components/form-badge'
+import { MatchStatusBadge } from '@/components/match-status-badge'
+import { MATCH_STATUS_KEYS } from '@/lib/constants'
+import { ensureMatchAnalysisEnglish } from '@/lib/ai/translate'
 
 // 마크다운 **bold** 텍스트를 일반 텍스트로 변환
 function stripMarkdownBold(text: string): string {
@@ -29,7 +35,6 @@ function stripMarkdownBold(text: string): string {
 interface Props {
   params: Promise<{ locale: string; slug: string }>
 }
-
 async function getMatch(slug: string) {
   try {
     const match = await prisma.match.findUnique({
@@ -58,82 +63,43 @@ async function getMatch(slug: string) {
 type MatchWithRelations = NonNullable<Awaited<ReturnType<typeof getMatch>>>
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params
+  const { slug, locale } = await params
   const match = await getMatch(slug)
 
   if (!match) {
     return { title: 'Match Not Found' }
   }
 
-  return {
-    title: `${match.homeTeam.name} vs ${match.awayTeam.name} - ${match.league.name}`,
-    description: `AI analysis for ${match.homeTeam.name} vs ${match.awayTeam.name} match in ${match.league.name}`,
-    openGraph: {
-      title: `${match.homeTeam.name} vs ${match.awayTeam.name}`,
-      description: match.matchAnalysis?.summary?.slice(0, 150) || `${match.league.name} 경기 분석`,
-    },
-  }
-}
+  const localeCode = locale === 'ko' ? 'ko_KR' : 'en_US'
 
-function FormBadge({ form }: { form: string | null }) {
-  if (!form) return null
-
-  const formArray = form.split(',').slice(0, 5)
-
-  return (
-    <div className="flex gap-1 mt-2">
-      {formArray.map((result, i) => (
-        <span
-          key={i}
-          className={`flex h-6 w-6 items-center justify-center rounded text-xs font-bold text-white ${
-            result === 'W' ? 'bg-green-500' : result === 'D' ? 'bg-gray-400' : 'bg-red-500'
-          }`}
-        >
-          {result}
-        </span>
-      ))}
-    </div>
+  return buildMetadata(
+    generateMatchSEO({
+      homeTeam: match.homeTeam.name,
+      awayTeam: match.awayTeam.name,
+      league: match.league.name,
+      date: match.kickoffAt.toISOString(),
+      hasAnalysis: Boolean(match.matchAnalysis),
+      locale: localeCode,
+    })
   )
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  SCHEDULED: 'bg-blue-500',
-  TIMED: 'bg-blue-500',
-  LIVE: 'bg-red-500 animate-pulse',
-  IN_PLAY: 'bg-red-500 animate-pulse',
-  FINISHED: 'bg-gray-500',
-  POSTPONED: 'bg-yellow-500',
-  CANCELLED: 'bg-gray-400',
-  SUSPENDED: 'bg-orange-500',
-  PAUSED: 'bg-yellow-500',
-}
-
-const STATUS_KEYS: Record<string, string> = {
-  SCHEDULED: 'upcoming',
-  TIMED: 'upcoming',
-  IN_PLAY: 'live',
-  LIVE: 'live',
-  PAUSED: 'paused',
-  FINISHED: 'finished',
-  POSTPONED: 'postponed',
-  CANCELLED: 'cancelled',
-  SUSPENDED: 'suspended',
-}
-
-function MatchStatusBadge({ status, label }: { status: string; label: string }) {
-  const className = STATUS_STYLES[status] || STATUS_STYLES.SCHEDULED
-  return <Badge className={className}>{label}</Badge>
-}
+export const revalidate = CACHE_REVALIDATE
 
 export default async function MatchPage({ params }: Props) {
   const { locale, slug } = await params
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'match' })
-  const match = await getMatch(slug)
+  let match = await getMatch(slug)
 
   if (!match) {
     notFound()
+  }
+
+  // 영문 요청 시 분석 데이터가 국문만 있다면 자동 번역 (최초 1회)
+  if (locale === 'en' && match.matchAnalysis) {
+    match.matchAnalysis = await ensureMatchAnalysisEnglish(match.matchAnalysis)
   }
 
   const dateLocale = locale === 'ko' ? ko : enUS
@@ -142,8 +108,8 @@ export default async function MatchPage({ params }: Props) {
   const kickoffTime = format(new Date(match.kickoffAt), 'HH:mm')
 
   // Get status label
-  const statusKey = STATUS_KEYS[match.status] || 'upcoming'
-  const statusLabel = t(statusKey as 'upcoming' | 'live' | 'finished' | 'postponed' | 'cancelled' | 'paused' | 'suspended')
+  const statusKey = MATCH_STATUS_KEYS[match.status] || 'upcoming'
+  const statusLabel = t(statusKey as any)
 
   // Parse AI analysis if available
   const analysis = match.matchAnalysis
@@ -156,17 +122,36 @@ export default async function MatchPage({ params }: Props) {
   } | null = null
 
   if (analysis) {
+    const isEn = locale === 'en'
     parsedAnalysis = {
-      summary: analysis.summary || undefined,
-      recentFlowAnalysis: analysis.recentFlowAnalysis || undefined,
-      seasonTrends: analysis.seasonTrends || undefined,
-      tacticalAnalysis: analysis.tacticalAnalysis || undefined,
-      keyPoints: analysis.keyPoints as string[] | undefined,
+      summary: (isEn ? analysis.summaryEn : analysis.summary) || analysis.summary || undefined,
+      recentFlowAnalysis: (isEn ? analysis.recentFlowAnalysisEn : analysis.recentFlowAnalysis) || analysis.recentFlowAnalysis || undefined,
+      seasonTrends: (isEn ? analysis.seasonTrendsEn : analysis.seasonTrends) || analysis.seasonTrends || undefined,
+      tacticalAnalysis: (isEn ? analysis.tacticalAnalysisEn : analysis.tacticalAnalysis) || analysis.tacticalAnalysis || undefined,
+      keyPoints: ((isEn ? analysis.keyPointsEn : analysis.keyPoints) || analysis.keyPoints) as string[] | undefined,
     }
   }
 
+  // JSON-LD structured data
+  const jsonLd = generateMatchJsonLd({
+    id: match.id,
+    homeTeam: { name: match.homeTeam.name, logoUrl: match.homeTeam.logoUrl || undefined },
+    awayTeam: { name: match.awayTeam.name, logoUrl: match.awayTeam.logoUrl || undefined },
+    league: match.league.name,
+    kickoffAt: match.kickoffAt.toISOString(),
+    venue: match.venue || undefined,
+    status: match.status,
+    homeScore: match.homeScore ?? undefined,
+    awayScore: match.awayScore ?? undefined,
+  })
+
   return (
     <div className="container py-8">
+      {/* Add JSON-LD to the page */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Back Navigation */}
       <div className="mb-4">
         <Link

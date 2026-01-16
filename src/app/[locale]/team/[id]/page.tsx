@@ -20,10 +20,15 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
+import { CACHE_REVALIDATE } from '@/lib/cache'
+import { generateMetadata as buildMetadata, generateTeamSEO, generateTeamJsonLd } from '@/lib/seo'
+import { FormBadge } from '@/components/form-badge'
 
 interface Props {
   params: Promise<{ locale: string; id: string }>
 }
+
+export const revalidate = CACHE_REVALIDATE
 
 async function getTeamData(id: string) {
   try {
@@ -82,35 +87,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Team Not Found' }
   }
 
-  return {
-    title: `${team.name} - ${team.league.name}`,
-    description: `${team.name} team analysis, fixtures and statistics`,
-  }
-}
+  const recentForm = team.seasonStats?.form || team.recentMatches?.recentForm
+  const localeCode = (await params).locale === 'ko' ? 'ko_KR' : 'en_US'
 
-function FormBadge({ form }: { form: string | null }) {
-  if (!form) return null
-
-  // form이 "W,W,D,L,W" 형식이면 쉼표로 분리, 아니면 문자별로 분리
-  const formArray = form.includes(',') ? form.split(',') : form.split('')
-
-  return (
-    <div className="flex gap-1">
-      {formArray.slice(0, 5).map((result, i) => (
-        <span
-          key={i}
-          className={`flex h-7 w-7 items-center justify-center rounded text-xs font-bold text-white ${
-            result === 'W'
-              ? 'bg-green-500'
-              : result === 'D'
-              ? 'bg-gray-400'
-              : 'bg-red-500'
-          }`}
-        >
-          {result}
-        </span>
-      ))}
-    </div>
+  return buildMetadata(
+    generateTeamSEO({
+      name: team.name,
+      league: team.league.name,
+      recentForm,
+      locale: localeCode,
+    })
   )
 }
 
@@ -179,8 +165,22 @@ export default async function TeamPage({ params }: Props) {
     })),
   ].sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime())
 
+  // JSON-LD structured data
+  const jsonLd = generateTeamJsonLd({
+    name: team.name,
+    logoUrl: team.logoUrl || undefined,
+    venue: team.venue || undefined,
+    city: team.city || undefined,
+    founded: team.founded || undefined,
+  })
+
   return (
     <div className="container py-8">
+      {/* Add JSON-LD to the page */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Team Header */}
       <Card className="mb-8">
         <CardContent className="p-6">
@@ -240,7 +240,7 @@ export default async function TeamPage({ params }: Props) {
                   <Badge className="text-lg px-3 py-1">{stats.points}점</Badge>
                 </div>
                 <p className="mb-2 text-sm text-muted-foreground">최근 폼</p>
-                <FormBadge form={stats.form || team.recentMatches?.recentForm || null} />
+                <FormBadge form={stats.form || team.recentMatches?.recentForm || null} size="lg" />
               </div>
             )}
           </div>

@@ -9,10 +9,13 @@ import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { getTodayRangeInTimezone } from '@/lib/timezone'
 import { MatchCard } from '@/components/match-card'
+import { CACHE_REVALIDATE } from '@/lib/cache'
 
 interface Props {
   params: Promise<{ locale: string }>
 }
+
+export const revalidate = CACHE_REVALIDATE
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params

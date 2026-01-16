@@ -9,6 +9,8 @@ import { Link } from '@/i18n/routing'
 import Image from 'next/image'
 import { useFavoriteTeams } from '@/stores/favorite-teams'
 import { useTranslations } from 'next-intl'
+import { MatchStatusBadge } from './match-status-badge'
+import { MATCH_STATUS_KEYS } from '@/lib/constants'
 
 interface MatchCardProps {
   match: {
@@ -42,18 +44,6 @@ interface MatchCardProps {
   showDate?: boolean
 }
 
-const STATUS_KEYS: Record<string, string> = {
-  SCHEDULED: 'upcoming',
-  TIMED: 'upcoming',
-  LIVE: 'live',
-  IN_PLAY: 'live',
-  PAUSED: 'paused',
-  FINISHED: 'finished',
-  POSTPONED: 'postponed',
-  CANCELLED: 'cancelled',
-  SUSPENDED: 'suspended',
-}
-
 export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
   const { favoriteTeamIds } = useFavoriteTeams()
   const t = useTranslations('match')
@@ -66,23 +56,6 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
   const hasHomeFavorite = favoriteTeamIds.includes(match.homeTeam.id)
   const hasAwayFavorite = favoriteTeamIds.includes(match.awayTeam.id)
   const hasFavorite = hasHomeFavorite || hasAwayFavorite
-
-  const statusColors: Record<string, string> = {
-    SCHEDULED: 'bg-blue-500',
-    TIMED: 'bg-blue-500',
-    LIVE: 'bg-red-500 animate-pulse',
-    IN_PLAY: 'bg-red-500 animate-pulse',
-    FINISHED: 'bg-gray-500',
-    POSTPONED: 'bg-yellow-500',
-    CANCELLED: 'bg-gray-400',
-    SUSPENDED: 'bg-orange-500',
-    PAUSED: 'bg-yellow-500',
-  }
-
-  const getStatusLabel = (status: string): string => {
-    const key = STATUS_KEYS[status] || 'upcoming'
-    return t(key as 'upcoming' | 'live' | 'finished' | 'postponed' | 'cancelled' | 'paused' | 'suspended')
-  }
 
   return (
     <Link href={`/match/${match.slug}`}>
@@ -119,7 +92,10 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
                   AI
                 </Badge>
               )}
-              <Badge className={`${statusColors[match.status]} text-white`}>{getStatusLabel(match.status)}</Badge>
+              <MatchStatusBadge 
+                status={match.status} 
+                label={t(MATCH_STATUS_KEYS[match.status] as any)} 
+              />
             </div>
           </div>
 

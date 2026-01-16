@@ -81,28 +81,39 @@ export default async function HomePage({ params }: Props) {
   const featuredLeagues = await getFeaturedLeagues()
 
   return (
-    <div className="container py-8">
+    <div className="container px-4 py-6 md:px-6 md:py-12">
       {/* Hero Section */}
-      <section className="mb-12 text-center">
-        <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
-          <span className="gradient-text">PlayStat</span>
-        </h1>
-        <p className="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground">
-          {t('hero_description')}
-        </p>
-        <div className="flex flex-wrap justify-center gap-4">
-          <Button asChild size="lg">
-            <Link href="/matches/today">
-              <Calendar className="mr-2 h-5 w-5" />
-              {t('today_matches')}
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link href="/daily/today">
-              <ChartBar className="mr-2 h-5 w-5" />
-              {common('daily_report')}
-            </Link>
-          </Button>
+      <section className="relative mb-10 overflow-hidden rounded-[2rem] bg-slate-50/50 py-10 dark:bg-slate-900/50 md:mb-16 md:py-20">
+        {/* Animated Background Blobs */}
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute -left-4 top-0 h-72 w-72 animate-blob rounded-full bg-primary/10 mix-blend-multiply blur-3xl filter dark:mix-blend-soft-light md:h-96 md:w-96" />
+          <div className="animation-delay-2000 absolute -right-4 top-0 h-72 w-72 animate-blob rounded-full bg-blue-400/10 mix-blend-multiply blur-3xl filter dark:mix-blend-soft-light md:h-96 md:w-96" />
+          <div className="animation-delay-4000 absolute -bottom-8 left-20 h-72 w-72 animate-blob rounded-full bg-purple-400/10 mix-blend-multiply blur-3xl filter dark:mix-blend-soft-light md:h-96 md:w-96" />
+        </div>
+
+        <div className="relative z-10 px-6 text-center md:px-12">
+          <h1 className="mb-6 break-keep text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl lg:text-6xl">
+            <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+              {t('hero_title')}
+            </span>
+          </h1>
+          <p className="mx-auto mb-10 max-w-2xl break-keep text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
+            {t('hero_description')}
+          </p>
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+            <Button asChild size="lg" className="h-12 w-full px-8 text-base font-bold shadow-lg shadow-primary/20 transition-all hover:scale-105 sm:h-14 sm:w-auto sm:text-lg">
+              <Link href="/matches/today">
+                <Calendar className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+                {t('today_matches')}
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg" className="h-12 w-full px-8 text-base font-bold transition-all hover:bg-accent hover:scale-105 sm:h-14 sm:w-auto sm:text-lg">
+              <Link href="/daily/today">
+                <ChartBar className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+                {common('daily_report')}
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
 

@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import { setRequestLocale } from 'next-intl/server'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { notFound, redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +17,7 @@ import { format, parse, isValid, startOfDay } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
+import { ensureDailyReportEnglish } from '@/lib/ai/translate'
 
 interface Props {
   params: Promise<{ locale: string; date: string }>
@@ -275,6 +276,11 @@ export default async function DailyReportPage({ params }: Props) {
   const { locale, date: dateStr } = await params
   setRequestLocale(locale)
 
+  const tCommon = await getTranslations({ locale, namespace: 'common' })
+  const tHome = await getTranslations({ locale, namespace: 'home' })
+  const tDaily = await getTranslations({ locale, namespace: 'daily_report' })
+  const tMatch = await getTranslations({ locale, namespace: 'match' })
+
   // today는 실제 날짜로 리다이렉트
   if (dateStr === 'today') {
     const today = format(new Date(), 'yyyy-MM-dd')
@@ -286,20 +292,29 @@ export default async function DailyReportPage({ params }: Props) {
     notFound()
   }
 
-  const [report, matches] = await Promise.all([
+  let [report, matches] = await Promise.all([
     getDailyReport(dateStr),
     getTodayMatches(dateStr),
   ])
 
+  // 영문 요청 시 리포트가 국문만 있다면 자동 번역 (최초 1회)
+  if (locale === 'en' && report && !report.summaryEn) {
+    report = await ensureDailyReportEnglish(report)
+  }
+
   const dateKo = format(parsed, 'yyyy년 M월 d일 (EEEE)', { locale: ko })
-  const dateShort = format(parsed, 'M월 d일', { locale: ko })
+  const dateEn = format(parsed, 'MMMM d, yyyy (EEEE)')
+  const isEn = locale === 'en'
+  const dateFormatted = isEn ? dateEn : dateKo
+  const dateShort = isEn ? format(parsed, 'MMM d') : format(parsed, 'M월 d일', { locale: ko })
 
   let content: ReportContent | null = null
   let hotMatches: HotMatch[] = []
 
   if (report) {
     try {
-      content = JSON.parse(report.summary) as ReportContent
+      const summaryToParse = (isEn && report.summaryEn ? report.summaryEn : report.summary)
+      content = JSON.parse(summaryToParse) as ReportContent
       hotMatches = (report.hotMatches as unknown as HotMatch[]) || []
     } catch {
       content = null
@@ -326,13 +341,13 @@ export default async function DailyReportPage({ params }: Props) {
           <ol className="flex items-center gap-1">
             <li>
               <Link href="/" className="hover:text-primary">
-                홈
+                {tCommon('home')}
               </Link>
             </li>
             <ChevronRight className="h-3 w-3" />
             <li>
               <Link href="/daily/today" className="hover:text-primary">
-                데일리 리포트
+                {tCommon('daily_report')}
               </Link>
             </li>
             <ChevronRight className="h-3 w-3" />
@@ -343,14 +358,14 @@ export default async function DailyReportPage({ params }: Props) {
         {/* Page Header - H1 for SEO */}
         <header className="mb-8">
           <h1 className="text-3xl font-bold mb-2">
-            {content?.title || `${dateKo} 축구 경기 분석`}
+            {content?.title || (isEn ? `${dateFormatted} Football Analysis` : `${dateKo} 축구 경기 분석`)}
           </h1>
           <p className="text-muted-foreground flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            {dateKo}
+            {dateFormatted}
             <span className="mx-2">•</span>
             <Trophy className="h-4 w-4" />
-            {matches.length}개 경기
+            {matches.length}{isEn ? ' Matches' : '개 경기'}
           </p>
         </header>
 
@@ -360,7 +375,7 @@ export default async function DailyReportPage({ params }: Props) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                오늘의 축구 요약
+                {isEn ? "Today's Football Summary" : '오늘의 축구 요약'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -380,7 +395,7 @@ export default async function DailyReportPage({ params }: Props) {
               <section>
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                   <Star className="h-5 w-5 text-yellow-500" />
-                  오늘의 주목 경기
+                  {tDaily('hot_matches')}
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {hotMatches.map((hot, i) => {
@@ -423,7 +438,7 @@ export default async function DailyReportPage({ params }: Props) {
             <section>
               <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <Trophy className="h-5 w-5" />
-                리그별 경기 일정
+                {isEn ? 'Matches by League' : '리그별 경기 일정'}
               </h2>
 
               {Object.entries(matchesByLeague).map(([leagueName, leagueMatches]) => (
@@ -440,7 +455,7 @@ export default async function DailyReportPage({ params }: Props) {
                     )}
                     {leagueName}
                     <Badge variant="outline" className="text-xs">
-                      {leagueMatches.length}경기
+                      {leagueMatches.length}{isEn ? ' matches' : '경기'}
                     </Badge>
                   </h3>
 
@@ -476,11 +491,12 @@ export default async function DailyReportPage({ params }: Props) {
                                     </span>
                                     {match.homeTeam.seasonStats?.rank && (
                                       <span className="text-xs text-muted-foreground">
-                                        ({match.homeTeam.seasonStats.rank}위)
+                                        ({match.homeTeam.seasonStats.rank}{isEn ? 'th' : '위'})
                                       </span>
                                     )}
                                     <FormBadge
                                       form={match.homeTeam.seasonStats?.form || null}
+                                      size="sm"
                                     />
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -498,11 +514,12 @@ export default async function DailyReportPage({ params }: Props) {
                                     </span>
                                     {match.awayTeam.seasonStats?.rank && (
                                       <span className="text-xs text-muted-foreground">
-                                        ({match.awayTeam.seasonStats.rank}위)
+                                        ({match.awayTeam.seasonStats.rank}{isEn ? 'th' : '위'})
                                       </span>
                                     )}
                                     <FormBadge
                                       form={match.awayTeam.seasonStats?.form || null}
+                                      size="sm"
                                     />
                                   </div>
                                 </div>
@@ -515,7 +532,7 @@ export default async function DailyReportPage({ params }: Props) {
                                   className="text-xs bg-primary/10 text-primary"
                                 >
                                   <Sparkles className="h-3 w-3 mr-1" />
-                                  AI 분석
+                                  {isEn ? 'AI Analysis' : 'AI 분석'}
                                 </Badge>
                               )}
                             </div>
@@ -532,7 +549,7 @@ export default async function DailyReportPage({ params }: Props) {
                   <CardContent className="py-12 text-center">
                     <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                     <p className="text-muted-foreground">
-                      이 날은 예정된 경기가 없습니다.
+                      {tHome('no_matches_scheduled')}
                     </p>
                   </CardContent>
                 </Card>
@@ -560,7 +577,7 @@ export default async function DailyReportPage({ params }: Props) {
             {content?.keywords && content.keywords.length > 0 && (
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">관련 키워드</CardTitle>
+                  <CardTitle className="text-lg">{isEn ? 'Related Keywords' : '관련 키워드'}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
@@ -577,21 +594,21 @@ export default async function DailyReportPage({ params }: Props) {
             {/* Navigation to other dates */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">다른 날짜</CardTitle>
+                <CardTitle className="text-lg">{isEn ? 'Other Dates' : '다른 날짜'}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {[-2, -1, 1, 2].map((offset) => {
                   const d = new Date(parsed)
                   d.setDate(d.getDate() + offset)
                   const dStr = format(d, 'yyyy-MM-dd')
-                  const dKo = format(d, 'M월 d일 (EEE)', { locale: ko })
+                  const dFormattedSidebar = format(d, isEn ? 'MMM d (EEE)' : 'M월 d일 (EEE)', { locale: isEn ? undefined : ko })
                   return (
                     <Link
                       key={offset}
                       href={`/daily/${dStr}`}
                       className="block text-sm hover:text-primary transition-colors"
                     >
-                      {dKo}
+                      {dFormattedSidebar}
                     </Link>
                   )
                 })}

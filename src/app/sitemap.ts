@@ -1,84 +1,60 @@
 import { MetadataRoute } from 'next'
 import { prisma } from '@/lib/prisma'
+import { locales } from '@/i18n/config'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://playstat.space'
 
 // 빌드 시 동적으로 생성
 export const dynamic = 'force-dynamic'
 
+/**
+ * 모든 언어에 대한 URL을 생성하는 헬퍼 함수
+ */
+function getLocalizedUrls(path: string, priority: number, changeFrequency: any, lastModified?: Date) {
+  return locales.map((locale) => ({
+    url: `${SITE_URL}/${locale}${path === '/' ? '' : path}`,
+    lastModified: lastModified || new Date(),
+    changeFrequency,
+    priority,
+  }))
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const staticPages: MetadataRoute.Sitemap = [
-    {
-      url: SITE_URL,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1,
-    },
-    {
-      url: `${SITE_URL}/matches/today`,
-      lastModified: new Date(),
-      changeFrequency: 'hourly',
-      priority: 0.9,
-    },
-    {
-      url: `${SITE_URL}/leagues`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/news`,
-      lastModified: new Date(),
-      changeFrequency: 'hourly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/about`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
-    {
-      url: `${SITE_URL}/privacy`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.3,
-    },
-    {
-      url: `${SITE_URL}/terms`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.3,
-    },
+  const staticPaths = [
+    { path: '/', priority: 1, changeFrequency: 'daily' as const },
+    { path: '/matches/today', priority: 0.9, changeFrequency: 'hourly' as const },
+    { path: '/leagues', priority: 0.8, changeFrequency: 'weekly' as const },
+    { path: '/news', priority: 0.8, changeFrequency: 'hourly' as const },
+    { path: '/about', priority: 0.5, changeFrequency: 'monthly' as const },
+    { path: '/privacy', priority: 0.3, changeFrequency: 'monthly' as const },
+    { path: '/terms', priority: 0.3, changeFrequency: 'monthly' as const },
   ]
+
+  const staticPages: MetadataRoute.Sitemap = staticPaths.flatMap((p) => 
+    getLocalizedUrls(p.path, p.priority, p.changeFrequency)
+  )
 
   // DB 연결이 없을 때는 정적 페이지만 반환
   try {
     // 동적 페이지: 리그
     const leagues = await prisma.league.findMany({
       where: { isActive: true },
-      select: { id: true, updatedAt: true },
+      select: { code: true, updatedAt: true },
     })
 
-    const leaguePages: MetadataRoute.Sitemap = leagues.map((league) => ({
-      url: `${SITE_URL}/league/${league.id}`,
-      lastModified: league.updatedAt,
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
-    }))
+    const leaguePages: MetadataRoute.Sitemap = leagues.flatMap((league) => 
+      getLocalizedUrls(`/league/${league.code?.toLowerCase() || 'epl'}`, 0.7, 'weekly' as const, league.updatedAt)
+    )
 
     // 동적 페이지: 팀
     const teams = await prisma.team.findMany({
       select: { id: true, updatedAt: true },
-      take: 500, // 상위 500개 팀
+      take: 250, // 언어별로 생성되므로 개수 조절 (500 -> 250 * 2 locales)
     })
 
-    const teamPages: MetadataRoute.Sitemap = teams.map((team) => ({
-      url: `${SITE_URL}/team/${team.id}`,
-      lastModified: team.updatedAt,
-      changeFrequency: 'weekly' as const,
-      priority: 0.6,
-    }))
+    const teamPages: MetadataRoute.Sitemap = teams.flatMap((team) => 
+      getLocalizedUrls(`/team/${team.id}`, 0.6, 'weekly' as const, team.updatedAt)
+    )
 
     // 동적 페이지: 경기 (분석이 있는 것만)
     const matches = await prisma.match.findMany({
@@ -88,17 +64,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
       select: { slug: true, updatedAt: true },
       orderBy: { kickoffAt: 'desc' },
-      take: 1000, // 최근 1000개 경기
+      take: 500, // 언어별로 생성되므로 개수 조절
     })
 
     const matchPages: MetadataRoute.Sitemap = matches
       .filter((m) => m.slug)
-      .map((match) => ({
-        url: `${SITE_URL}/match/${match.slug}`,
-        lastModified: match.updatedAt,
-        changeFrequency: 'daily' as const,
-        priority: 0.8,
-      }))
+      .flatMap((match) => 
+        getLocalizedUrls(`/match/${match.slug}`, 0.8, 'daily' as const, match.updatedAt)
+      )
 
     // 동적 페이지: 데일리 리포트 (최근 30일)
     const dailyReports = await prisma.dailyReport.findMany({
@@ -107,33 +80,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       take: 30,
     })
 
-    const dailyPages: MetadataRoute.Sitemap = dailyReports.map((report) => {
+    const dailyPages: MetadataRoute.Sitemap = dailyReports.flatMap((report) => {
       const dateStr = report.date.toISOString().split('T')[0]
-      return {
-        url: `${SITE_URL}/daily/${dateStr}`,
-        lastModified: report.updatedAt,
-        changeFrequency: 'daily' as const,
-        priority: 0.9, // 높은 우선순위 (SEO 중요)
-      }
+      return getLocalizedUrls(`/daily/${dateStr}`, 0.9, 'daily' as const, report.updatedAt)
     })
 
-    // 오늘 날짜 데일리 페이지 추가 (리포트가 없어도)
+    // 오늘 날짜 데일리 페이지 추가
     const today = new Date().toISOString().split('T')[0]
     const hasTodayReport = dailyReports.some(
       (r) => r.date.toISOString().split('T')[0] === today
     )
     if (!hasTodayReport) {
-      dailyPages.unshift({
-        url: `${SITE_URL}/daily/${today}`,
-        lastModified: new Date(),
-        changeFrequency: 'hourly' as const,
-        priority: 1, // 오늘 경기는 최고 우선순위
-      })
+      const todayPages = getLocalizedUrls(`/daily/${today}`, 1, 'hourly' as const)
+      dailyPages.unshift(...todayPages)
     }
 
     return [...staticPages, ...dailyPages, ...leaguePages, ...teamPages, ...matchPages]
-  } catch {
-    console.warn('Sitemap: DB connection failed, returning static pages only')
+  } catch (error) {
+    console.warn('Sitemap: DB connection failed, returning static pages only', error)
     return staticPages
   }
 }

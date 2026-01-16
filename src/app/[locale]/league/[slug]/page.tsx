@@ -10,10 +10,18 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
+import { CACHE_REVALIDATE } from '@/lib/cache'
+import { generateMetadata as buildMetadata, generateLeagueSEO } from '@/lib/seo'
+import { FormBadge } from '@/components/form-badge'
+import { MatchStatusBadge } from '@/components/match-status-badge'
+import { getTranslations } from 'next-intl/server'
+import { MATCH_STATUS_KEYS } from '@/lib/constants'
 
 interface Props {
   params: Promise<{ locale: string; slug: string }>
 }
+
+export const revalidate = CACHE_REVALIDATE
 
 // Slug to competition code mapping
 const SLUG_TO_CODE: Record<string, string> = {
@@ -98,61 +106,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'League Not Found' }
   }
 
-  return {
-    title: `${league.name} - AI 분석`,
-    description: `${league.name} 순위표, 경기 일정, AI 분석 제공`,
-  }
+  const seasonLabel = league.season ? String(league.season) : 'current'
+  const localeCode = (await params).locale === 'ko' ? 'ko_KR' : 'en_US'
+
+  return buildMetadata(
+    generateLeagueSEO({
+      name: league.name,
+      country: league.country,
+      season: seasonLabel,
+      locale: localeCode,
+    })
+  )
 }
 
 export async function generateStaticParams() {
   return Object.keys(SLUG_TO_CODE).map((slug) => ({ slug }))
 }
 
-function FormBadge({ form }: { form: string | null }) {
-  if (!form) return null
-
-  const formArray = form.split(',').slice(0, 5)
-
-  return (
-    <div className="flex gap-0.5">
-      {formArray.map((result, i) => (
-        <span
-          key={i}
-          className={`w-5 h-5 flex items-center justify-center text-xs font-bold rounded ${
-            result === 'W'
-              ? 'bg-green-500 text-white'
-              : result === 'D'
-              ? 'bg-gray-400 text-white'
-              : 'bg-red-500 text-white'
-          }`}
-        >
-          {result}
-        </span>
-      ))}
-    </div>
-  )
-}
-
-function MatchStatusBadge({ status }: { status: string }) {
-  const statusConfig: Record<string, { label: string; className: string }> = {
-    SCHEDULED: { label: '예정', className: 'bg-blue-500' },
-    TIMED: { label: '예정', className: 'bg-blue-500' },
-    LIVE: { label: '진행중', className: 'bg-red-500 animate-pulse' },
-    FINISHED: { label: '종료', className: 'bg-gray-500' },
-    POSTPONED: { label: '연기', className: 'bg-yellow-500' },
-    CANCELLED: { label: '취소', className: 'bg-gray-400' },
-    SUSPENDED: { label: '중단', className: 'bg-orange-500' },
-  }
-
-  const config = statusConfig[status] || statusConfig.SCHEDULED
-
-  return <Badge className={config.className}>{config.label}</Badge>
-}
-
 export default async function LeaguePage({ params }: Props) {
   const { locale, slug } = await params
   setRequestLocale(locale)
 
+  const t = await getTranslations({ locale, namespace: 'match' })
   const league = await getLeagueData(slug)
 
   if (!league) {
@@ -382,7 +357,10 @@ export default async function LeaguePage({ params }: Props) {
                           <span className="font-medium">{match.awayTeam.name}</span>
                         </div>
 
-                        <MatchStatusBadge status={match.status} />
+                        <MatchStatusBadge 
+                          status={match.status} 
+                          label={t(MATCH_STATUS_KEYS[match.status] as any)} 
+                        />
                       </div>
                     </Link>
                   </CardContent>

@@ -1,10 +1,10 @@
 import { Metadata } from 'next'
-import { setRequestLocale } from 'next-intl/server'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Newspaper, Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { ko } from 'date-fns/locale'
+import { ko, enUS } from 'date-fns/locale'
 import Image from 'next/image'
 import { collectAllFootballNews, type NewsItem } from '@/lib/api/news-api'
 
@@ -15,15 +15,21 @@ interface Props {
   params: Promise<{ locale: string }>
 }
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'news' })
   return {
-    title: '축구 뉴스',
-    description: '최신 축구 뉴스',
+    title: t('latest'),
+    description: t('latest'),
   }
 }
 
-function NewsCard({ news }: { news: NewsItem }) {
-  const timeAgo = formatDistanceToNow(new Date(news.pubDate), { addSuffix: true, locale: ko })
+function NewsCard({ news, locale }: { news: NewsItem; locale: string }) {
+  const dateLocale = locale === 'ko' ? ko : enUS
+  const timeAgo = formatDistanceToNow(new Date(news.pubDate), { 
+    addSuffix: true, 
+    locale: dateLocale 
+  })
 
   return (
     <a href={news.link} target="_blank" rel="noopener noreferrer">
@@ -93,6 +99,8 @@ export default async function NewsPage({ params }: Props) {
   const { locale } = await params
   setRequestLocale(locale)
 
+  const t = await getTranslations({ locale, namespace: 'news' })
+
   let news: NewsItem[] = []
   let error = false
 
@@ -108,10 +116,10 @@ export default async function NewsPage({ params }: Props) {
       <div className="mb-8">
         <h1 className="mb-2 flex items-center text-3xl font-bold">
           <Newspaper className="mr-3 h-8 w-8" />
-          축구 뉴스
+          {t('latest')}
         </h1>
         <p className="text-muted-foreground">
-          최신 축구 뉴스를 확인하세요
+          {t('read_more')}
         </p>
       </div>
 
@@ -119,16 +127,13 @@ export default async function NewsPage({ params }: Props) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center p-12 text-center">
             <Newspaper className="mb-4 h-16 w-16 text-muted-foreground" />
-            <p className="text-lg text-muted-foreground">뉴스를 불러올 수 없습니다.</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              잠시 후 다시 시도해주세요.
-            </p>
+            <p className="text-lg text-muted-foreground">{t('error')}</p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {news.map((item, index) => (
-            <NewsCard key={`${item.pubDate}-${index}`} news={item} />
+            <NewsCard key={`${item.pubDate}-${index}`} news={item} locale={locale} />
           ))}
         </div>
       )}
