@@ -137,7 +137,9 @@ export default async function LeaguePage({ params }: Props) {
   const { locale, slug } = await params
   setRequestLocale(locale)
 
-  const t = await getTranslations({ locale, namespace: 'match' })
+  const tMatch = await getTranslations({ locale, namespace: 'match' })
+  const tLeague = await getTranslations({ locale, namespace: 'league' })
+  const tHome = await getTranslations({ locale, namespace: 'home' })
   const tCommon = await getTranslations({ locale, namespace: 'common' })
   const league = await getCachedLeagueData(slug)
 
@@ -161,7 +163,7 @@ export default async function LeaguePage({ params }: Props) {
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
-          {t('back_to_leagues')}
+          {tMatch('back_to_leagues')}
         </Link>
       </div>
 
@@ -188,7 +190,7 @@ export default async function LeaguePage({ params }: Props) {
               {league.currentMatchday && (
                 <>
                   <span>•</span>
-                  <span>{t('round')} {league.currentMatchday}</span>
+                  <span>{tLeague('round')} {league.currentMatchday}</span>
                 </>
               )}
             </div>
@@ -198,9 +200,9 @@ export default async function LeaguePage({ params }: Props) {
 
       <Tabs defaultValue="standings" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="standings">{t('standings')}</TabsTrigger>
-          <TabsTrigger value="fixtures">{t('fixtures')}</TabsTrigger>
-          <TabsTrigger value="teams">{t('teams')}</TabsTrigger>
+          <TabsTrigger value="standings">{tLeague('standings')}</TabsTrigger>
+          <TabsTrigger value="fixtures">{tLeague('fixtures')}</TabsTrigger>
+          <TabsTrigger value="teams">{tLeague('teams')}</TabsTrigger>
         </TabsList>
 
         {/* Standings */}
@@ -209,13 +211,13 @@ export default async function LeaguePage({ params }: Props) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
-                {t('league_standings')}
+                {tMatch('league_standings')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {standings.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
-                  {t('no_standings_data')}
+                  {tMatch('no_standings_data')}
                 </p>
               ) : (
                 <div className="overflow-x-auto">
@@ -223,16 +225,16 @@ export default async function LeaguePage({ params }: Props) {
                     <thead>
                       <tr className="border-b text-left text-sm text-muted-foreground">
                         <th className="pb-3 pr-4">#</th>
-                        <th className="pb-3 pr-4">{t('team')}</th>
-                        <th className="pb-3 pr-4 text-center">{t('games')}</th>
-                        <th className="pb-3 pr-4 text-center">{t('win')}</th>
-                        <th className="pb-3 pr-4 text-center">{t('draw')}</th>
-                        <th className="pb-3 pr-4 text-center">{t('loss')}</th>
-                        <th className="pb-3 pr-4 text-center">{t('goals_for_short')}</th>
-                        <th className="pb-3 pr-4 text-center">{t('goals_against_short')}</th>
-                        <th className="pb-3 pr-4 text-center">{t('goal_difference_short')}</th>
-                        <th className="pb-3 pr-4 text-center">{t('recent_form')}</th>
-                        <th className="pb-3 text-center">{t('points')}</th>
+                        <th className="pb-3 pr-4">{tMatch('team')}</th>
+                        <th className="pb-3 pr-4 text-center">{tMatch('games')}</th>
+                        <th className="pb-3 pr-4 text-center">{tMatch('win')}</th>
+                        <th className="pb-3 pr-4 text-center">{tMatch('draw')}</th>
+                        <th className="pb-3 pr-4 text-center">{tMatch('loss')}</th>
+                        <th className="pb-3 pr-4 text-center">{tMatch('goals_for_short')}</th>
+                        <th className="pb-3 pr-4 text-center">{tMatch('goals_against_short')}</th>
+                        <th className="pb-3 pr-4 text-center">{tMatch('goal_difference_short')}</th>
+                        <th className="pb-3 pr-4 text-center">{tMatch('recent_form')}</th>
+                        <th className="pb-3 text-center">{tMatch('points')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -295,9 +297,9 @@ export default async function LeaguePage({ params }: Props) {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center p-8 text-center">
                   <Calendar className="mb-4 h-12 w-12 text-muted-foreground" />
-                  <p className="text-muted-foreground">{t('no_matches_scheduled')}</p>
+                  <p className="text-muted-foreground">{tHome('no_matches_scheduled')}</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    {t('run_cron_message')}
+                    {tHome('run_cron_message')}
                   </p>
                 </CardContent>
               </Card>
@@ -365,7 +367,7 @@ export default async function LeaguePage({ params }: Props) {
                             </span>
                             {match.matchAnalysis && (
                               <Badge variant="outline" className="mt-1 text-xs">
-                                {t('ai_analysis')}
+                                {tMatch('ai_analysis')}
                               </Badge>
                             )}
                           </div>
@@ -394,7 +396,7 @@ export default async function LeaguePage({ params }: Props) {
                           <MatchStatusBadge 
                             status={match.status} 
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            label={t(MATCH_STATUS_KEYS[match.status] as any)} 
+                            label={tMatch(MATCH_STATUS_KEYS[match.status] as any)} 
                           />
                         </div>
                       </Link>
@@ -413,7 +415,7 @@ export default async function LeaguePage({ params }: Props) {
               <Card className="col-span-full">
                 <CardContent className="flex flex-col items-center justify-center p-8 text-center">
                   <TrendingDown className="mb-4 h-12 w-12 text-muted-foreground" />
-                  <p className="text-muted-foreground">{t('no_teams_data')}</p>
+                  <p className="text-muted-foreground">{tMatch('no_teams_data')}</p>
                 </CardContent>
               </Card>
             ) : (
@@ -437,7 +439,7 @@ export default async function LeaguePage({ params }: Props) {
                       <h3 className="font-semibold">{team.name}</h3>
                       {team.seasonStats && (
                         <p className="text-sm text-muted-foreground">
-                          {team.seasonStats.rank}{t('rank')} • {team.seasonStats.points}{t('points')}
+                          {team.seasonStats.rank}{tMatch('rank')} • {team.seasonStats.points}{tMatch('points')}
                         </p>
                       )}
                     </div>
