@@ -33,9 +33,27 @@ export async function GET(request: Request) {
     const dateFrom = format(subDays(now, 1), 'yyyy-MM-dd')
     const dateTo = format(addDays(now, 1), 'yyyy-MM-dd')
 
-    // 타임아웃 방지를 위해 한 번의 API 호출로 모든 경기 데이터를 가져옵니다.
     console.log(`[Cron] Fetching all matches from ${dateFrom} to ${dateTo}`)
     const matchesResponse = await footballDataApi.getMatchesByDateRange(dateFrom, dateTo)
+    
+    // DB에 있는 해당 범위의 경기들을 한 번에 가져와서 메모리에서 비교 (성능 최적화)
+    const externalIds = matchesResponse.matches.map(m => String(m.id))
+    const existingMatches = await prisma.match.findMany({
+      where: { externalId: { in: externalIds } },
+      select: { 
+        id: true, 
+        externalId: true,
+        status: true,
+        homeScore: true,
+        awayScore: true,
+        halfTimeHome: true,
+        halfTimeAway: true,
+        homeTeam: { select: { name: true } },
+        awayTeam: { select: { name: true } }
+      }
+    })
+
+    const existingMatchMap = new Map(existingMatches.map(m => [m.externalId, m]))
     
     let updatedCount = 0
     const errors: string[] = []
@@ -43,23 +61,10 @@ export async function GET(request: Request) {
 
     for (const match of matchesResponse.matches) {
       try {
-        // 우리가 추적하는 리그인지 확인
         const LEAGUE_CODES = ['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'DED', 'PPL']
         if (!LEAGUE_CODES.includes(match.competition.code)) continue
 
-        const existingMatch = await prisma.match.findFirst({
-          where: { externalId: String(match.id) },
-          select: { 
-            id: true, 
-            status: true,
-            homeScore: true,
-            awayScore: true,
-            halfTimeHome: true,
-            halfTimeAway: true,
-            homeTeam: { select: { name: true } },
-            awayTeam: { select: { name: true } }
-          }
-        })
+        const existingMatch = existingMatchMap.get(String(match.id))
 
         if (existingMatch) {
           const newStatus = mapStatus(match.status)
@@ -68,7 +73,6 @@ export async function GET(request: Request) {
           const newHTHome = match.score.halfTime.home
           const newHTAway = match.score.halfTime.away
 
-          // 실제 변화가 있는지 체크
           const isChanged = 
             existingMatch.status !== newStatus ||
             existingMatch.homeScore !== newHomeScore ||
@@ -152,9 +156,13 @@ export async function GET(request: Request) {
       cleanupResults,
       duration,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Cron update-live-matches error:', error)
-    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || String(error),
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+    }, { status: 500 })
   }
 }
 
