@@ -36,14 +36,41 @@ PlayStat은 **합법적인 스포츠 데이터 인사이트 플랫폼**입니다
 - "승률 70%로 A팀 승리가 유력합니다"
 ```
 
-## 기술 스택
+## 기술 스택 및 라이브러리
 
-- Next.js 14 (App Router)
-- Prisma + Supabase PostgreSQL
-- next-intl (한국어/영어, localePrefix: 'as-needed')
-- Football-Data.org API (무료 플랜)
-- Tailwind CSS + shadcn/ui
-- Vercel 배포
+### 프레임워크 및 코어
+- **Next.js 14 (App Router)**: 서버 컴포넌트 및 스트리밍 활용
+- **TypeScript**: 타입 안정성 확보
+- **Prisma + Supabase (PostgreSQL)**: 데이터베이스 및 ORM
+
+### 데이터 및 API
+- **Football-Data.org API**: 경기 일정, 결과, 통계 데이터 (무료 플랜)
+- **OpenAI (GPT-4o / GPT-4o-mini)**: 경기 데이터 기반 AI 분석 및 다국어 번역 생성
+
+### 다국어 지원 (i18n)
+- **next-intl**: 한국어/영어 지원 (`[locale]` 경로 구조)
+- **AI 자동 번역**: 국문 데이터 생성 시 영문 자동 번역 및 DB 캐싱
+
+### 캐시 및 성능 최적화
+- **Next.js unstable_cache**: 서버 사이드 데이터 공유 캐시 (메모리 성능 최적화)
+- **Upstash Redis**: 분산 환경 데이터 캐싱 및 속도 개선
+- **Vercel Analytics**: 실시간 사용자 유입 및 성능 모니터링
+
+### UI/UX
+- **Tailwind CSS + shadcn/ui**: 반응형 및 일관된 디자인 시스템
+- **Lucide React**: 벡터 아이콘 시스템
+- **date-fns**: 시간 및 날짜 포맷팅 (KST 기준 최적화)
+
+## 주요 설정 및 아키텍처
+
+- **SEO 최적화**: 모든 페이지 동적 메타데이터(`generateMetadata`) 및 JSON-LD 구조화 데이터 적용
+- **크론 작업 (Cron Jobs)**: 
+  - `collect-matches`: 매일 새벽 경기 데이터 및 AI 리뷰 생성
+  - `update-live-matches`: (외부 호출 권장) 실시간 점수 및 상태 업데이트
+- **캐시 전략**:
+  - `CACHE_REVALIDATE`: 일반 경기 데이터 (1시간)
+  - `DAILY_REPORT_REVALIDATE`: 데일리 리포트 (24시간)
+  - `revalidateTag`: 데이터 업데이트 시 즉시 캐시 무효화
 
 ## 비즈니스 모델
 
@@ -54,6 +81,14 @@ PlayStat은 **합법적인 스포츠 데이터 인사이트 플랫폼**입니다
 ## 참고 문서
 
 상세 가이드라인은 `PLAYSTAT_GUIDELINES.md` 참조
+
+## 최근 주요 업데이트 사항 (2026.01)
+
+1. **경기 카드 시각적 강화**: 종료된 경기에서 승리 팀 점수 옆에 트로피 아이콘 배치 및 팀별 차별화 스타일(그레이스케일, 배경 강조) 적용.
+2. **공유 캐시 레이어 도입**: `unstable_cache`를 전역적으로 적용하여 DB 부하를 줄이고 데이터 조회 속도 비약적 향상.
+3. **AI 다국어 자동화**: 국문 분석 데이터 생성 즉시 영문으로 번역하여 캐싱하는 프로세스 구축 (`ensureMatchAnalysisEnglish`, `ensureDailyReportEnglish`).
+4. **실시간 업데이트 최적화**: 10분 주기 실시간 점수 업데이트 크론 구축 및 외부 크론 연동 가이드 마련.
+5. **SEO 완성도 제고**: 리그, 팀, 경기별 구조화 데이터(JSON-LD) 자동 주입 및 다국어 메타데이터 헬퍼 함수 최적화.
 
 ---
 
