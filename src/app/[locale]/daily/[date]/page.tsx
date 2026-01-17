@@ -17,7 +17,7 @@ import { format, parse, isValid, startOfDay, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
-import { ensureDailyReportEnglish } from '@/lib/ai/translate'
+import { ensureDailyReportTranslations } from '@/lib/ai/translate'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
@@ -243,20 +243,17 @@ function JsonLd({
     description: `${match.league.name} ${match.matchday ? `라운드 ${match.matchday}` : ''} 경기`,
   }))
 
+  // 모든 JSON-LD 데이터를 하나의 배열로 합침
+  const allJsonLd = [
+    jsonLd,
+    ...sportsEvents
+  ]
+
   return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      {sportsEvents.map((event, i) => (
-        <script
-          key={i}
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(event) }}
-        />
-      ))}
-    </>
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(allJsonLd) }}
+    />
   )
 }
 
@@ -280,15 +277,15 @@ export default async function DailyReportPage({ params }: Props) {
     notFound()
   }
 
-  let [report, matches] = await Promise.all([
+  const [initialReport, matches] = await Promise.all([
     getCachedDailyReport(dateStr),
     getCachedMatches(dateStr),
   ])
 
-  // 영문 요청 시 리포트가 국문만 있다면 자동 번역 (최초 1회)
-  if (locale === 'en' && report && !report.summaryEn) {
-    report = await ensureDailyReportEnglish(report)
-  }
+  // 다국어 번역 확인 및 생성 (없을 경우에만)
+  const report = initialReport 
+    ? await ensureDailyReportTranslations(initialReport)
+    : null
 
   const dateKo = format(parsed, 'yyyy년 M월 d일 (EEEE)', { locale: ko })
   const dateEn = format(parsed, 'MMMM d, yyyy (EEEE)')
@@ -301,14 +298,22 @@ export default async function DailyReportPage({ params }: Props) {
 
   if (report) {
     try {
-      const summaryToParse = (isEn && report.summaryEn ? report.summaryEn : report.summary)
-      content = JSON.parse(summaryToParse) as ReportContent
+      const translations = (report.translations as any) || {}
+      const langData = translations[locale] || translations['en'] || {}
+      
+      content = {
+        title: langData.title || '',
+        metaDescription: langData.metaDescription || '',
+        summary: langData.summary || '',
+        sections: langData.sections || [],
+        keywords: langData.keywords || [],
+      }
       hotMatches = (report.hotMatches as unknown as HotMatch[]) || []
     } catch {
       // JSON 파싱 실패 시 일반 텍스트 요약으로 처리
       content = {
         title: isEn ? `${dateFormatted} Football Analysis` : `${dateKo} 축구 경기 분석`,
-        summary: (isEn && report.summaryEn ? report.summaryEn : report.summary) || "",
+        summary: report.summary || "",
         sections: [],
         keywords: [],
         metaDescription: ""
@@ -327,12 +332,6 @@ export default async function DailyReportPage({ params }: Props) {
     matchesByLeague[leagueName].push(match)
   }
 
-  // 오늘 가장 임박한 다음 경기 찾기
-  const now = new Date()
-  const nextMatchId = matches
-    .filter(m => (m.status === 'SCHEDULED' || m.status === 'TIMED') && new Date(m.kickoffAt) > now)
-    .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime())[0]?.id
-
   return (
     <>
       <JsonLd report={report} dateStr={dateStr} matches={matches} />
@@ -346,19 +345,19 @@ export default async function DailyReportPage({ params }: Props) {
                 {tCommon('home')}
               </Link>
             </li>
-            <ChevronRight className="h-3 w-3 opacity-50" />
+            <ChevronRight className="h-3 w-3 opacity-50 rtl:-scale-x-100" />
             <li>
               <Link href="/daily/today" className="hover:text-primary transition-colors">
                 {tCommon('daily_report')}
               </Link>
             </li>
-            <ChevronRight className="h-3 w-3 opacity-50" />
+            <ChevronRight className="h-3 w-3 opacity-50 rtl:-scale-x-100" />
             <li className="text-foreground font-medium">{dateShort}</li>
           </ol>
         </nav>
 
         {/* Page Header - H1 for SEO */}
-        <header className="mb-10 text-left max-w-6xl mx-auto">
+        <header className="mb-10 text-start max-w-6xl mx-auto">
           <h1 className="text-3xl font-extrabold mb-3 break-keep sm:text-4xl">
             {content?.title || (isEn ? `${dateFormatted} Football Analysis` : `${dateKo} 축구 경기 분석`)}
           </h1>
@@ -379,10 +378,10 @@ export default async function DailyReportPage({ params }: Props) {
         {content?.summary && (
           <div className="mb-12 max-w-6xl mx-auto">
             <Card className="border-primary/20 bg-primary/5 shadow-md overflow-hidden relative">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
+              <div className="absolute top-0 right-0 p-4 opacity-10 rtl:right-auto rtl:left-0">
                 <Sparkles className="h-24 w-24 text-primary" />
               </div>
-              <CardHeader className="text-left pb-2">
+              <CardHeader className="text-start pb-2">
                 <CardTitle className="flex items-center justify-start gap-2 text-xl font-black text-primary">
                   <Sparkles className="h-5 w-5" />
                   {isEn ? "Today's Strategic Insights" : '오늘의 핵심 관전 인사이트'}
@@ -393,7 +392,7 @@ export default async function DailyReportPage({ params }: Props) {
                   {content.summary.split('\n').filter(line => line.trim()).map((line, i) => (
                     <div key={i} className="flex gap-3 items-start group">
                       <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0 group-hover:scale-150 transition-transform" />
-                      <p className="text-muted-foreground leading-relaxed text-left break-keep text-base font-medium">
+                      <p className="text-muted-foreground leading-relaxed text-start break-keep text-base font-medium">
                         {line.replace(/^\d+\.\s*/, '')}
                       </p>
                     </div>
@@ -419,7 +418,7 @@ export default async function DailyReportPage({ params }: Props) {
 
               return (
                 <section>
-                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-left">
+                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-start">
                     <Star className="h-5 w-5 text-yellow-500" />
                     {tDaily('hot_matches')}
                   </h2>
@@ -442,11 +441,11 @@ export default async function DailyReportPage({ params }: Props) {
                                   {format(match.kickoffAt, 'HH:mm')}
                                 </span>
                               </div>
-                              <h3 className="font-semibold mb-1 text-left">{hot.title}</h3>
-                              <p className="text-sm text-muted-foreground mb-2 text-left line-clamp-2">
+                              <h3 className="font-semibold mb-1 text-start">{hot.title}</h3>
+                              <p className="text-sm text-muted-foreground mb-2 text-start line-clamp-2">
                                 {hot.preview}
                               </p>
-                              <p className="text-xs text-primary flex items-center gap-1 text-left font-bold">
+                              <p className="text-xs text-primary flex items-center gap-1 text-start font-bold">
                                 <TrendingUp className="h-3 w-3" />
                                 {hot.keyPoint}
                               </p>
@@ -463,7 +462,7 @@ export default async function DailyReportPage({ params }: Props) {
               {/* Matches by League */}
               <section>
                 <div className="mb-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-xl font-bold flex items-center gap-2 text-left">
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-start">
                     <Trophy className="h-5 w-5 text-primary" />
                     {isEn ? 'Matches by League' : '리그별 경기 일정'}
                   </h2>
@@ -505,7 +504,7 @@ export default async function DailyReportPage({ params }: Props) {
 
                 {Object.entries(matchesByLeague).map(([leagueName, leagueMatches]) => (
                   <div key={leagueName} className="mb-8">
-                    <h3 className="font-semibold mb-4 flex items-center gap-2 text-left">
+                    <h3 className="font-semibold mb-4 flex items-center gap-2 text-start">
                       {leagueMatches[0]?.league.logoUrl && (
                         <Image
                           src={leagueMatches[0].league.logoUrl}
@@ -525,7 +524,6 @@ export default async function DailyReportPage({ params }: Props) {
                       {leagueMatches.map((match) => {
                         const isFinished = match.status === 'FINISHED'
                         const isLive = match.status === 'LIVE'
-                        const isNext = match.id === nextMatchId
                         const homeWins = isFinished && (match.homeScore ?? 0) > (match.awayScore ?? 0)
                         const awayWins = isFinished && (match.awayScore ?? 0) > (match.homeScore ?? 0)
 
@@ -537,7 +535,6 @@ export default async function DailyReportPage({ params }: Props) {
                             <Card className={`transition-all hover:shadow-sm ${
                               isFinished ? 'opacity-60 bg-muted/20' : 
                               isLive ? 'border-red-500 shadow-sm shadow-red-100 dark:shadow-red-900/20' :
-                              isNext ? 'border-primary ring-1 ring-primary/30 shadow-md scale-[1.01]' :
                               'hover:border-primary/30'
                             }`}>
                               <CardContent className="p-4">
@@ -617,7 +614,6 @@ export default async function DailyReportPage({ params }: Props) {
                                       <MatchStatusBadge 
                                         status={match.status} 
                                         label={tMatch(MATCH_STATUS_KEYS[match.status] as any)} 
-                                        className={isNext ? 'bg-primary animate-pulse' : ''}
                                       />
                                       
                                       {match.matchAnalysis && !isFinished && (
@@ -672,7 +668,7 @@ export default async function DailyReportPage({ params }: Props) {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line text-left">
+                      <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line text-start">
                         {section.content}
                       </p>
                     </CardContent>

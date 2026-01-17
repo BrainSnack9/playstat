@@ -23,6 +23,7 @@
     "hero_description": "Skip the noise, focus on what matters. Enhance your game night with AI-powered match previews and daily reports.",
     "hero_title": "Data Driven Victory, AI Sports Insights",
     "today_matches": "Today's Matches",
+    "hot_trends": "Today's Hot Trends",
     "hot_matches": "Featured Matches",
     "latest_news": "Latest News",
     "featured_analysis": "Featured Analysis",
@@ -140,6 +141,17 @@
     "hot_matches": "Featured Matches",
     "key_news": "Key News",
     "insights": "Today's Insights"
+  },
+  "trends": {
+    "winning_streak": "{value} match winning streak",
+    "losing_streak": "{value} match losing streak",
+    "scoring_machine": "{value} goals in last 5 matches (Explosive offense)",
+    "defense_leak": "{value} goals conceded in last 5 matches (Defensive leak)",
+    "clean_sheet_streak": "{value} clean sheet streak",
+    "draw_streak": "{value} consecutive draws",
+    "mismatch": "Peak form vs Deep slump",
+    "high_scoring_match": "Spear vs Shield: High scoring expected",
+    "defensive_battle": "Defensive battle expected"
   },
   "seo": {
     "site_name": "PlayStat",

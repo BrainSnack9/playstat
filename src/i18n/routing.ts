@@ -6,7 +6,7 @@ export const routing = defineRouting({
   locales,
   defaultLocale,
   localePrefix: 'as-needed',
-  // 브라우저 Accept-Language 헤더 기반 자동 언어 감지 (기본값: true)
+  // 브라우저 Accept-Language 헤더 기반 자동 언어 감지
   localeDetection: true,
 })
 

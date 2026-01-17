@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/i18n/routing'
-import { TrendingUp, Flame, ShieldAlert, Zap } from 'lucide-react'
-import { analyzeTeamTrend, getMatchCombinedTrend, type TeamTrend } from '@/lib/ai/trend-engine'
+import { TrendingUp, Flame, Zap } from 'lucide-react'
+import { analyzeTeamTrend, getMatchCombinedTrend } from '@/lib/ai/trend-engine'
 import Image from 'next/image'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
@@ -32,7 +32,7 @@ function getKSTDayRange(): { start: Date; end: Date } {
 
 // 서버 공유 캐시 적용: 홈 화면 트렌드 경기
 const getCachedTrendingMatches = unstable_cache(
-  async (dateStr: string) => {
+  async (_dateStr: string) => {
     const { start, end } = getKSTDayRange()
 
     const matches = await prisma.match.findMany({
@@ -96,7 +96,7 @@ interface HotTrendsProps {
 
 export async function HotTrends({ locale }: HotTrendsProps) {
   const t = await getTranslations({ locale, namespace: 'home' })
-  const isEn = locale === 'en'
+  const tt = await getTranslations({ locale, namespace: 'trends' })
 
   const dateStr = format(new Date(), 'yyyy-MM-dd')
   const trendingMatches = await getCachedTrendingMatches(dateStr)
@@ -107,7 +107,7 @@ export async function HotTrends({ locale }: HotTrendsProps) {
     <section className="mb-12">
       <div className="mb-6 flex items-center gap-2">
         <TrendingUp className="h-6 w-6 text-primary" />
-        <h2 className="section-title">{isEn ? 'Today\'s Hot Trends' : '오늘의 핵심 트렌드'}</h2>
+        <h2 className="section-title">{t('hot_trends')}</h2>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         {trendingMatches.map(({ match, homeTrends, awayTrends, combined }) => (
@@ -120,7 +120,7 @@ export async function HotTrends({ locale }: HotTrendsProps) {
                     {combined ? (
                       <span className="flex items-center gap-1">
                         <Flame className="h-3 w-3 fill-current" />
-                        {isEn ? combined.descriptionEn : combined.description}
+                        {tt(combined.type)}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1">
@@ -157,7 +157,7 @@ export async function HotTrends({ locale }: HotTrendsProps) {
                       )}
                       <span className="font-medium leading-tight">
                         <span className="text-primary">{trend.teamName}</span>:{' '}
-                        {isEn ? trend.descriptionEn : trend.description}
+                        {tt(trend.trendType, { value: trend.value })}
                       </span>
                     </div>
                   ))}

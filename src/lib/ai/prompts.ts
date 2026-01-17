@@ -77,13 +77,17 @@ Write a pre-match preview analysis based on this data.
 
 **IMPORTANT: Write your entire response in Korean (한국어).**
 
-## Absolute Rules (Must Follow)
-- NEVER mention odds, probability, betting, picks, or predicted scores
-- Focus on team strengths, weaknesses, recent form, and season trends
-- PAY SPECIAL ATTENTION to the 'trends' field in the input data and reflect it in your analysis
-- Always include home/away tendencies
-- Clearly summarize the last 5 matches trend
-- Explain the style differences between the two teams
+## CRITICAL RULES (Absolute Zero Tolerance)
+- NEVER mention odds, probability, betting, picks, or predicted scores.
+- DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line").
+- This content will be served to global audiences including Arabic cultures where gambling is strictly prohibited. Keep the tone purely professional, analytical, and informative.
+
+## Analysis Rules
+- Focus on team strengths, weaknesses, recent form, and season trends.
+- PAY SPECIAL ATTENTION to the 'trends' field in the input data and reflect it in your analysis.
+- Always include home/away tendencies.
+- Clearly summarize the last 5 matches trend.
+- Explain the style differences between the two teams.
 
 ## Output Format (Must use these 5 sections, in Korean)
 
@@ -120,13 +124,17 @@ export const MATCH_ANALYSIS_PROMPT_EN = `You are a professional sports analysis 
 Below is all the data needed for match analysis in JSON format.
 Write a pre-match preview analysis based on this data.
 
-## Absolute Rules (Must Follow)
-- NEVER mention odds, probability, betting, picks, or predicted scores
-- Focus on team strengths, weaknesses, recent form, and season trends
-- PAY SPECIAL ATTENTION to the 'trends' field in the input data and reflect it in your analysis
-- Always include home/away tendencies
-- Clearly summarize the last 5 matches trend
-- Explain the style differences between the two teams
+## CRITICAL RULES (Absolute Zero Tolerance)
+- NEVER mention odds, probability, betting, picks, or predicted scores.
+- DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line").
+- This content will be served to global audiences including Arabic cultures where gambling is strictly prohibited. Keep the tone purely professional, analytical, and informative.
+
+## Analysis Rules
+- Focus on team strengths, weaknesses, recent form, and season trends.
+- PAY SPECIAL ATTENTION to the 'trends' field in the input data and reflect it in your analysis.
+- Always include home/away tendencies.
+- Clearly summarize the last 5 matches trend.
+- Explain the style differences between the two teams.
 
 ## Output Format (Must use these 5 sections)
 
@@ -165,9 +173,13 @@ Please read the following article and summarize its key points.
 
 **IMPORTANT: Write your entire response in Korean (한국어).**
 
+## CRITICAL RULES (Absolute Zero Tolerance)
+- NEVER mention betting, odds, probability, or predicted scores.
+- DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line").
+- This content will be served to global audiences including Arabic cultures where gambling is strictly prohibited. Keep the tone purely professional, analytical, and informative.
+
 ## Rules
 - Write fact-based content without emotional expressions or subjective interpretations
-- No mentions of match predictions or betting
 - Use clear and concise writing style
 
 ## Output Format (in Korean)
@@ -214,8 +226,12 @@ Please provide a comprehensive team analysis based on the following team data.
 
 **IMPORTANT: Write your entire response in Korean (한국어).**
 
+## CRITICAL RULES (Absolute Zero Tolerance)
+- NEVER mention betting, odds, probability, or predicted scores.
+- DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line").
+- This content will be served to global audiences including Arabic cultures where gambling is strictly prohibited. Keep the tone purely professional, analytical, and informative.
+
 ## Rules
-- Do not use terms like betting, odds, or probability
 - Analyze based on objective data
 
 ## Output Format (in Korean)
@@ -277,13 +293,77 @@ Team data:
 {teamData}`
 
 /**
- * 데일리 리포트 프롬프트 - V2
- * 영어 프롬프트 + 한국어 결과
+ * 데일리 리포트 프롬프트 (영어) - SEO 최적화 버전
+ */
+export const DAILY_REPORT_PROMPT_EN = `You are a professional football analyst writing a daily match preview report.
+Generate an SEO-optimized daily football report based on the match data provided.
+
+## CRITICAL RULES (Absolute Zero Tolerance)
+- NEVER mention betting, odds, probability, or predicted scores.
+- DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line").
+- This content will be served to global audiences including Arabic cultures where gambling is strictly prohibited. Keep the tone purely professional, analytical, and informative.
+
+## Rules
+- Focus on match previews, team form, and key storylines
+- Use SEO-friendly language with relevant football keywords
+- Make the content engaging and informative for football fans
+
+## Output Format (JSON)
+Return a valid JSON object with this structure:
+{
+  "title": "SEO Optimized Title (Date + Major matches, within 60 chars)",
+  "metaDescription": "Meta description (mentioning major matches, within 155 chars)",
+  "summary": "Key match insights (Sharp tactical/statistical analysis, 3 points in '1. Content \\n2. Content' format)",
+  "sections": [
+    {
+      "type": "highlight_matches",
+      "title": "Featured Matches of the Day",
+      "content": "Previews for major matches (2-3 sentences per match)"
+    },
+    {
+      "type": "league_overview",
+      "title": "Matches by League",
+      "content": "Summary of matches for each league"
+    },
+    {
+      "type": "key_storylines",
+      "title": "Key Storylines",
+      "content": "Important storylines to watch today"
+    },
+    {
+      "type": "team_focus",
+      "title": "Teams in Focus",
+      "content": "Teams to watch closely and why"
+    }
+  ],
+  "keywords": ["keyword1", "keyword2", "keyword3", "..."],
+  "hotMatches": [
+    {
+      "matchId": "matchID",
+      "title": "Home Team vs Away Team",
+      "preview": "Short preview (1-2 sentences)",
+      "keyPoint": "Key viewing point"
+    }
+  ]
+}
+
+---
+Today's date: {date}
+Match data:
+{matchData}`
+
+/**
+ * 데일리 리포트 프롬프트 - V2 (한국어 요약용)
  */
 export const DAILY_REPORT_PROMPT = `You are a sports analyst.
 Please write a daily report summarizing today's sports situation.
 
 **IMPORTANT: Write your entire response in Korean (한국어).**
+
+## CRITICAL RULES (Absolute Zero Tolerance)
+- NEVER mention betting, odds, probability, or predicted scores.
+- DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line").
+- This content will be served to global audiences including Arabic cultures where gambling is strictly prohibited. Keep the tone purely professional, analytical, and informative.
 
 ## Rules
 - Do not include betting recommendations or match predictions
@@ -304,36 +384,6 @@ Introduce any teams or players that deserve special attention today (in Korean)
 
 #### 오늘의 인사이트
 Provide brief insights on overall sports trends (in Korean)
-
----
-Today's data:
-{dailyData}`
-
-/**
- * 데일리 리포트 프롬프트 (영어)
- */
-export const DAILY_REPORT_PROMPT_EN = `You are a sports analyst.
-Please write a daily report summarizing today's sports situation.
-
-## Rules
-- Do not include betting recommendations or match predictions
-- Provide only objective information and analysis
-
-## Output Format
-
-### Today's Sports Highlights
-
-#### Featured Matches
-Introduce the most notable matches scheduled for today
-
-#### Key News
-Summarize the most important sports news of the day
-
-#### Teams/Players to Watch
-Introduce any teams or players that deserve special attention today
-
-#### Today's Insights
-Provide brief insights on overall sports trends
 
 ---
 Today's data:
@@ -373,7 +423,7 @@ export interface ParsedMatchAnalysis {
 }
 
 /**
- * AI 응답을 파싱하여 구조화된 데이터로 변환
+ * AI 응답을 파싱하여 구조화된 데이터로 변환 (KO/EN 헤더 모두 지원)
  */
 export function parseMatchAnalysisResponse(response: string): ParsedMatchAnalysis {
   const result: ParsedMatchAnalysis = {
@@ -384,31 +434,33 @@ export function parseMatchAnalysisResponse(response: string): ParsedMatchAnalysi
     keyPoints: [],
   }
 
-  // 섹션 분리
-  const sections = response.split(/###\s*\d+\)/).filter(Boolean)
+  // 섹션 분리 (숫자 헤더나 ### 헤더 기준)
+  const sections = response.split(/###\s*(?:\d+\)|[A-Za-z\s]+)/).filter(Boolean)
 
   sections.forEach((section, index) => {
-    const content = section.replace(/^[^\n]*\n/, '').trim()
+    const lines = section.trim().split('\n')
+    const content = lines.slice(1).join('\n').trim() || section.trim()
 
-    switch (index) {
-      case 0: // 3줄 요약
-        result.summary = content
-        break
-      case 1: // 최근 5경기 흐름
-        result.recentFlowAnalysis = content
-        break
-      case 2: // 시즌 전체 성향
-        result.seasonTrends = content
-        break
-      case 3: // 전술적 관점
-        result.tacticalAnalysis = content
-        break
-      case 4: // 관전 포인트
-        const points = content.match(/\d+\.\s*([^\n]+)/g)
-        if (points) {
-          result.keyPoints = points.map(p => p.replace(/^\d+\.\s*/, '').trim())
+    // 인덱스 기반 또는 키워드 기반 매칭
+    if (section.toLowerCase().includes('summary') || index === 0) {
+      result.summary = content
+    } else if (section.toLowerCase().includes('flow') || index === 1) {
+      result.recentFlowAnalysis = content
+    } else if (section.toLowerCase().includes('overall') || section.toLowerCase().includes('trends') || index === 2) {
+      result.seasonTrends = content
+    } else if (section.toLowerCase().includes('tactical') || index === 3) {
+      result.tacticalAnalysis = content
+    } else if (section.toLowerCase().includes('points') || index === 4) {
+      const points = section.match(/\d+\.\s*([^\n]+)/g)
+      if (points) {
+        result.keyPoints = points.map(p => p.replace(/^\d+\.\s*/, '').trim())
+      } else {
+        // 리스트 형태 (- 또는 *) 처리
+        const listPoints = section.match(/[-\*]\s*([^\n]+)/g)
+        if (listPoints) {
+          result.keyPoints = listPoints.map(p => p.replace(/^[-\*]\s*/, '').trim())
         }
-        break
+      }
     }
   })
 

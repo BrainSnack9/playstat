@@ -1,29 +1,25 @@
 import { openai, AI_MODELS } from '@/lib/openai'
 import { prisma } from '@/lib/prisma'
+import { Locale, locales } from '@/i18n/config'
 
 /**
- * 한국어 텍스트를 영문으로 번역하고 DB에 캐싱합니다.
- * @param text 번역할 한국어 텍스트
- * @param context 컨텍스트 (예: 'match summary', 'team analysis')
- * @returns 번역된 텍스트
+ * 텍스트를 특정 언어로 번역합니다. (병렬 처리 지원을 위해 DB 저장은 하지 않음)
  */
-export async function translateAndCache(
+export async function translateText(
   text: string,
-  context: string,
-  updateCallback: (translatedText: string) => Promise<void>
+  targetLang: Locale,
+  context: string
 ): Promise<string> {
-  if (!text) return ''
+  if (!text || targetLang === 'en') return text // 영어는 번역할 필요 없음 (원본이 영어라고 가정)
   if (!openai) return text
 
   try {
-    console.log(`[Translate] Translating: ${context}...`)
-    
     const response = await openai.chat.completions.create({
-      model: AI_MODELS.SUMMARY, // gpt-4o-mini 사용 (저렴함)
+      model: AI_MODELS.SUMMARY, // gpt-4o-mini 사용
       messages: [
         {
           role: 'system',
-          content: `You are a professional sports translator. Translate the following Korean ${context} into natural English. Keep the original meaning and technical terms. Use professional sports terminology.`
+          content: `You are a professional sports translator. Translate the following English ${context} into natural ${targetLang === 'ko' ? 'Korean' : targetLang === 'es' ? 'Spanish' : targetLang === 'ja' ? 'Japanese' : 'Arabic'}. Keep the original meaning and technical terms. Use professional sports terminology.`
         },
         {
           role: 'user',
@@ -33,124 +29,173 @@ export async function translateAndCache(
       temperature: 0.3,
     })
 
-    const translated = response.choices[0]?.message?.content || text
-    
-    // DB 업데이트 (백그라운드에서 실행하지 않고 기다림 - 데이터 무결성 위해)
-    await updateCallback(translated)
-    
-    return translated
+    return response.choices[0]?.message?.content || text
   } catch (error) {
-    console.error(`[Translate] Error translating ${context}:`, error)
-    return text // 에러 시 원본 반환
+    console.error(`[Translate] Error translating to ${targetLang}:`, error)
+    return text
   }
 }
 
 /**
- * 분석 객체의 누락된 영문 필드들을 번역하여 채웁니다.
+ * 여러 언어로 한꺼번에 번역하여 객체로 반환합니다.
  */
-export async function ensureMatchAnalysisEnglish(analysis: any) {
+export async function translateToAllLocales(
+  text: string,
+  context: string,
+  exclude: Locale[] = ['en']
+): Promise<Record<string, string>> {
+  const targetLocales = locales.filter(l => !exclude.includes(l as Locale))
+  
+  const translations: Record<string, string> = {}
+  
+  // 병렬 번역 실행
+  await Promise.all(
+    targetLocales.map(async (lang) => {
+      translations[lang] = await translateText(text, lang as Locale, context)
+    })
+  )
+  
+  return translations
+}
+
+/**
+ * 경기 분석 데이터의 누락된 번역본을 채웁니다.
+ */
+export async function ensureMatchAnalysisTranslations(analysis: any) {
   if (!analysis) return analysis
 
-  const updatedData: any = {}
-  let hasMissingEnglish = false
-  
-  // 각 필드별로 영문이 있는지 꼼꼼하게 체크합니다
-  if (analysis.summary && !analysis.summaryEn) {
-    hasMissingEnglish = true
-    updatedData.summaryEn = await translateAndCache(analysis.summary, 'match summary', async () => {})
+  // 영문 데이터(원본)가 있는지 확인
+  const englishData = (analysis.translations as any)?.en || {
+    summary: analysis.summaryEn || analysis.summary,
+    tacticalAnalysis: analysis.tacticalAnalysisEn || analysis.tacticalAnalysis,
+    recentFlowAnalysis: analysis.recentFlowAnalysisEn || analysis.recentFlowAnalysis,
+    seasonTrends: analysis.seasonTrendsEn || analysis.seasonTrends,
+    keyPoints: analysis.keyPointsEn || analysis.keyPoints
   }
 
-  if (analysis.tacticalAnalysis && !analysis.tacticalAnalysisEn) {
-    hasMissingEnglish = true
-    updatedData.tacticalAnalysisEn = await translateAndCache(analysis.tacticalAnalysis, 'tactical analysis', async () => {})
+  const currentTranslations = (analysis.translations as any) || {}
+  let hasChanges = false
+  const updatedTranslations = { ...currentTranslations, en: englishData }
+
+  // 모든 언어에 대해 번역이 있는지 확인
+  for (const lang of locales) {
+    if (lang === 'en') continue
+    
+    if (!currentTranslations[lang]) {
+      hasChanges = true
+      console.log(`[Translate] Translating analysis to ${lang}...`)
+      
+      const [summary, tactical, flow, trends, keyPointsRaw] = await Promise.all([
+        translateText(englishData.summary, lang as Locale, 'match summary'),
+        englishData.tacticalAnalysis ? translateText(englishData.tacticalAnalysis, lang as Locale, 'tactical analysis') : Promise.resolve(null),
+        englishData.recentFlowAnalysis ? translateText(englishData.recentFlowAnalysis, lang as Locale, 'recent form analysis') : Promise.resolve(null),
+        englishData.seasonTrends ? translateText(englishData.seasonTrends, lang as Locale, 'season trends') : Promise.resolve(null),
+        englishData.keyPoints ? translateText(JSON.stringify(englishData.keyPoints), lang as Locale, 'key match points JSON') : Promise.resolve(null)
+      ])
+
+      let keyPoints = englishData.keyPoints
+      if (keyPointsRaw) {
+        try {
+          keyPoints = JSON.parse(keyPointsRaw)
+        } catch {
+          keyPoints = keyPointsRaw.split('\n').filter(Boolean)
+        }
+      }
+
+      updatedTranslations[lang] = {
+        summary,
+        tacticalAnalysis: tactical,
+        recentFlowAnalysis: flow,
+        seasonTrends: trends,
+        keyPoints
+      }
+    }
   }
 
-  if (analysis.recentFlowAnalysis && !analysis.recentFlowAnalysisEn) {
-    hasMissingEnglish = true
-    updatedData.recentFlowAnalysisEn = await translateAndCache(analysis.recentFlowAnalysis, 'recent form analysis', async () => {})
-  }
-
-  if (analysis.seasonTrends && !analysis.seasonTrendsEn) {
-    hasMissingEnglish = true
-    updatedData.seasonTrendsEn = await translateAndCache(analysis.seasonTrends, 'season trends', async () => {})
-  }
-
-  if (analysis.keyPoints && !analysis.keyPointsEn) {
-    hasMissingEnglish = true
-    const keyPointsStr = (analysis.keyPoints as string[]).join('\n')
-    const translatedPointsStr = await translateAndCache(keyPointsStr, 'key match points', async () => {})
-    updatedData.keyPointsEn = translatedPointsStr.split('\n').filter(Boolean)
-  }
-
-  // 수정할 내용이 없다면 바로 반환
-  if (!hasMissingEnglish) return analysis
-
-  // DB 업데이트
-  if (Object.keys(updatedData).length > 0) {
+  if (hasChanges) {
     const result = await prisma.matchAnalysis.update({
       where: { id: analysis.id },
-      data: updatedData,
+      data: { translations: updatedTranslations },
     })
-    return { ...analysis, ...result }
+    return { ...analysis, translations: updatedTranslations }
   }
 
   return analysis
 }
 
 /**
- * 데일리 리포트의 누락된 영문 필드들을 번역하여 채웁니다.
+ * 데일리 리포트의 누락된 번역본을 채웁니다.
  */
-export async function ensureDailyReportEnglish(report: any) {
-  if (!report || report.summaryEn) return report
+export async function ensureDailyReportTranslations(report: any) {
+  if (!report) return report
 
-  try {
-    let translatedSummary = ''
-    
-    // JSON 형식인지 확인
+  let currentTranslations = (report.translations as any) || {}
+  
+  // 영문 데이터 추출
+  let englishData = currentTranslations.en
+  if (!englishData) {
     try {
-      const data = JSON.parse(report.summary)
-      
-      console.log('[Translate] Translating Daily Report JSON fields...')
-      
-      if (!openai) {
-        throw new Error('OpenAI not configured')
+      // 기존 summaryEn이 있으면 사용, 없으면 한국어 요약을 영어로 번역하여 원본으로 삼음
+      if (report.summaryEn) {
+        englishData = JSON.parse(report.summaryEn)
+      } else {
+        // 한국어 -> 영어 번역 로직 (최초 1회만)
+        console.log('[Translate] Converting KO report to EN base...')
+        const response = await openai?.chat.completions.create({
+          model: AI_MODELS.SUMMARY,
+          messages: [
+            {
+              role: 'system',
+              content: 'Translate the provided JSON content from Korean to natural English. Return ONLY the translated JSON.'
+            },
+            { role: 'user', content: report.summary }
+          ],
+          response_format: { type: 'json_object' }
+        })
+        englishData = JSON.parse(response?.choices[0]?.message?.content || '{}')
       }
+      currentTranslations.en = englishData
+    } catch (e) {
+      console.error('[Translate] Failed to establish EN base for report', e)
+      return report
+    }
+  }
 
-      const response = await openai.chat.completions.create({
-        model: AI_MODELS.SUMMARY,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a professional sports translator. Translate the provided JSON content from Korean to natural English. Return ONLY the translated JSON. Do not include any other text.'
-          },
-          {
-            role: 'user',
-            content: report.summary
-          }
-        ],
-        temperature: 0.3,
-        response_format: { type: 'json_object' }
-      })
+  let hasChanges = false
+  const updatedTranslations = { ...currentTranslations }
+
+  for (const lang of locales) {
+    if (lang === 'en') continue
+    
+    if (!currentTranslations[lang]) {
+      hasChanges = true
+      console.log(`[Translate] Translating daily report to ${lang}...`)
       
-      translatedSummary = response.choices[0]?.message?.content || ''
-    } catch {
-      // 일반 텍스트인 경우
-      translatedSummary = await translateAndCache(
-        report.summary,
-        'daily report summary text',
-        async () => {}
-      )
+      try {
+        const response = await openai?.chat.completions.create({
+          model: AI_MODELS.SUMMARY,
+          messages: [
+            {
+              role: 'system',
+              content: `Translate the provided JSON content from English to natural ${lang === 'ko' ? 'Korean' : lang === 'es' ? 'Spanish' : lang === 'ja' ? 'Japanese' : 'Arabic'}. Return ONLY the translated JSON.`
+            },
+            { role: 'user', content: JSON.stringify(englishData) }
+          ],
+          response_format: { type: 'json_object' }
+        })
+        updatedTranslations[lang] = JSON.parse(response?.choices[0]?.message?.content || '{}')
+      } catch (e) {
+        console.error(`[Translate] Daily report translation to ${lang} failed:`, e)
+      }
     }
+  }
 
-    if (translatedSummary) {
-      await prisma.dailyReport.update({
-        where: { id: report.id },
-        data: { summaryEn: translatedSummary },
-      })
-      return { ...report, summaryEn: translatedSummary }
-    }
-  } catch (error) {
-    console.error('[Translate] Daily report translation failed:', error)
+  if (hasChanges) {
+    await prisma.dailyReport.update({
+      where: { id: report.id },
+      data: { translations: updatedTranslations },
+    })
+    return { ...report, translations: updatedTranslations }
   }
 
   return report

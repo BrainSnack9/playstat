@@ -1,4 +1,3 @@
-import { Link } from '@/i18n/routing'
 import { Card, CardContent } from '@/components/ui/card'
 import { Calendar } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
@@ -30,7 +29,7 @@ function getKSTDayRange(): { start: Date; end: Date } {
 
 // 서버 공유 캐시 적용: 홈 화면 오늘 경기
 const getCachedTodayMatches = unstable_cache(
-  async (dateStr: string) => {
+  async (_dateStr: string) => {
     const { start, end } = getKSTDayRange()
 
     return await prisma.match.findMany({

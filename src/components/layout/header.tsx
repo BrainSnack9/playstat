@@ -56,7 +56,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2">
+        <Link href="/" className="flex items-center gap-2">
           <Image
             src="/app-icon-512.png"
             alt="PlayStat"
@@ -79,7 +79,7 @@ export function Header() {
                       pathname === item.href && 'bg-accent'
                     )}
                   >
-                    <item.icon className="mr-2 h-4 w-4" />
+                    <item.icon className="me-2 h-4 w-4" />
                     {t(item.key)}
                   </NavigationMenuLink>
                 </Link>
@@ -89,7 +89,7 @@ export function Header() {
         </NavigationMenu>
 
         {/* Right side */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           <LanguageSwitcher />
 
           {/* Mobile Menu */}
@@ -101,13 +101,13 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right">
-              <nav className="flex flex-col space-y-4 mt-8">
+              <nav className="flex flex-col gap-4 mt-8">
                 {mainNav.map((item) => (
                   <Link
                     key={item.key}
                     href={item.href}
                     className={cn(
-                      'flex items-center space-x-2 text-lg font-medium transition-colors hover:text-primary',
+                      'flex items-center gap-2 text-lg font-medium transition-colors hover:text-primary',
                       pathname === item.href && 'text-primary'
                     )}
                   >

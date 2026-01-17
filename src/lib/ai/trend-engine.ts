@@ -1,12 +1,9 @@
-import { Prisma } from '@prisma/client'
 
 export interface TeamTrend {
   teamId: string
   teamName: string
   trendType: 'winning_streak' | 'losing_streak' | 'scoring_machine' | 'defense_leak' | 'clean_sheet_streak' | 'draw_streak'
   value: number
-  description: string
-  descriptionEn: string
 }
 
 export interface MatchTrend {
@@ -15,8 +12,6 @@ export interface MatchTrend {
   awayTrend?: TeamTrend
   combinedTrend?: {
     type: 'high_scoring_match' | 'defensive_battle' | 'mismatch'
-    description: string
-    descriptionEn: string
   }
 }
 
@@ -27,7 +22,7 @@ export function analyzeTeamTrend(
   teamName: string,
   teamId: string,
   recentMatchesJson: any,
-  seasonStats: any
+  _seasonStats: any
 ): TeamTrend[] {
   const trends: TeamTrend[] = []
   if (!recentMatchesJson || !Array.isArray(recentMatchesJson)) return trends
@@ -61,8 +56,6 @@ export function analyzeTeamTrend(
       teamName,
       trendType: 'winning_streak',
       value: winningStreak,
-      description: `${winningStreak}연승 중`,
-      descriptionEn: `${winningStreak} match winning streak`,
     })
   } else if (losingStreak >= 2) {
     trends.push({
@@ -70,8 +63,6 @@ export function analyzeTeamTrend(
       teamName,
       trendType: 'losing_streak',
       value: losingStreak,
-      description: `${losingStreak}연패 중`,
-      descriptionEn: `${losingStreak} match losing streak`,
     })
   }
 
@@ -94,8 +85,6 @@ export function analyzeTeamTrend(
       teamName,
       trendType: 'scoring_machine',
       value: totalGoalsFor,
-      description: `최근 5경기 ${totalGoalsFor}득점 (폭발적 화력)`,
-      descriptionEn: `${totalGoalsFor} goals in last 5 matches (Explosive offense)`,
     })
   }
 
@@ -105,8 +94,6 @@ export function analyzeTeamTrend(
       teamName,
       trendType: 'defense_leak',
       value: totalGoalsAgainst,
-      description: `최근 5경기 ${totalGoalsAgainst}실점 (수비 불안)`,
-      descriptionEn: `${totalGoalsAgainst} goals conceded in last 5 matches (Defensive leak)`,
     })
   }
 
@@ -123,8 +110,6 @@ export function getMatchCombinedTrend(homeTrends: TeamTrend[], awayTrends: TeamT
   if (homeWinStreak >= 2 && awayLossStreak >= 2) {
     return {
       type: 'mismatch',
-      description: '최상의 기세 vs 최악의 슬럼프',
-      descriptionEn: 'Peak form vs Deep slump',
     }
   }
 
@@ -134,8 +119,6 @@ export function getMatchCombinedTrend(homeTrends: TeamTrend[], awayTrends: TeamT
   if (homeScoring && awayDefense) {
     return {
       type: 'high_scoring_match',
-      description: '창과 방패: 화력 대결 예상',
-      descriptionEn: 'Spear vs Shield: High scoring expected',
     }
   }
 

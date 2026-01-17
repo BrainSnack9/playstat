@@ -70,7 +70,7 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
       >
         {/* 즐겨찾기 배지 */}
         {hasFavorite && (
-          <div className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500 shadow-md z-10">
+          <div className="absolute -top-1.5 -right-1.5 rtl:-left-1.5 rtl:right-auto flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500 shadow-md z-10">
             <Star className="h-3.5 w-3.5 fill-white text-white" />
           </div>
         )}
@@ -92,7 +92,7 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
             <div className="flex items-center gap-2">
               {match.matchAnalysis && (
                 <Badge variant="outline" className="text-xs">
-                  <Sparkles className="h-3 w-3 mr-1" />
+                  <Sparkles className="h-3 w-3 me-1" />
                   AI
                 </Badge>
               )}
@@ -106,7 +106,7 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
           <div className="space-y-3">
             {/* 홈팀 */}
             <div className={`flex items-center justify-between p-1 rounded-md transition-colors ${homeWins ? 'bg-primary/5' : ''}`}>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 {match.homeTeam.logoUrl ? (
                   <Image
                     src={match.homeTeam.logoUrl}
@@ -122,7 +122,7 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
                 )}
                 <span className={`font-medium ${hasHomeFavorite ? 'text-yellow-500' : ''} ${homeWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
                   {match.homeTeam.name}
-                  {hasHomeFavorite && <Star className="inline ml-1 h-3 w-3 fill-yellow-500 text-yellow-500" />}
+                  {hasHomeFavorite && <Star className="inline ms-1 h-3 w-3 fill-yellow-500 text-yellow-500" />}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -135,7 +135,7 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
 
             {/* 원정팀 */}
             <div className={`flex items-center justify-between p-1 rounded-md transition-colors ${awayWins ? 'bg-primary/5' : ''}`}>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 {match.awayTeam.logoUrl ? (
                   <Image
                     src={match.awayTeam.logoUrl}
@@ -151,7 +151,7 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
                 )}
                 <span className={`font-medium ${hasAwayFavorite ? 'text-yellow-500' : ''} ${awayWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
                   {match.awayTeam.name}
-                  {hasAwayFavorite && <Star className="inline ml-1 h-3 w-3 fill-yellow-500 text-yellow-500" />}
+                  {hasAwayFavorite && <Star className="inline ms-1 h-3 w-3 fill-yellow-500 text-yellow-500" />}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -164,7 +164,7 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
           </div>
 
           <div className="mt-3 flex items-center justify-center text-sm text-muted-foreground">
-            <Clock className="mr-1 h-4 w-4" />
+            <Clock className="me-1 h-4 w-4" />
             {showDate ? `${kickoffDate} ${kickoffTime}` : kickoffTime}
           </div>
         </CardContent>

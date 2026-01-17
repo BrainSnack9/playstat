@@ -56,9 +56,10 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
 
   setRequestLocale(locale)
   const messages = await getMessages()
+  const direction = locale === 'ar' ? 'rtl' : 'ltr'
 
   return (
-    <html lang={locale} className="dark" suppressHydrationWarning>
+    <html lang={locale} dir={direction} className="dark" suppressHydrationWarning>
       <head>
         <meta name="google-site-verification" content="8jWKeSdNb8M9T-sx7Tn_F5aEyGUSCpmWHl-h3xYdq6U" />
         <AdsenseScript />

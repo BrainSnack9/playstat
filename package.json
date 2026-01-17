@@ -7,7 +7,8 @@
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start -p 3090",
-    "lint": "next lint"
+    "lint": "next lint",
+    "validate": "tsc --noEmit && next lint && npm run build"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

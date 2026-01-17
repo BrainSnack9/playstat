@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
 import { openai, AI_MODELS, TOKEN_LIMITS } from '@/lib/openai'
 import {
-  MATCH_ANALYSIS_PROMPT,
-  MATCH_ANALYSIS_PROMPT_EN,
   fillPrompt,
   formatMatchDataForAI,
   parseMatchAnalysisResponse,
   type MatchAnalysisInputData,
 } from '@/lib/ai/prompts'
 import { addHours } from 'date-fns'
-import type { PrismaClient } from '@prisma/client'
+import { type PrismaClient, Prisma } from '@prisma/client'
 import { analyzeTeamTrend, getMatchCombinedTrend } from '@/lib/ai/trend-engine'
 
 import { revalidateTag } from 'next/cache'
@@ -48,7 +46,7 @@ export async function GET(request: Request) {
     const now = new Date()
     const in48Hours = addHours(now, 48)
 
-    // 48시간 이내 경기 중 아직 분석이 없는 것들 또는 영문 분석이 누락된 것들 조회
+    // 48시간 이내 경기 중 아직 분석이 없는 것들 또는 다국어 번역이 누락된 것들 조회
     const matchesNeedingAnalysis = await prisma.match.findMany({
       where: {
         kickoffAt: {
@@ -57,10 +55,10 @@ export async function GET(request: Request) {
         },
         status: { in: ['SCHEDULED', 'TIMED'] },
         OR: [
-          { matchAnalysis: null },
-          { matchAnalysis: { summaryEn: null } }
+          { matchAnalysis: { is: null } },
+          { matchAnalysis: { translations: { equals: Prisma.AnyNull } } }
         ]
-      },
+      } as any,
       include: {
         league: true,
         matchAnalysis: true,
@@ -80,12 +78,12 @@ export async function GET(request: Request) {
       take: 5,
     })
 
-    for (const match of matchesNeedingAnalysis) {
+    for (const match of (matchesNeedingAnalysis as any[])) {
       try {
-        // 이미 국문 분석이 있고 영문만 없는 경우 번역만 수행
-        if (match.matchAnalysis && !match.matchAnalysis.summaryEn) {
-          const { ensureMatchAnalysisEnglish } = await import('@/lib/ai/translate')
-          await ensureMatchAnalysisEnglish(match.matchAnalysis)
+        // 이미 분석이 있지만 다국어 번역이 없는 경우 번역 수행
+        if (match.matchAnalysis && !match.matchAnalysis.translations) {
+          const { ensureMatchAnalysisTranslations } = await import('@/lib/ai/translate')
+          await ensureMatchAnalysisTranslations(match.matchAnalysis)
           results.push({ matchId: match.id, success: true })
           continue
         }
@@ -108,7 +106,7 @@ export async function GET(request: Request) {
           })
           continue
         }
-
+        
         // 상대전적 조회
         const h2h = await prisma.headToHead.findFirst({
           where: {
@@ -120,45 +118,49 @@ export async function GET(request: Request) {
         })
 
         // AI 입력 데이터 구성
-        const inputData = buildAnalysisInput(match, h2h)
+        const inputData = buildAnalysisInput(match as any, h2h)
 
-        // 한국어 분석 생성
-        const koreanPrompt = fillPrompt(MATCH_ANALYSIS_PROMPT, {
+        // 영어 분석 생성 (English First)
+        console.log(`[Cron] Generating English analysis for match ${match.id}...`)
+        const { MATCH_ANALYSIS_PROMPT_EN } = await import('@/lib/ai/prompts')
+        const englishPrompt = fillPrompt(MATCH_ANALYSIS_PROMPT_EN, {
           matchData: formatMatchDataForAI(inputData),
         })
 
-        const koreanResponse = await openai.chat.completions.create({
+        const englishResponse = await openai.chat.completions.create({
           model: AI_MODELS.ANALYSIS,
-          messages: [{ role: 'user', content: koreanPrompt }],
+          messages: [{ role: 'user', content: englishPrompt }],
           max_tokens: TOKEN_LIMITS.ANALYSIS,
           temperature: 0.7,
         })
 
-        const koreanContent = koreanResponse.choices[0]?.message?.content
-        if (!koreanContent) {
+        const englishContent = englishResponse.choices[0]?.message?.content
+        if (!englishContent) {
           throw new Error('No response from OpenAI')
         }
 
-        const parsedKorean = parseMatchAnalysisResponse(koreanContent)
+        const parsedEnglish = parseMatchAnalysisResponse(englishContent)
 
-        // 영어 분석 생성 (번역 API 사용으로 변경하여 일관성 유지)
-        const { ensureMatchAnalysisEnglish } = await import('@/lib/ai/translate')
-        
-        // DB에 먼저 저장
+        // DB에 저장 (영어를 원본으로)
         const newAnalysis = await prisma.matchAnalysis.create({
           data: {
             matchId: match.id,
-            summary: parsedKorean.summary,
-            recentFlowAnalysis: parsedKorean.recentFlowAnalysis,
-            seasonTrends: parsedKorean.seasonTrends,
-            tacticalAnalysis: parsedKorean.tacticalAnalysis,
-            keyPoints: parsedKorean.keyPoints,
+            translations: {
+              en: {
+                summary: parsedEnglish.summary,
+                recentFlowAnalysis: parsedEnglish.recentFlowAnalysis,
+                seasonTrends: parsedEnglish.seasonTrends,
+                tacticalAnalysis: parsedEnglish.tacticalAnalysis,
+                keyPoints: parsedEnglish.keyPoints,
+              }
+            },
             inputDataSnapshot: JSON.parse(JSON.stringify(inputData)),
           },
         })
 
-        // 즉시 영문 번역 수행
-        await ensureMatchAnalysisEnglish(newAnalysis)
+        // 즉시 다국어 번역 수행 (KO, ES, JA, AR)
+        const { ensureMatchAnalysisTranslations } = await import('@/lib/ai/translate')
+        await ensureMatchAnalysisTranslations(newAnalysis)
 
         results.push({ matchId: match.id, success: true })
       } catch (error) {
@@ -323,6 +325,25 @@ function buildAnalysisInput(
   )
   const combinedTrend = getMatchCombinedTrend(homeTrends, awayTrends)
 
+  // AI 분석용 영문 텍스트 생성
+  const getTrendDescEn = (t: any) => {
+    switch (t.trendType) {
+      case 'winning_streak': return `${t.value} match winning streak`
+      case 'losing_streak': return `${t.value} match losing streak`
+      case 'scoring_machine': return `${t.value} goals in last 5 matches (Explosive offense)`
+      case 'defense_leak': return `${t.value} goals conceded in last 5 matches (Defensive leak)`
+      default: return ''
+    }
+  }
+
+  const getCombinedTrendDescEn = (ct: any) => {
+    switch (ct.type) {
+      case 'mismatch': return 'Peak form vs Deep slump'
+      case 'high_scoring_match': return 'Spear vs Shield: High scoring expected'
+      default: return ''
+    }
+  }
+
   return {
     match: {
       sport_type: 'football',
@@ -332,9 +353,9 @@ function buildAnalysisInput(
       away_team: match.awayTeam.name,
     },
     trends: {
-      home: homeTrends.map(t => t.description),
-      away: awayTrends.map(t => t.description),
-      combined: combinedTrend?.description,
+      home: homeTrends.map(t => getTrendDescEn(t)),
+      away: awayTrends.map(t => getTrendDescEn(t)),
+      combined: combinedTrend ? getCombinedTrendDescEn(combinedTrend) : undefined,
     },
     home: {
       recent_5: homeRecent.slice(0, 5).map((m) => ({

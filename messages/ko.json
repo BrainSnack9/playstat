@@ -23,6 +23,7 @@
     "hero_description": "복잡한 기록 대신 핵심만 짚어드립니다. AI가 분석한 오늘의 경기와 데일리 리포트로 더 깊이 있는 직관을 즐기세요.",
     "hero_title": "승리를 위한 데이터, AI 스포츠 분석",
     "today_matches": "오늘의 경기",
+    "hot_trends": "오늘의 핵심 트렌드",
     "hot_matches": "주목 경기",
     "latest_news": "최신 뉴스",
     "featured_analysis": "추천 분석",
@@ -140,6 +141,17 @@
     "hot_matches": "주목 경기",
     "key_news": "핵심 뉴스",
     "insights": "오늘의 인사이트"
+  },
+  "trends": {
+    "winning_streak": "{value}연승 중",
+    "losing_streak": "{value}연패 중",
+    "scoring_machine": "최근 5경기 {value}득점 (폭발적 화력)",
+    "defense_leak": "최근 5경기 {value}실점 (수비 불안)",
+    "clean_sheet_streak": "{value}경기 연속 클린시트",
+    "draw_streak": "{value}경기 연속 무승부",
+    "mismatch": "최상의 기세 vs 최악의 슬럼프",
+    "high_scoring_match": "창과 방패: 화력 대결 예상",
+    "defensive_battle": "치열한 수비전 예상"
   },
   "seo": {
     "site_name": "PlayStat",

@@ -93,7 +93,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Team Not Found' }
   }
 
-  const recentForm = team.seasonStats?.form || team.recentMatches?.recentForm
+  const recentForm = (team.seasonStats?.form || team.recentMatches?.recentForm) || undefined
   const localeCode = (await params).locale === 'ko' ? 'ko_KR' : 'en_US'
 
   return buildMetadata(
@@ -563,7 +563,7 @@ export default async function TeamPage({ params }: Props) {
               {upcomingMatches.length > 0 ? (
                 <div className="space-y-4">
                   {upcomingMatches.map((match) => (
-                    <Link key={match.id} href={`/match/${match.slug}`}>
+                    <Link key={match.id} href={`/match/${match.slug || match.id}`}>
                       <div className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted">
                         <div className="flex items-center gap-4">
                           <Badge variant={match.isHome ? 'default' : 'outline'}>

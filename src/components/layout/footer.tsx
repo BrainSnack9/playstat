@@ -14,7 +14,7 @@ export function Footer() {
       <div className="container py-6">
         <div className="flex flex-col items-center gap-6">
           {/* Brand */}
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center gap-2">
             <Image
               src="/app-icon-512.png"
               alt="PlayStat"

@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // 서버 공유 캐시 적용: 경기 목록 데이터 조회
 const getCachedMatches = unstable_cache(
-  async (timezone: string, dateStr: string) => {
+  async (timezone: string, _dateStr: string) => {
     // 사용자 타임존 기준 오늘의 시작/끝
     const { start, end } = getTodayRangeInTimezone(timezone)
 
@@ -188,7 +188,7 @@ export default async function TodayMatchesPage({ params }: Props) {
                     </h3>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {leagueMatches.map((match) => (
-                        <MatchCard key={match.id} match={match} locale={locale} showDate={false} />
+                        <MatchCard key={match.id} match={{...match, slug: match.slug || match.id}} locale={locale} showDate={false} />
                       ))}
                     </div>
                   </div>
@@ -225,7 +225,7 @@ export default async function TodayMatchesPage({ params }: Props) {
                     </h3>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {leagueMatches.map((match) => (
-                        <MatchCard key={match.id} match={match} locale={locale} showDate={true} />
+                        <MatchCard key={match.id} match={{...match, slug: match.slug || match.id}} locale={locale} showDate={true} />
                       ))}
                     </div>
                   </div>

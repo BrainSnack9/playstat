@@ -2,7 +2,6 @@ import { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -25,7 +24,7 @@ import { generateMetadata as buildMetadata, generateMatchSEO, generateMatchJsonL
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
-import { ensureMatchAnalysisEnglish } from '@/lib/ai/translate'
+import { ensureMatchAnalysisTranslations } from '@/lib/ai/translate'
 import { unstable_cache } from 'next/cache'
 
 export const revalidate = CACHE_REVALIDATE
@@ -97,16 +96,16 @@ export default async function MatchPage({ params }: Props) {
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'match' })
-  let match = await getCachedMatch(slug)
+  const initialMatch = await getCachedMatch(slug)
 
-  if (!match) {
+  if (!initialMatch) {
     notFound()
   }
 
-  // 영문 요청 시 분석 데이터가 국문만 있다면 자동 번역 (최초 1회)
-  if (locale === 'en' && match.matchAnalysis) {
-    match.matchAnalysis = await ensureMatchAnalysisEnglish(match.matchAnalysis)
-  }
+  // 다국어 번역 데이터 확인 및 생성 (없을 경우에만)
+  const match = initialMatch.matchAnalysis 
+    ? { ...initialMatch, matchAnalysis: await ensureMatchAnalysisTranslations(initialMatch.matchAnalysis) }
+    : initialMatch
 
   const dateLocale = locale === 'ko' ? ko : enUS
   const dateFormat = locale === 'ko' ? 'yyyy년 MM월 dd일 (EEEE)' : 'MMMM d, yyyy (EEEE)'
@@ -128,13 +127,15 @@ export default async function MatchPage({ params }: Props) {
   } | null = null
 
   if (analysis) {
-    const isEn = locale === 'en'
+    const translations = (analysis.translations as any) || {}
+    const langData = translations[locale] || translations['en'] || {}
+    
     parsedAnalysis = {
-      summary: (isEn ? analysis.summaryEn : analysis.summary) || analysis.summary || undefined,
-      recentFlowAnalysis: (isEn ? analysis.recentFlowAnalysisEn : analysis.recentFlowAnalysis) || analysis.recentFlowAnalysis || undefined,
-      seasonTrends: (isEn ? analysis.seasonTrendsEn : analysis.seasonTrends) || analysis.seasonTrends || undefined,
-      tacticalAnalysis: (isEn ? analysis.tacticalAnalysisEn : analysis.tacticalAnalysis) || analysis.tacticalAnalysis || undefined,
-      keyPoints: ((isEn ? analysis.keyPointsEn : analysis.keyPoints) || analysis.keyPoints) as string[] | undefined,
+      summary: langData.summary || analysis.summary || undefined,
+      recentFlowAnalysis: langData.recentFlowAnalysis || analysis.recentFlowAnalysis || undefined,
+      seasonTrends: langData.seasonTrends || analysis.seasonTrends || undefined,
+      tacticalAnalysis: langData.tacticalAnalysis || analysis.tacticalAnalysis || undefined,
+      keyPoints: (langData.keyPoints || analysis.keyPoints) as string[] | undefined,
     }
   }
 
