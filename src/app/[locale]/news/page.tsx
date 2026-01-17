@@ -86,26 +86,6 @@ function NewsCard({ news, locale }: { news: NewsItem; locale: string }) {
   )
 }
 
-function NewsCardSkeleton() {
-  return (
-    <Card className="h-full">
-      <CardContent className="p-0">
-        <div className="h-48 w-full bg-muted animate-pulse rounded-t-lg" />
-        <div className="p-4">
-          <div className="h-5 w-full bg-muted animate-pulse rounded mb-2" />
-          <div className="h-5 w-3/4 bg-muted animate-pulse rounded mb-3" />
-          <div className="h-4 w-full bg-muted animate-pulse rounded mb-2" />
-          <div className="h-4 w-2/3 bg-muted animate-pulse rounded mb-3" />
-          <div className="flex justify-between">
-            <div className="h-4 w-20 bg-muted animate-pulse rounded" />
-            <div className="h-4 w-16 bg-muted animate-pulse rounded" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
 export default async function NewsPage({ params }: Props) {
   const { locale } = await params
   setRequestLocale(locale)

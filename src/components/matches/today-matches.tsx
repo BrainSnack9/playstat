@@ -30,6 +30,8 @@ function getKSTDayRange(): { start: Date; end: Date } {
 // 서버 공유 캐시 적용: 홈 화면 오늘 경기
 const getCachedTodayMatches = unstable_cache(
   async (_dateStr: string) => {
+    // _dateStr is used by unstable_cache to invalidate cache daily
+    void _dateStr;
     const { start, end } = getKSTDayRange()
 
     return await prisma.match.findMany({
@@ -84,7 +86,16 @@ export async function TodayMatches({ locale }: TodayMatchesProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {matches.map((match) => (
-        <MatchCard key={match.id} match={match as any} locale={locale} />
+        <MatchCard 
+          key={match.id} 
+          match={{
+            ...match,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            slug: (match as any).slug || match.id
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any} 
+          locale={locale} 
+        />
       ))}
     </div>
   )

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import {
   footballDataApi,
   FREE_COMPETITIONS,
-  COMPETITION_IDS,
   type Match as FDMatch,
 } from '@/lib/api/football-data'
 import { format, addDays } from 'date-fns'

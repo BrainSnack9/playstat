@@ -156,6 +156,7 @@ export async function GET(request: Request) {
       cleanupResults,
       duration,
     })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Cron update-live-matches error:', error)
     return NextResponse.json({ 

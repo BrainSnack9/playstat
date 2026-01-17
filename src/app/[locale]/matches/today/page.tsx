@@ -31,6 +31,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // 서버 공유 캐시 적용: 경기 목록 데이터 조회
 const getCachedMatches = unstable_cache(
   async (timezone: string, _dateStr: string) => {
+    // _dateStr is used by unstable_cache to invalidate cache daily
+    void _dateStr;
     // 사용자 타임존 기준 오늘의 시작/끝
     const { start, end } = getTodayRangeInTimezone(timezone)
 

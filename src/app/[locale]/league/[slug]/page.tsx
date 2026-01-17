@@ -378,6 +378,7 @@ export default async function LeaguePage({ params }: Props) {
 
                           <MatchStatusBadge 
                             status={match.status} 
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             label={t(MATCH_STATUS_KEYS[match.status] as any)} 
                           />
                         </div>

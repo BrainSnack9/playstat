@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 /**
  * 모든 언어에 대한 URL을 생성하는 헬퍼 함수
  */
-function getLocalizedUrls(path: string, priority: number, changeFrequency: any, lastModified?: Date) {
+function getLocalizedUrls(path: string, priority: number, changeFrequency: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never', lastModified?: Date) {
   return locales.map((locale) => ({
     url: `${SITE_URL}/${locale}${path === '/' ? '' : path}`,
     lastModified: lastModified || new Date(),

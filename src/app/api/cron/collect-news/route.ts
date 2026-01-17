@@ -50,7 +50,7 @@ export async function GET(request: Request) {
         }
 
         // 새 뉴스 저장
-        const newNews = await prisma.news.create({
+        await prisma.news.create({
           data: {
             title: news.title,
             titleEn: news.title,

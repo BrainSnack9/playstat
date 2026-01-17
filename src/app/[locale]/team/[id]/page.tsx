@@ -83,8 +83,6 @@ const getCachedTeamData = unstable_cache(
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )
 
-type TeamWithRelations = NonNullable<Awaited<ReturnType<typeof getCachedTeamData>>>
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   const team = await getCachedTeamData(id)

@@ -33,6 +33,8 @@ function getKSTDayRange(): { start: Date; end: Date } {
 // 서버 공유 캐시 적용: 홈 화면 트렌드 경기
 const getCachedTrendingMatches = unstable_cache(
   async (_dateStr: string) => {
+    // _dateStr is used by unstable_cache to invalidate cache daily
+    void _dateStr;
     const { start, end } = getKSTDayRange()
 
     const matches = await prisma.match.findMany({
@@ -65,14 +67,12 @@ const getCachedTrendingMatches = unstable_cache(
       const homeTrends = analyzeTeamTrend(
         match.homeTeam.name,
         match.homeTeam.id,
-        match.homeTeam.recentMatches?.matchesJson,
-        match.homeTeam.seasonStats
+        match.homeTeam.recentMatches?.matchesJson
       )
       const awayTrends = analyzeTeamTrend(
         match.awayTeam.name,
         match.awayTeam.id,
-        match.awayTeam.recentMatches?.matchesJson,
-        match.awayTeam.seasonStats
+        match.awayTeam.recentMatches?.matchesJson
       )
       const combined = getMatchCombinedTrend(homeTrends, awayTrends)
 

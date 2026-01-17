@@ -15,19 +15,24 @@ export interface MatchTrend {
   }
 }
 
+interface MatchData {
+  result: string
+  score: string
+  isHome: boolean
+}
+
 /**
  * 팀의 최근 경기 데이터를 분석하여 트렌드를 추출합니다.
  */
 export function analyzeTeamTrend(
   teamName: string,
   teamId: string,
-  recentMatchesJson: any,
-  _seasonStats: any
+  recentMatchesJson: unknown
 ): TeamTrend[] {
   const trends: TeamTrend[] = []
   if (!recentMatchesJson || !Array.isArray(recentMatchesJson)) return trends
 
-  const matches = recentMatchesJson.slice(0, 5) // 최근 5경기 기준
+  const matches = recentMatchesJson.slice(0, 5) as MatchData[]
   if (matches.length < 3) return trends
 
   // 1. 연승/연패 계산

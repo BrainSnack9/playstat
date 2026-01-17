@@ -96,10 +96,11 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
                   AI
                 </Badge>
               )}
-              <MatchStatusBadge 
-                status={match.status} 
-                label={t(MATCH_STATUS_KEYS[match.status] as any)} 
-              />
+          <MatchStatusBadge 
+            status={match.status} 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            label={t(MATCH_STATUS_KEYS[match.status] as any)} 
+          />
             </div>
           </div>
 

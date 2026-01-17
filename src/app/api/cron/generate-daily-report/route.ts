@@ -68,6 +68,7 @@ export async function GET(request: Request) {
       where: { date: todayStart },
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (existingReport && (existingReport as any).translations) {
       return NextResponse.json({
         success: true,

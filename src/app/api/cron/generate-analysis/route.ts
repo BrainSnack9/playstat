@@ -58,7 +58,7 @@ export async function GET(request: Request) {
           { matchAnalysis: { is: null } },
           { matchAnalysis: { translations: { equals: Prisma.AnyNull } } }
         ]
-      } as any,
+      } as unknown as Prisma.MatchWhereInput,
       include: {
         league: true,
         matchAnalysis: true,
@@ -78,6 +78,7 @@ export async function GET(request: Request) {
       take: 5,
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const match of (matchesNeedingAnalysis as any[])) {
       try {
         // 이미 분석이 있지만 다국어 번역이 없는 경우 번역 수행
@@ -118,6 +119,7 @@ export async function GET(request: Request) {
         })
 
         // AI 입력 데이터 구성
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const inputData = buildAnalysisInput(match as any, h2h)
 
         // 영어 분석 생성 (English First)
@@ -314,19 +316,17 @@ function buildAnalysisInput(
   const homeTrends = analyzeTeamTrend(
     match.homeTeam.name,
     '',
-    match.homeTeam.recentMatches?.matchesJson,
-    match.homeTeam.seasonStats
+    match.homeTeam.recentMatches?.matchesJson
   )
   const awayTrends = analyzeTeamTrend(
     match.awayTeam.name,
     '',
-    match.awayTeam.recentMatches?.matchesJson,
-    match.awayTeam.seasonStats
+    match.awayTeam.recentMatches?.matchesJson
   )
   const combinedTrend = getMatchCombinedTrend(homeTrends, awayTrends)
 
   // AI 분석용 영문 텍스트 생성
-  const getTrendDescEn = (t: any) => {
+  const getTrendDescEn = (t: { trendType: string; value: number }) => {
     switch (t.trendType) {
       case 'winning_streak': return `${t.value} match winning streak`
       case 'losing_streak': return `${t.value} match losing streak`
@@ -336,7 +336,7 @@ function buildAnalysisInput(
     }
   }
 
-  const getCombinedTrendDescEn = (ct: any) => {
+  const getCombinedTrendDescEn = (ct: { type: string }) => {
     switch (ct.type) {
       case 'mismatch': return 'Peak form vs Deep slump'
       case 'high_scoring_match': return 'Spear vs Shield: High scoring expected'

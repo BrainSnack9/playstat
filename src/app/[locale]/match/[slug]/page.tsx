@@ -114,6 +114,7 @@ export default async function MatchPage({ params }: Props) {
 
   // Get status label
   const statusKey = MATCH_STATUS_KEYS[match.status] || 'upcoming'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statusLabel = t(statusKey as any)
 
   // Parse AI analysis if available
@@ -127,6 +128,7 @@ export default async function MatchPage({ params }: Props) {
   } | null = null
 
   if (analysis) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const translations = (analysis.translations as any) || {}
     const langData = translations[locale] || translations['en'] || {}
     

@@ -61,10 +61,12 @@ export async function translateToAllLocales(
 /**
  * 경기 분석 데이터의 누락된 번역본을 채웁니다.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function ensureMatchAnalysisTranslations(analysis: any) {
   if (!analysis) return analysis
 
   // 영문 데이터(원본)가 있는지 확인
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const englishData = (analysis.translations as any)?.en || {
     summary: analysis.summaryEn || analysis.summary,
     tacticalAnalysis: analysis.tacticalAnalysisEn || analysis.tacticalAnalysis,
@@ -73,6 +75,7 @@ export async function ensureMatchAnalysisTranslations(analysis: any) {
     keyPoints: analysis.keyPointsEn || analysis.keyPoints
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentTranslations = (analysis.translations as any) || {}
   let hasChanges = false
   const updatedTranslations = { ...currentTranslations, en: englishData }
@@ -113,7 +116,7 @@ export async function ensureMatchAnalysisTranslations(analysis: any) {
   }
 
   if (hasChanges) {
-    const result = await prisma.matchAnalysis.update({
+    await prisma.matchAnalysis.update({
       where: { id: analysis.id },
       data: { translations: updatedTranslations },
     })
@@ -126,10 +129,12 @@ export async function ensureMatchAnalysisTranslations(analysis: any) {
 /**
  * 데일리 리포트의 누락된 번역본을 채웁니다.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function ensureDailyReportTranslations(report: any) {
   if (!report) return report
 
-  let currentTranslations = (report.translations as any) || {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currentTranslations = (report.translations as any) || {}
   
   // 영문 데이터 추출
   let englishData = currentTranslations.en

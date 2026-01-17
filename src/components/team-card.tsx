@@ -22,7 +22,7 @@ interface TeamCardProps {
   locale: string
 }
 
-export function TeamCard({ team, locale }: TeamCardProps) {
+export function TeamCard({ team }: Omit<TeamCardProps, 'locale'>) {
   const { favoriteTeamIds, toggleFavoriteTeam } = useFavoriteTeams()
   const isFavorite = favoriteTeamIds.includes(team.id)
 

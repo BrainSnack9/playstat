@@ -182,7 +182,6 @@ export default async function TeamsPage({ params, searchParams }: Props) {
                         country: team.league.country,
                       },
                     }}
-                    locale={locale}
                   />
                 ))}
               </div>

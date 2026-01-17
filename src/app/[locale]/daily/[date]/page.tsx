@@ -298,6 +298,7 @@ export default async function DailyReportPage({ params }: Props) {
 
   if (report) {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const translations = (report.translations as any) || {}
       const langData = translations[locale] || translations['en'] || {}
       
@@ -613,6 +614,7 @@ export default async function DailyReportPage({ params }: Props) {
                                     <div className="flex flex-col items-end gap-1.5">
                                       <MatchStatusBadge 
                                         status={match.status} 
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                         label={tMatch(MATCH_STATUS_KEYS[match.status] as any)} 
                                       />
                                       
