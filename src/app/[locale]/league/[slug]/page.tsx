@@ -11,6 +11,7 @@ import { ko } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
+import { unstable_cache } from 'next/cache'
 import { generateMetadata as buildMetadata, generateLeagueSEO } from '@/lib/seo'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
@@ -50,57 +51,62 @@ const LEAGUE_LOGOS: Record<string, string> = {
   CL: 'https://crests.football-data.org/CL.png',
 }
 
+// 서버 공유 캐시 적용: 리그 데이터 조회
+const getCachedLeagueData = unstable_cache(
+  async (slug: string) => {
+    const code = SLUG_TO_CODE[slug]
+    if (!code) return null
+
+    try {
+      const league = await prisma.league.findFirst({
+        where: { code },
+        include: {
+          teams: {
+            include: {
+              seasonStats: true,
+            },
+            orderBy: {
+              seasonStats: {
+                rank: 'asc',
+              },
+            },
+          },
+          matches: {
+            where: {
+              kickoffAt: {
+                gte: new Date(),
+              },
+            },
+            include: {
+              homeTeam: true,
+              awayTeam: true,
+              matchAnalysis: true,
+            },
+            orderBy: {
+              kickoffAt: 'asc',
+            },
+            take: 20,
+          },
+        },
+      })
+
+      return league
+    } catch {
+      return null
+    }
+  },
+  ['league-page-data'],
+  { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
+)
+
 // Types
-type LeagueWithRelations = NonNullable<Awaited<ReturnType<typeof getLeagueData>>>
+type LeagueWithRelations = NonNullable<Awaited<ReturnType<typeof getCachedLeagueData>>>
 type TeamWithStats = LeagueWithRelations['teams'][number]
 type MatchWithRelations = LeagueWithRelations['matches'][number]
 
-async function getLeagueData(slug: string) {
-  const code = SLUG_TO_CODE[slug]
-  if (!code) return null
-
-  try {
-    const league = await prisma.league.findFirst({
-      where: { code },
-      include: {
-        teams: {
-          include: {
-            seasonStats: true,
-          },
-          orderBy: {
-            seasonStats: {
-              rank: 'asc',
-            },
-          },
-        },
-        matches: {
-          where: {
-            kickoffAt: {
-              gte: new Date(),
-            },
-          },
-          include: {
-            homeTeam: true,
-            awayTeam: true,
-            matchAnalysis: true,
-          },
-          orderBy: {
-            kickoffAt: 'asc',
-          },
-          take: 20,
-        },
-      },
-    })
-
-    return league
-  } catch {
-    return null
-  }
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const league = await getLeagueData(slug)
+  const league = await getCachedLeagueData(slug)
 
   if (!league) {
     return { title: 'League Not Found' }
@@ -128,7 +134,7 @@ export default async function LeaguePage({ params }: Props) {
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'match' })
-  const league = await getLeagueData(slug)
+  const league = await getCachedLeagueData(slug)
 
   if (!league) {
     notFound()
@@ -291,81 +297,95 @@ export default async function LeaguePage({ params }: Props) {
                 </CardContent>
               </Card>
             ) : (
-              league.matches.map((match: MatchWithRelations) => (
-                <Card key={match.id} className="transition-all hover:shadow-md hover:border-primary/50">
-                  <CardContent className="p-4">
-                    <Link href={`/match/${match.slug}`} className="block">
-                      <div className="flex items-center justify-between">
-                        {/* 홈팀 */}
-                        <div className="flex flex-1 items-center justify-end gap-3">
-                          <span className="font-medium text-right">{match.homeTeam.name}</span>
-                          {match.homeTeam.logoUrl ? (
-                            <Image
-                              src={match.homeTeam.logoUrl}
-                              alt={match.homeTeam.name}
-                              width={32}
-                              height={32}
-                              className="rounded"
-                            />
-                          ) : (
-                            <div className="flex h-8 w-8 items-center justify-center rounded bg-muted">
-                              <span className="text-xs font-bold">{match.homeTeam.tla}</span>
-                            </div>
-                          )}
-                        </div>
+              league.matches.map((match: MatchWithRelations) => {
+                const isFinished = match.status === 'FINISHED'
+                const homeWins = isFinished && (match.homeScore ?? 0) > (match.awayScore ?? 0)
+                const awayWins = isFinished && (match.awayScore ?? 0) > (match.homeScore ?? 0)
 
-                        {/* 스코어/시간 */}
-                        <div className="mx-6 flex flex-col items-center min-w-[100px]">
-                          {match.status === 'FINISHED' ? (
-                            <span className="text-2xl font-bold">
-                              {match.homeScore} - {match.awayScore}
+                return (
+                  <Card key={match.id} className="transition-all hover:shadow-md hover:border-primary/50">
+                    <CardContent className="p-4">
+                      <Link href={`/match/${match.slug}`} className="block">
+                        <div className="flex items-center justify-between">
+                          {/* 홈팀 */}
+                          <div className="flex flex-1 items-center justify-end gap-3">
+                            <span className={`font-medium text-right ${homeWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                              {match.homeTeam.name}
                             </span>
-                          ) : match.status === 'LIVE' ? (
-                            <span className="text-2xl font-bold text-red-500">
-                              {match.homeScore ?? 0} - {match.awayScore ?? 0}
-                            </span>
-                          ) : (
-                            <span className="text-lg font-medium">
-                              {format(new Date(match.kickoffAt), 'HH:mm')}
-                            </span>
-                          )}
-                          <span className="text-xs text-muted-foreground mt-1">
-                            {format(new Date(match.kickoffAt), 'M월 d일 (EEE)', { locale: ko })}
-                          </span>
-                          {match.matchAnalysis && (
-                            <Badge variant="outline" className="mt-1 text-xs">
-                              AI 분석
-                            </Badge>
-                          )}
-                        </div>
+                            {homeWins && <Trophy className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
+                            {match.homeTeam.logoUrl ? (
+                              <Image
+                                src={match.homeTeam.logoUrl}
+                                alt={match.homeTeam.name}
+                                width={32}
+                                height={32}
+                                className={`rounded ${isFinished && !homeWins ? 'grayscale opacity-70' : ''}`}
+                              />
+                            ) : (
+                              <div className="flex h-8 w-8 items-center justify-center rounded bg-muted">
+                                <span className="text-xs font-bold">{match.homeTeam.tla}</span>
+                              </div>
+                            )}
+                          </div>
 
-                        {/* 원정팀 */}
-                        <div className="flex flex-1 items-center gap-3">
-                          {match.awayTeam.logoUrl ? (
-                            <Image
-                              src={match.awayTeam.logoUrl}
-                              alt={match.awayTeam.name}
-                              width={32}
-                              height={32}
-                              className="rounded"
-                            />
-                          ) : (
-                            <div className="flex h-8 w-8 items-center justify-center rounded bg-muted">
-                              <span className="text-xs font-bold">{match.awayTeam.tla}</span>
-                            </div>
-                          )}
-                          <span className="font-medium">{match.awayTeam.name}</span>
-                        </div>
+                          {/* 스코어/시간 */}
+                          <div className="mx-6 flex flex-col items-center min-w-[100px]">
+                            {match.status === 'FINISHED' ? (
+                              <span className="text-2xl font-bold">
+                                <span className={homeWins ? 'text-foreground' : 'text-muted-foreground'}>{match.homeScore}</span>
+                                <span className="mx-1 text-muted-foreground">-</span>
+                                <span className={awayWins ? 'text-foreground' : 'text-muted-foreground'}>{match.awayScore}</span>
+                              </span>
+                            ) : match.status === 'LIVE' ? (
+                              <span className="text-2xl font-bold text-red-500">
+                                {match.homeScore ?? 0} - {match.awayScore ?? 0}
+                              </span>
+                            ) : (
+                              <span className="text-lg font-medium">
+                                {format(new Date(match.kickoffAt), 'HH:mm')}
+                              </span>
+                            )}
+                            <span className="text-xs text-muted-foreground mt-1">
+                              {format(new Date(match.kickoffAt), 'M월 d일 (EEE)', { locale: ko })}
+                            </span>
+                            {match.matchAnalysis && (
+                              <Badge variant="outline" className="mt-1 text-xs">
+                                AI 분석
+                              </Badge>
+                            )}
+                          </div>
 
-                        <MatchStatusBadge 
-                          status={match.status} 
-                          label={t(MATCH_STATUS_KEYS[match.status] as any)} 
-                        />
-                      </div>
-                    </Link>
-                  </CardContent>
-                </Card>
-              ))
+                          {/* 원정팀 */}
+                          <div className="flex flex-1 items-center gap-3">
+                            {match.awayTeam.logoUrl ? (
+                              <Image
+                                src={match.awayTeam.logoUrl}
+                                alt={match.awayTeam.name}
+                                width={32}
+                                height={32}
+                                className={`rounded ${isFinished && !awayWins ? 'grayscale opacity-70' : ''}`}
+                              />
+                            ) : (
+                              <div className="flex h-8 w-8 items-center justify-center rounded bg-muted">
+                                <span className="text-xs font-bold">{match.awayTeam.tla}</span>
+                              </div>
+                            )}
+                            {awayWins && <Trophy className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
+                            <span className={`font-medium ${awayWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                              {match.awayTeam.name}
+                            </span>
+                          </div>
+
+                          <MatchStatusBadge 
+                            status={match.status} 
+                            label={t(MATCH_STATUS_KEYS[match.status] as any)} 
+                          />
+                        </div>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                )
+              })
             )}
           </div>
         </TabsContent>

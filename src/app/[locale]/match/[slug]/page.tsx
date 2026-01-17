@@ -26,6 +26,38 @@ import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
 import { ensureMatchAnalysisEnglish } from '@/lib/ai/translate'
+import { unstable_cache } from 'next/cache'
+
+export const revalidate = CACHE_REVALIDATE
+
+// 서버 공유 캐시 적용: 개별 경기 데이터
+const getCachedMatch = unstable_cache(
+  async (slug: string) => {
+    try {
+      return await prisma.match.findUnique({
+        where: { slug },
+        include: {
+          homeTeam: {
+            include: {
+              seasonStats: true,
+            },
+          },
+          awayTeam: {
+            include: {
+              seasonStats: true,
+            },
+          },
+          league: true,
+          matchAnalysis: true,
+        },
+      })
+    } catch {
+      return null
+    }
+  },
+  ['match-detail-data'],
+  { revalidate: CACHE_REVALIDATE, tags: ['match-detail'] }
+)
 
 // 마크다운 **bold** 텍스트를 일반 텍스트로 변환
 function stripMarkdownBold(text: string): string {
@@ -35,36 +67,12 @@ function stripMarkdownBold(text: string): string {
 interface Props {
   params: Promise<{ locale: string; slug: string }>
 }
-async function getMatch(slug: string) {
-  try {
-    const match = await prisma.match.findUnique({
-      where: { slug },
-      include: {
-        homeTeam: {
-          include: {
-            seasonStats: true,
-          },
-        },
-        awayTeam: {
-          include: {
-            seasonStats: true,
-          },
-        },
-        league: true,
-        matchAnalysis: true,
-      },
-    })
-    return match
-  } catch {
-    return null
-  }
-}
 
-type MatchWithRelations = NonNullable<Awaited<ReturnType<typeof getMatch>>>
+type MatchWithRelations = NonNullable<Awaited<ReturnType<typeof getCachedMatch>>>
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, locale } = await params
-  const match = await getMatch(slug)
+  const match = await getCachedMatch(slug)
 
   if (!match) {
     return { title: 'Match Not Found' }
@@ -77,21 +85,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       homeTeam: match.homeTeam.name,
       awayTeam: match.awayTeam.name,
       league: match.league.name,
-      date: match.kickoffAt.toISOString(),
+      date: new Date(match.kickoffAt).toISOString(),
       hasAnalysis: Boolean(match.matchAnalysis),
       locale: localeCode,
     })
   )
 }
 
-export const revalidate = CACHE_REVALIDATE
-
 export default async function MatchPage({ params }: Props) {
   const { locale, slug } = await params
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'match' })
-  let match = await getMatch(slug)
+  let match = await getCachedMatch(slug)
 
   if (!match) {
     notFound()
@@ -138,7 +144,7 @@ export default async function MatchPage({ params }: Props) {
     homeTeam: { name: match.homeTeam.name, logoUrl: match.homeTeam.logoUrl || undefined },
     awayTeam: { name: match.awayTeam.name, logoUrl: match.awayTeam.logoUrl || undefined },
     league: match.league.name,
-    kickoffAt: match.kickoffAt.toISOString(),
+    kickoffAt: new Date(match.kickoffAt).toISOString(),
     venue: match.venue || undefined,
     status: match.status,
     homeScore: match.homeScore ?? undefined,

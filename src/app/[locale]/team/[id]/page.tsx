@@ -21,6 +21,7 @@ import { ko } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
+import { unstable_cache } from 'next/cache'
 import { generateMetadata as buildMetadata, generateTeamSEO, generateTeamJsonLd } from '@/lib/seo'
 import { FormBadge } from '@/components/form-badge'
 
@@ -30,58 +31,63 @@ interface Props {
 
 export const revalidate = CACHE_REVALIDATE
 
-async function getTeamData(id: string) {
-  try {
-    const team = await prisma.team.findUnique({
-      where: { id },
-      include: {
-        league: true,
-        seasonStats: true,
-        recentMatches: true,
-        players: {
-          orderBy: [
-            { position: 'asc' },
-            { shirtNumber: 'asc' },
-          ],
+// 서버 공유 캐시 적용: 팀 데이터 조회
+const getCachedTeamData = unstable_cache(
+  async (id: string) => {
+    try {
+      const team = await prisma.team.findUnique({
+        where: { id },
+        include: {
+          league: true,
+          seasonStats: true,
+          recentMatches: true,
+          players: {
+            orderBy: [
+              { position: 'asc' },
+              { shirtNumber: 'asc' },
+            ],
+          },
+          homeMatches: {
+            where: {
+              kickoffAt: { gte: new Date() },
+            },
+            include: {
+              awayTeam: true,
+              league: true,
+              matchAnalysis: true,
+            },
+            orderBy: { kickoffAt: 'asc' },
+            take: 5,
+          },
+          awayMatches: {
+            where: {
+              kickoffAt: { gte: new Date() },
+            },
+            include: {
+              homeTeam: true,
+              league: true,
+              matchAnalysis: true,
+            },
+            orderBy: { kickoffAt: 'asc' },
+            take: 5,
+          },
         },
-        homeMatches: {
-          where: {
-            kickoffAt: { gte: new Date() },
-          },
-          include: {
-            awayTeam: true,
-            league: true,
-            matchAnalysis: true,
-          },
-          orderBy: { kickoffAt: 'asc' },
-          take: 5,
-        },
-        awayMatches: {
-          where: {
-            kickoffAt: { gte: new Date() },
-          },
-          include: {
-            homeTeam: true,
-            league: true,
-            matchAnalysis: true,
-          },
-          orderBy: { kickoffAt: 'asc' },
-          take: 5,
-        },
-      },
-    })
+      })
 
-    return team
-  } catch {
-    return null
-  }
-}
+      return team
+    } catch {
+      return null
+    }
+  },
+  ['team-page-data'],
+  { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
+)
 
-type TeamWithRelations = NonNullable<Awaited<ReturnType<typeof getTeamData>>>
+type TeamWithRelations = NonNullable<Awaited<ReturnType<typeof getCachedTeamData>>>
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
-  const team = await getTeamData(id)
+  const team = await getCachedTeamData(id)
 
   if (!team) {
     return { title: 'Team Not Found' }
@@ -132,7 +138,7 @@ export default async function TeamPage({ params }: Props) {
   const { locale, id } = await params
   setRequestLocale(locale)
 
-  const team = await getTeamData(id)
+  const team = await getCachedTeamData(id)
 
   if (!team) {
     notFound()

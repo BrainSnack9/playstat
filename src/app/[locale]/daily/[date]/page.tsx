@@ -19,6 +19,12 @@ import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { ensureDailyReportEnglish } from '@/lib/ai/translate'
 import { FormBadge } from '@/components/form-badge'
+import { MatchStatusBadge } from '@/components/match-status-badge'
+import { MATCH_STATUS_KEYS } from '@/lib/constants'
+import { CACHE_REVALIDATE, DAILY_REPORT_REVALIDATE } from '@/lib/cache'
+import { unstable_cache } from 'next/cache'
+
+export const revalidate = DAILY_REPORT_REVALIDATE
 
 interface Props {
   params: Promise<{ locale: string; date: string }>
@@ -43,66 +49,69 @@ interface HotMatch {
   keyPoint: string
 }
 
-async function getDailyReport(dateStr: string) {
-  try {
-    // 'today' 처리
-    let targetDate: Date
-    if (dateStr === 'today') {
-      targetDate = startOfDay(new Date())
-    } else {
-      // YYYY-MM-DD 형식 파싱
-      const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
-      if (!isValid(parsed)) {
-        return null
+// 서버 공유 캐시 적용: 데일리 리포트 데이터
+const getCachedDailyReport = unstable_cache(
+  async (dateStr: string) => {
+    try {
+      let targetDate: Date
+      if (dateStr === 'today') {
+        targetDate = startOfDay(new Date())
+      } else {
+        const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
+        if (!isValid(parsed)) return null
+        targetDate = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 0, 0, 0))
       }
-      // UTC 기준으로 날짜 고정 (DB 저장 방식에 맞춤)
-      targetDate = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 0, 0, 0))
+
+      return await prisma.dailyReport.findUnique({
+        where: { date: targetDate },
+      })
+    } catch {
+      return null
     }
+  },
+  ['daily-report-data'],
+  { revalidate: DAILY_REPORT_REVALIDATE, tags: ['daily-report'] }
+)
 
-    const report = await prisma.dailyReport.findUnique({
-      where: { date: targetDate },
-    })
+// 서버 공유 캐시 적용: 경기 목록 데이터
+const getCachedMatches = unstable_cache(
+  async (dateStr: string) => {
+    try {
+      let targetDate: Date
+      if (dateStr === 'today') {
+        targetDate = new Date()
+      } else {
+        const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
+        if (!isValid(parsed)) return []
+        targetDate = parsed
+      }
 
-    return report
-  } catch (error) {
-    return null
-  }
-}
+      const dayStart = startOfDay(targetDate)
+      const dayEnd = new Date(dayStart)
+      dayEnd.setDate(dayEnd.getDate() + 1)
 
-async function getTodayMatches(dateStr: string) {
-  try {
-    let targetDate: Date
-    if (dateStr === 'today') {
-      targetDate = new Date()
-    } else {
-      const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
-      if (!isValid(parsed)) return []
-      targetDate = parsed
-    }
-
-    const dayStart = startOfDay(targetDate)
-    const dayEnd = new Date(dayStart)
-    dayEnd.setDate(dayEnd.getDate() + 1)
-
-    return prisma.match.findMany({
-      where: {
-        kickoffAt: {
-          gte: dayStart,
-          lt: dayEnd,
+      return await prisma.match.findMany({
+        where: {
+          kickoffAt: {
+            gte: dayStart,
+            lt: dayEnd,
+          },
         },
-      },
-      include: {
-        league: true,
-        homeTeam: { include: { seasonStats: true } },
-        awayTeam: { include: { seasonStats: true } },
-        matchAnalysis: true,
-      },
-      orderBy: { kickoffAt: 'asc' },
-    })
-  } catch {
-    return []
-  }
-}
+        include: {
+          league: true,
+          homeTeam: { include: { seasonStats: true } },
+          awayTeam: { include: { seasonStats: true } },
+          matchAnalysis: true,
+        },
+        orderBy: { kickoffAt: 'asc' },
+      })
+    } catch {
+      return []
+    }
+  },
+  ['daily-matches-data'],
+  { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
+)
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { date: dateStr } = await params
@@ -118,7 +127,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
-  const report = await getDailyReport(dateStr)
+  const report = await getCachedDailyReport(dateStr)
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
   const dateKo = isValid(parsed)
     ? format(parsed, 'yyyy년 M월 d일', { locale: ko })
@@ -157,8 +166,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       type: 'article',
-      publishedTime: report.createdAt.toISOString(),
-      modifiedTime: report.updatedAt.toISOString(),
+      publishedTime: new Date(report.createdAt).toISOString(),
+      modifiedTime: new Date(report.updatedAt).toISOString(),
     },
     alternates: {
       canonical: `/daily/${dateStr}`,
@@ -172,9 +181,9 @@ function JsonLd({
   dateStr,
   matches,
 }: {
-  report: Awaited<ReturnType<typeof getDailyReport>>
+  report: Awaited<ReturnType<typeof getCachedDailyReport>>
   dateStr: string
-  matches: Awaited<ReturnType<typeof getTodayMatches>>
+  matches: Awaited<ReturnType<typeof getCachedMatches>>
 }) {
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
   const dateKo = isValid(parsed)
@@ -197,8 +206,8 @@ function JsonLd({
     description:
       content?.metaDescription ||
       `${dateKo} 유럽 5대 리그 축구 경기 분석`,
-    datePublished: report?.createdAt.toISOString() || new Date().toISOString(),
-    dateModified: report?.updatedAt.toISOString() || new Date().toISOString(),
+    datePublished: report?.createdAt ? new Date(report.createdAt).toISOString() : new Date().toISOString(),
+    dateModified: report?.updatedAt ? new Date(report.updatedAt).toISOString() : new Date().toISOString(),
     author: {
       '@type': 'Organization',
       name: 'PlayStat',
@@ -218,7 +227,7 @@ function JsonLd({
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
     name: `${match.homeTeam.name} vs ${match.awayTeam.name}`,
-    startDate: match.kickoffAt.toISOString(),
+    startDate: new Date(match.kickoffAt).toISOString(),
     location: {
       '@type': 'Place',
       name: match.venue || match.homeTeam.venue || 'TBD',
@@ -272,8 +281,8 @@ export default async function DailyReportPage({ params }: Props) {
   }
 
   let [report, matches] = await Promise.all([
-    getDailyReport(dateStr),
-    getTodayMatches(dateStr),
+    getCachedDailyReport(dateStr),
+    getCachedMatches(dateStr),
   ])
 
   // 영문 요청 시 리포트가 국문만 있다면 자동 번역 (최초 1회)
@@ -317,6 +326,12 @@ export default async function DailyReportPage({ params }: Props) {
     }
     matchesByLeague[leagueName].push(match)
   }
+
+  // 오늘 가장 임박한 다음 경기 찾기
+  const now = new Date()
+  const nextMatchId = matches
+    .filter(m => (m.status === 'SCHEDULED' || m.status === 'TIMED') && new Date(m.kickoffAt) > now)
+    .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime())[0]?.id
 
   return (
     <>
@@ -507,86 +522,121 @@ export default async function DailyReportPage({ params }: Props) {
                     </h3>
 
                     <div className="flex flex-col gap-2">
-                      {leagueMatches.map((match) => (
-                        <Link
-                          key={match.id}
-                          href={`/match/${match.slug || match.id}`}
-                        >
-                          <Card className="transition-all hover:shadow-sm hover:border-primary/30">
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 flex-1">
-                                  {/* Time */}
-                                  <div className="text-sm font-medium w-12 text-center">
-                                    {format(match.kickoffAt, 'HH:mm')}
+                      {leagueMatches.map((match) => {
+                        const isFinished = match.status === 'FINISHED'
+                        const isLive = match.status === 'LIVE'
+                        const isNext = match.id === nextMatchId
+                        const homeWins = isFinished && (match.homeScore ?? 0) > (match.awayScore ?? 0)
+                        const awayWins = isFinished && (match.awayScore ?? 0) > (match.homeScore ?? 0)
+
+                        return (
+                          <Link
+                            key={match.id}
+                            href={`/match/${match.slug || match.id}`}
+                          >
+                            <Card className={`transition-all hover:shadow-sm ${
+                              isFinished ? 'opacity-60 bg-muted/20' : 
+                              isLive ? 'border-red-500 shadow-sm shadow-red-100 dark:shadow-red-900/20' :
+                              isNext ? 'border-primary ring-1 ring-primary/30 shadow-md scale-[1.01]' :
+                              'hover:border-primary/30'
+                            }`}>
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3 flex-1">
+                                    {/* Time */}
+                                    <div className={`text-sm font-bold w-12 text-center ${isLive ? 'text-red-500 animate-pulse' : ''}`}>
+                                      {format(new Date(match.kickoffAt), 'HH:mm')}
+                                    </div>
+
+                                    {/* Teams */}
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        {match.homeTeam.logoUrl && (
+                                          <Image
+                                            src={match.homeTeam.logoUrl}
+                                            alt={match.homeTeam.name}
+                                            width={20}
+                                            height={20}
+                                            className={`rounded ${isFinished && !homeWins ? 'grayscale opacity-70' : ''}`}
+                                          />
+                                        )}
+                                        <span className={`font-medium text-sm ${homeWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                                          {match.homeTeam.name}
+                                        </span>
+                                        {homeWins && <Trophy className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
+                                        {match.homeTeam.seasonStats?.rank && (
+                                          <span className="text-[10px] text-muted-foreground opacity-70">
+                                            ({match.homeTeam.seasonStats.rank}{isEn ? 'th' : '위'})
+                                          </span>
+                                        )}
+                                        {!isFinished && (
+                                          <FormBadge
+                                            form={match.homeTeam.seasonStats?.form || null}
+                                            size="sm"
+                                          />
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {match.awayTeam.logoUrl && (
+                                          <Image
+                                            src={match.awayTeam.logoUrl}
+                                            alt={match.awayTeam.name}
+                                            width={20}
+                                            height={20}
+                                            className={`rounded ${isFinished && !awayWins ? 'grayscale opacity-70' : ''}`}
+                                          />
+                                        )}
+                                        <span className={`font-medium text-sm ${awayWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                                          {match.awayTeam.name}
+                                        </span>
+                                        {awayWins && <Trophy className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
+                                        {match.awayTeam.seasonStats?.rank && (
+                                          <span className="text-[10px] text-muted-foreground opacity-70">
+                                            ({match.awayTeam.seasonStats.rank}{isEn ? 'th' : '위'})
+                                          </span>
+                                        )}
+                                        {!isFinished && (
+                                          <FormBadge
+                                            form={match.awayTeam.seasonStats?.form || null}
+                                            size="sm"
+                                          />
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
 
-                                  {/* Teams */}
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      {match.homeTeam.logoUrl && (
-                                        <Image
-                                          src={match.homeTeam.logoUrl}
-                                          alt={match.homeTeam.name}
-                                          width={20}
-                                          height={20}
-                                          className="rounded"
-                                        />
-                                      )}
-                                      <span className="font-medium text-sm">
-                                        {match.homeTeam.name}
-                                      </span>
-                                      {match.homeTeam.seasonStats?.rank && (
-                                        <span className="text-xs text-muted-foreground">
-                                          ({match.homeTeam.seasonStats.rank}{isEn ? 'th' : '위'})
-                                        </span>
-                                      )}
-                                      <FormBadge
-                                        form={match.homeTeam.seasonStats?.form || null}
-                                        size="sm"
+                                  {/* Score or Status */}
+                                  <div className="flex items-center gap-4">
+                                    {(isFinished || isLive) && (
+                                      <div className={`text-xl font-black px-3 py-1 rounded bg-muted/50 min-w-[60px] text-center ${isLive ? 'text-red-500' : ''}`}>
+                                        {match.homeScore ?? 0} : {match.awayScore ?? 0}
+                                      </div>
+                                    )}
+                                    
+                                    <div className="flex flex-col items-end gap-1.5">
+                                      <MatchStatusBadge 
+                                        status={match.status} 
+                                        label={tMatch(MATCH_STATUS_KEYS[match.status] as any)} 
+                                        className={isNext ? 'bg-primary animate-pulse' : ''}
                                       />
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      {match.awayTeam.logoUrl && (
-                                        <Image
-                                          src={match.awayTeam.logoUrl}
-                                          alt={match.awayTeam.name}
-                                          width={20}
-                                          height={20}
-                                          className="rounded"
-                                        />
+                                      
+                                      {match.matchAnalysis && !isFinished && (
+                                        <Badge
+                                          variant="secondary"
+                                          className="text-[10px] py-0 h-5 bg-primary/10 text-primary border-none"
+                                        >
+                                          <Sparkles className="h-3 w-3 mr-1" />
+                                          {isEn ? 'AI' : 'AI 분석'}
+                                        </Badge>
                                       )}
-                                      <span className="font-medium text-sm">
-                                        {match.awayTeam.name}
-                                      </span>
-                                      {match.awayTeam.seasonStats?.rank && (
-                                        <span className="text-xs text-muted-foreground">
-                                          ({match.awayTeam.seasonStats.rank}{isEn ? 'th' : '위'})
-                                        </span>
-                                      )}
-                                      <FormBadge
-                                        form={match.awayTeam.seasonStats?.form || null}
-                                        size="sm"
-                                      />
                                     </div>
                                   </div>
                                 </div>
-
-                                {/* AI Analysis Badge */}
-                                {match.matchAnalysis && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs bg-primary/10 text-primary"
-                                  >
-                                    <Sparkles className="h-3 w-3 mr-1" />
-                                    {isEn ? 'AI Analysis' : 'AI 분석'}
-                                  </Badge>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </Link>
-                      ))}
+                              </CardContent>
+                            </Card>
+                          </Link>
+                        )
+                      })}
                     </div>
                   </div>
                 ))}

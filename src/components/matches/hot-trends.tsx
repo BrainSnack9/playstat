@@ -6,48 +6,62 @@ import { Link } from '@/i18n/routing'
 import { TrendingUp, Flame, ShieldAlert, Zap } from 'lucide-react'
 import { analyzeTeamTrend, getMatchCombinedTrend, type TeamTrend } from '@/lib/ai/trend-engine'
 import Image from 'next/image'
+import { unstable_cache } from 'next/cache'
+import { CACHE_REVALIDATE } from '@/lib/cache'
+import { format } from 'date-fns'
 
-interface HotTrendsProps {
-  locale: string
+// KST (UTC+9) 오프셋 (밀리초)
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000
+
+function getKSTDayRange(): { start: Date; end: Date } {
+  const now = new Date()
+  const kstTime = new Date(now.getTime() + KST_OFFSET_MS)
+
+  const kstDateStart = new Date(
+    Date.UTC(kstTime.getUTCFullYear(), kstTime.getUTCMonth(), kstTime.getUTCDate(), 0, 0, 0)
+  )
+  const utcStart = new Date(kstDateStart.getTime() - KST_OFFSET_MS)
+
+  const kstDateEnd = new Date(
+    Date.UTC(kstTime.getUTCFullYear(), kstTime.getUTCMonth(), kstTime.getUTCDate(), 23, 59, 59)
+  )
+  const utcEnd = new Date(kstDateEnd.getTime() - KST_OFFSET_MS)
+
+  return { start: utcStart, end: utcEnd }
 }
 
-export async function HotTrends({ locale }: HotTrendsProps) {
-  const t = await getTranslations({ locale, namespace: 'home' })
-  const isEn = locale === 'en'
+// 서버 공유 캐시 적용: 홈 화면 트렌드 경기
+const getCachedTrendingMatches = unstable_cache(
+  async (dateStr: string) => {
+    const { start, end } = getKSTDayRange()
 
-  // 오늘 경기 중 분석 엔진을 돌릴 데이터 조회
-  const today = new Date()
-  const endOfToday = new Date(today)
-  endOfToday.setHours(23, 59, 59, 999)
-
-  const matches = await prisma.match.findMany({
-    where: {
-      kickoffAt: {
-        gte: new Date(today.setHours(0, 0, 0, 0)),
-        lte: endOfToday,
+    const matches = await prisma.match.findMany({
+      where: {
+        kickoffAt: {
+          gte: start,
+          lte: end,
+        },
+        status: { in: ['SCHEDULED', 'TIMED'] },
       },
-      status: { in: ['SCHEDULED', 'TIMED'] },
-    },
-    include: {
-      league: true,
-      homeTeam: {
-        include: {
-          seasonStats: true,
-          recentMatches: true,
+      include: {
+        league: true,
+        homeTeam: {
+          include: {
+            seasonStats: true,
+            recentMatches: true,
+          },
+        },
+        awayTeam: {
+          include: {
+            seasonStats: true,
+            recentMatches: true,
+          },
         },
       },
-      awayTeam: {
-        include: {
-          seasonStats: true,
-          recentMatches: true,
-        },
-      },
-    },
-    take: 10,
-  })
+      take: 10,
+    })
 
-  const trendingMatches = matches
-    .map((match) => {
+    return matches.map((match) => {
       const homeTrends = analyzeTeamTrend(
         match.homeTeam.name,
         match.homeTeam.id,
@@ -70,7 +84,22 @@ export async function HotTrends({ locale }: HotTrendsProps) {
       }
     })
     .filter((m) => m.homeTrends.length > 0 || m.awayTrends.length > 0 || m.combined)
-    .slice(0, 3) // 상위 3개만 노출
+    .slice(0, 3)
+  },
+  ['home-trending-matches-v2'],
+  { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
+)
+
+interface HotTrendsProps {
+  locale: string
+}
+
+export async function HotTrends({ locale }: HotTrendsProps) {
+  const t = await getTranslations({ locale, namespace: 'home' })
+  const isEn = locale === 'en'
+
+  const dateStr = format(new Date(), 'yyyy-MM-dd')
+  const trendingMatches = await getCachedTrendingMatches(dateStr)
 
   if (trendingMatches.length === 0) return null
 

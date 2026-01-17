@@ -9,6 +9,8 @@ import { format, addDays } from 'date-fns'
 import slugify from 'slugify'
 import type { PrismaClient, MatchStatus } from '@prisma/client'
 
+import { revalidateTag } from 'next/cache'
+
 // Vercel Cron 인증
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -147,6 +149,15 @@ export async function GET(request: Request) {
 
     // 스케줄러 로그 기록
     const duration = Date.now() - startTime
+    
+    // 캐시 무효화: 새로운 경기 데이터가 추가되거나 업데이트되었을 때
+    if (results.matchesAdded > 0 || results.matchesUpdated > 0) {
+      console.log('[Cron] Revalidating match tags after collection...')
+      revalidateTag('matches')
+      revalidateTag('match-detail')
+      revalidateTag('daily-report')
+    }
+
     await prisma.schedulerLog.create({
       data: {
         jobName: 'collect-matches',

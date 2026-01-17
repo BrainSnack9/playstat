@@ -4,6 +4,8 @@ import type { PrismaClient } from '@prisma/client'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
+import { revalidateTag } from 'next/cache'
+
 // KST (UTC+9) 오프셋 (밀리초)
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000
 
@@ -277,6 +279,10 @@ export async function GET(request: Request) {
     })
 
     const duration = Date.now() - startTime
+
+    // 캐시 무효화: 리포트가 생성되었을 때
+    console.log('[Cron] Revalidating daily report tag...')
+    revalidateTag('daily-report')
 
     await prisma.schedulerLog.create({
       data: {

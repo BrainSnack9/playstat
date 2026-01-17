@@ -4,6 +4,7 @@ import {
 } from '@/lib/api/football-data'
 import { format, subDays, addDays } from 'date-fns'
 import type { PrismaClient, MatchStatus } from '@prisma/client'
+import { revalidateTag } from 'next/cache'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -32,31 +33,63 @@ export async function GET(request: Request) {
     const dateFrom = format(subDays(now, 1), 'yyyy-MM-dd')
     const dateTo = format(addDays(now, 1), 'yyyy-MM-dd')
 
+    // 타임아웃 방지를 위해 한 번의 API 호출로 모든 경기 데이터를 가져옵니다.
+    console.log(`[Cron] Fetching all matches from ${dateFrom} to ${dateTo}`)
     const matchesResponse = await footballDataApi.getMatchesByDateRange(dateFrom, dateTo)
     
     let updatedCount = 0
     const errors: string[] = []
+    const updatedMatchesLog: string[] = []
 
     for (const match of matchesResponse.matches) {
       try {
+        // 우리가 추적하는 리그인지 확인
+        const LEAGUE_CODES = ['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'DED', 'PPL']
+        if (!LEAGUE_CODES.includes(match.competition.code)) continue
+
         const existingMatch = await prisma.match.findFirst({
           where: { externalId: String(match.id) },
-          select: { id: true, status: true }
+          select: { 
+            id: true, 
+            status: true,
+            homeScore: true,
+            awayScore: true,
+            halfTimeHome: true,
+            halfTimeAway: true,
+            homeTeam: { select: { name: true } },
+            awayTeam: { select: { name: true } }
+          }
         })
 
         if (existingMatch) {
           const newStatus = mapStatus(match.status)
-          await prisma.match.update({
-            where: { id: existingMatch.id },
-            data: {
-              status: newStatus,
-              homeScore: match.score.fullTime.home,
-              awayScore: match.score.fullTime.away,
-              halfTimeHome: match.score.halfTime.home,
-              halfTimeAway: match.score.halfTime.away,
-            },
-          })
-          updatedCount++
+          const newHomeScore = match.score.fullTime.home
+          const newAwayScore = match.score.fullTime.away
+          const newHTHome = match.score.halfTime.home
+          const newHTAway = match.score.halfTime.away
+
+          // 실제 변화가 있는지 체크
+          const isChanged = 
+            existingMatch.status !== newStatus ||
+            existingMatch.homeScore !== newHomeScore ||
+            existingMatch.awayScore !== newAwayScore ||
+            existingMatch.halfTimeHome !== newHTHome ||
+            existingMatch.halfTimeAway !== newHTAway
+
+          if (isChanged) {
+            await prisma.match.update({
+              where: { id: existingMatch.id },
+              data: {
+                status: newStatus,
+                homeScore: newHomeScore,
+                awayScore: newAwayScore,
+                halfTimeHome: newHTHome,
+                halfTimeAway: newHTAway,
+              },
+            })
+            updatedCount++
+            updatedMatchesLog.push(`${existingMatch.homeTeam.name} vs ${existingMatch.awayTeam.name} (${newStatus} ${newHomeScore}:${newAwayScore})`)
+          }
         }
       } catch (error) {
         errors.push(`Match ${match.id}: ${String(error)}`)
@@ -92,11 +125,21 @@ export async function GET(request: Request) {
     }
 
     const duration = Date.now() - startTime
+
+    // --- 3. 캐시 무효화 (Revalidation) ---
+    // 데이터가 업데이트되었다면 관련 캐시를 즉시 삭제하여 사용자가 최신 스코어를 보게 함
+    if (updatedCount > 0) {
+      console.log('[Cron] Revalidating match tags...')
+      revalidateTag('matches')
+      revalidateTag('match-detail')
+      revalidateTag('daily-report')
+    }
+
     await prisma.schedulerLog.create({
       data: {
         jobName: 'update-live-matches-with-cleanup',
         result: errors.length === 0 ? 'success' : 'partial',
-        details: { updatedCount, cleanupResults, errors },
+        details: { updatedCount, updatedMatchesLog, cleanupResults, errors },
         duration,
         apiCalls: 1,
       },

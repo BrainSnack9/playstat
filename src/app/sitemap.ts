@@ -81,14 +81,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })
 
     const dailyPages: MetadataRoute.Sitemap = dailyReports.flatMap((report) => {
-      const dateStr = report.date.toISOString().split('T')[0]
+      const dateStr = new Date(report.date).toISOString().split('T')[0]
       return getLocalizedUrls(`/daily/${dateStr}`, 0.9, 'daily' as const, report.updatedAt)
     })
 
     // 오늘 날짜 데일리 페이지 추가
     const today = new Date().toISOString().split('T')[0]
     const hasTodayReport = dailyReports.some(
-      (r) => r.date.toISOString().split('T')[0] === today
+      (r) => new Date(r.date).toISOString().split('T')[0] === today
     )
     if (!hasTodayReport) {
       const todayPages = getLocalizedUrls(`/daily/${today}`, 1, 'hourly' as const)

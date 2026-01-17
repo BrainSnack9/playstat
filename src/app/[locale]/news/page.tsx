@@ -7,6 +7,17 @@ import { formatDistanceToNow } from 'date-fns'
 import { ko, enUS } from 'date-fns/locale'
 import Image from 'next/image'
 import { collectAllFootballNews, type NewsItem } from '@/lib/api/news-api'
+import { unstable_cache } from 'next/cache'
+import { CACHE_REVALIDATE } from '@/lib/cache'
+
+// 서버 공유 캐시 적용: 뉴스 데이터 조회
+const getCachedNews = unstable_cache(
+  async (limit: number) => {
+    return await collectAllFootballNews(limit)
+  },
+  ['news-page-data'],
+  { revalidate: CACHE_REVALIDATE }
+)
 
 // 빌드 시 RSS fetch 방지 - 런타임에만 실행
 export const dynamic = 'force-dynamic'
@@ -105,7 +116,7 @@ export default async function NewsPage({ params }: Props) {
   let error = false
 
   try {
-    news = await collectAllFootballNews(12)
+    news = await getCachedNews(12)
   } catch (e) {
     console.error('Failed to fetch news:', e)
     error = true

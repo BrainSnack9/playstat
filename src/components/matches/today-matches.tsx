@@ -4,6 +4,9 @@ import { Calendar } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { getTranslations } from 'next-intl/server'
 import { MatchCard } from '@/components/match-card'
+import { unstable_cache } from 'next/cache'
+import { CACHE_REVALIDATE } from '@/lib/cache'
+import { format } from 'date-fns'
 
 // KST (UTC+9) 오프셋 (밀리초)
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000
@@ -25,43 +28,47 @@ function getKSTDayRange(): { start: Date; end: Date } {
   return { start: utcStart, end: utcEnd }
 }
 
-async function getTodayMatches() {
-  const { start, end } = getKSTDayRange()
+// 서버 공유 캐시 적용: 홈 화면 오늘 경기
+const getCachedTodayMatches = unstable_cache(
+  async (dateStr: string) => {
+    const { start, end } = getKSTDayRange()
 
-  const matches = await prisma.match.findMany({
-    where: {
-      kickoffAt: {
-        gte: start,
-        lte: end,
+    return await prisma.match.findMany({
+      where: {
+        kickoffAt: {
+          gte: start,
+          lte: end,
+        },
       },
-    },
-    include: {
-      homeTeam: {
-        select: { id: true, name: true, shortName: true, tla: true, logoUrl: true },
+      include: {
+        homeTeam: {
+          select: { id: true, name: true, shortName: true, tla: true, logoUrl: true },
+        },
+        awayTeam: {
+          select: { id: true, name: true, shortName: true, tla: true, logoUrl: true },
+        },
+        league: {
+          select: { name: true, code: true, logoUrl: true },
+        },
+        matchAnalysis: {
+          select: { id: true },
+        },
       },
-      awayTeam: {
-        select: { id: true, name: true, shortName: true, tla: true, logoUrl: true },
-      },
-      league: {
-        select: { name: true, code: true, logoUrl: true },
-      },
-      matchAnalysis: {
-        select: { id: true },
-      },
-    },
-    orderBy: { kickoffAt: 'asc' },
-    take: 6,
-  })
-
-  return matches
-}
+      orderBy: { kickoffAt: 'asc' },
+      take: 6,
+    })
+  },
+  ['home-today-matches-v2'],
+  { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
+)
 
 interface TodayMatchesProps {
   locale: string
 }
 
 export async function TodayMatches({ locale }: TodayMatchesProps) {
-  const matches = await getTodayMatches()
+  const dateStr = format(new Date(), 'yyyy-MM-dd')
+  const matches = await getCachedTodayMatches(dateStr)
   const home = await getTranslations('home')
 
   if (matches.length === 0) {

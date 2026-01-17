@@ -2,7 +2,7 @@
 
 import { format } from 'date-fns'
 import { ko, enUS } from 'date-fns/locale'
-import { Clock, Sparkles, Star } from 'lucide-react'
+import { Clock, Sparkles, Star, Trophy } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/i18n/routing'
@@ -57,6 +57,10 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
   const hasAwayFavorite = favoriteTeamIds.includes(match.awayTeam.id)
   const hasFavorite = hasHomeFavorite || hasAwayFavorite
 
+  const isFinished = match.status === 'FINISHED'
+  const homeWins = isFinished && (match.homeScore ?? 0) > (match.awayScore ?? 0)
+  const awayWins = isFinished && (match.awayScore ?? 0) > (match.homeScore ?? 0)
+
   return (
     <Link href={`/match/${match.slug}`}>
       <Card
@@ -101,7 +105,7 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
 
           <div className="space-y-3">
             {/* 홈팀 */}
-            <div className="flex items-center justify-between">
+            <div className={`flex items-center justify-between p-1 rounded-md transition-colors ${homeWins ? 'bg-primary/5' : ''}`}>
               <div className="flex items-center space-x-2">
                 {match.homeTeam.logoUrl ? (
                   <Image
@@ -109,25 +113,28 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
                     alt={match.homeTeam.name}
                     width={36}
                     height={36}
-                    className="rounded"
+                    className={`rounded ${isFinished && !homeWins ? 'grayscale opacity-70' : ''}`}
                   />
                 ) : (
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
                     <span className="text-xs font-bold">{match.homeTeam.tla || match.homeTeam.shortName}</span>
                   </div>
                 )}
-                <span className={`font-medium ${hasHomeFavorite ? 'text-yellow-500' : ''}`}>
+                <span className={`font-medium ${hasHomeFavorite ? 'text-yellow-500' : ''} ${homeWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
                   {match.homeTeam.name}
                   {hasHomeFavorite && <Star className="inline ml-1 h-3 w-3 fill-yellow-500 text-yellow-500" />}
                 </span>
               </div>
-              <span className="text-2xl font-bold">
-                {match.status === 'FINISHED' || match.status === 'LIVE' ? (match.homeScore ?? 0) : '-'}
-              </span>
+              <div className="flex items-center gap-2">
+                {homeWins && <Trophy className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
+                <span className={`text-2xl font-bold ${homeWins ? 'text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                  {match.status === 'FINISHED' || match.status === 'LIVE' ? (match.homeScore ?? 0) : '-'}
+                </span>
+              </div>
             </div>
 
             {/* 원정팀 */}
-            <div className="flex items-center justify-between">
+            <div className={`flex items-center justify-between p-1 rounded-md transition-colors ${awayWins ? 'bg-primary/5' : ''}`}>
               <div className="flex items-center space-x-2">
                 {match.awayTeam.logoUrl ? (
                   <Image
@@ -135,21 +142,24 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
                     alt={match.awayTeam.name}
                     width={36}
                     height={36}
-                    className="rounded"
+                    className={`rounded ${isFinished && !awayWins ? 'grayscale opacity-70' : ''}`}
                   />
                 ) : (
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
                     <span className="text-xs font-bold">{match.awayTeam.tla || match.awayTeam.shortName}</span>
                   </div>
                 )}
-                <span className={`font-medium ${hasAwayFavorite ? 'text-yellow-500' : ''}`}>
+                <span className={`font-medium ${hasAwayFavorite ? 'text-yellow-500' : ''} ${awayWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
                   {match.awayTeam.name}
                   {hasAwayFavorite && <Star className="inline ml-1 h-3 w-3 fill-yellow-500 text-yellow-500" />}
                 </span>
               </div>
-              <span className="text-2xl font-bold">
-                {match.status === 'FINISHED' || match.status === 'LIVE' ? (match.awayScore ?? 0) : '-'}
-              </span>
+              <div className="flex items-center gap-2">
+                {awayWins && <Trophy className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
+                <span className={`text-2xl font-bold ${awayWins ? 'text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                  {match.status === 'FINISHED' || match.status === 'LIVE' ? (match.awayScore ?? 0) : '-'}
+                </span>
+              </div>
             </div>
           </div>
 

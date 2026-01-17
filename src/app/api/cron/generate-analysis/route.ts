@@ -12,6 +12,8 @@ import { addHours } from 'date-fns'
 import type { PrismaClient } from '@prisma/client'
 import { analyzeTeamTrend, getMatchCombinedTrend } from '@/lib/ai/trend-engine'
 
+import { revalidateTag } from 'next/cache'
+
 const CRON_SECRET = process.env.CRON_SECRET
 
 // 동적 prisma 가져오기
@@ -170,6 +172,15 @@ export async function GET(request: Request) {
     }
 
     const duration = Date.now() - startTime
+    
+    // 캐시 무효화: 분석이 생성되었을 때
+    if (results.some(r => r.success)) {
+      console.log('[Cron] Revalidating match analysis tags...')
+      revalidateTag('match-detail')
+      revalidateTag('matches')
+      revalidateTag('daily-report')
+    }
+
     await prisma.schedulerLog.create({
       data: {
         jobName: 'generate-analysis',

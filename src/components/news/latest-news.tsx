@@ -5,6 +5,17 @@ import { formatDistanceToNow } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import Image from 'next/image'
 import { collectAllFootballNews, type NewsItem } from '@/lib/api/news-api'
+import { unstable_cache } from 'next/cache'
+import { CACHE_REVALIDATE } from '@/lib/cache'
+
+// 서버 공유 캐시 적용: 최신 뉴스 조회
+const getCachedNews = unstable_cache(
+  async (limit: number) => {
+    return await collectAllFootballNews(limit)
+  },
+  ['latest-news-data'],
+  { revalidate: CACHE_REVALIDATE } // 1시간 캐시
+)
 
 function NewsCard({ news }: { news: NewsItem }) {
   const timeAgo = formatDistanceToNow(new Date(news.pubDate), { addSuffix: true, locale: ko })
@@ -79,7 +90,7 @@ export async function LatestNews() {
   let error = false
 
   try {
-    news = await collectAllFootballNews(6)
+    news = await getCachedNews(6)
   } catch (e) {
     console.error('Failed to fetch news:', e)
     error = true

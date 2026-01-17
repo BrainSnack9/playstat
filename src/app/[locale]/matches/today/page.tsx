@@ -10,6 +10,7 @@ import Image from 'next/image'
 import { getTodayRangeInTimezone } from '@/lib/timezone'
 import { MatchCard } from '@/components/match-card'
 import { CACHE_REVALIDATE } from '@/lib/cache'
+import { unstable_cache } from 'next/cache'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -27,66 +28,66 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-interface MatchData {
-  todayMatches: Awaited<ReturnType<typeof prisma.match.findMany>>
-  upcomingMatches: Awaited<ReturnType<typeof prisma.match.findMany>>
-}
+// 서버 공유 캐시 적용: 경기 목록 데이터 조회
+const getCachedMatches = unstable_cache(
+  async (timezone: string, dateStr: string) => {
+    // 사용자 타임존 기준 오늘의 시작/끝
+    const { start, end } = getTodayRangeInTimezone(timezone)
 
-async function getMatches(timezone: string): Promise<MatchData> {
-  // 사용자 타임존 기준 오늘의 시작/끝
-  const { start, end } = getTodayRangeInTimezone(timezone)
-
-  try {
-    // 오늘 경기 조회
-    const todayMatches = await prisma.match.findMany({
-      where: {
-        kickoffAt: {
-          gte: start,
-          lte: end,
+    try {
+      // 오늘 경기 조회
+      const todayMatches = await prisma.match.findMany({
+        where: {
+          kickoffAt: {
+            gte: start,
+            lte: end,
+          },
+          sportType: 'FOOTBALL',
         },
-        sportType: 'FOOTBALL',
-      },
-      include: {
-        homeTeam: true,
-        awayTeam: true,
-        league: true,
-        matchAnalysis: true,
-      },
-      orderBy: {
-        kickoffAt: 'asc',
-      },
-    })
-
-    // 다가오는 경기 조회 (오늘 이후 7일)
-    const weekLater = new Date(end.getTime() + 7 * 24 * 60 * 60 * 1000)
-
-    const upcomingMatches = await prisma.match.findMany({
-      where: {
-        kickoffAt: {
-          gt: end, // 오늘 이후
-          lte: weekLater,
+        include: {
+          homeTeam: true,
+          awayTeam: true,
+          league: true,
+          matchAnalysis: true,
         },
-        sportType: 'FOOTBALL',
-      },
-      include: {
-        homeTeam: true,
-        awayTeam: true,
-        league: true,
-        matchAnalysis: true,
-      },
-      orderBy: {
-        kickoffAt: 'asc',
-      },
-      take: 30,
-    })
+        orderBy: {
+          kickoffAt: 'asc',
+        },
+      })
 
-    return { todayMatches, upcomingMatches }
-  } catch {
-    return { todayMatches: [], upcomingMatches: [] }
-  }
-}
+      // 다가오는 경기 조회 (오늘 이후 7일)
+      const weekLater = new Date(end.getTime() + 7 * 24 * 60 * 60 * 1000)
 
-type MatchWithRelations = MatchData['todayMatches'][number]
+      const upcomingMatches = await prisma.match.findMany({
+        where: {
+          kickoffAt: {
+            gt: end, // 오늘 이후
+            lte: weekLater,
+          },
+          sportType: 'FOOTBALL',
+        },
+        include: {
+          homeTeam: true,
+          awayTeam: true,
+          league: true,
+          matchAnalysis: true,
+        },
+        orderBy: {
+          kickoffAt: 'asc',
+        },
+        take: 30,
+      })
+
+      return { todayMatches, upcomingMatches }
+    } catch {
+      return { todayMatches: [], upcomingMatches: [] }
+    }
+  },
+  ['today-matches-data'],
+  { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
+)
+
+type MatchWithRelations = Awaited<ReturnType<typeof getCachedMatches>>['todayMatches'][number]
 
 // 리그별로 경기 그룹화하는 헬퍼 함수
 function groupMatchesByLeague(matches: MatchWithRelations[]) {
@@ -118,7 +119,8 @@ export default async function TodayMatchesPage({ params }: Props) {
     locale: dateLocale,
   })
 
-  const { todayMatches, upcomingMatches } = await getMatches(timezone)
+  const dateStr = format(new Date(), 'yyyy-MM-dd')
+  const { todayMatches, upcomingMatches } = await getCachedMatches(timezone, dateStr)
 
   const todayByLeague = groupMatchesByLeague(todayMatches)
   const upcomingByLeague = groupMatchesByLeague(upcomingMatches)
