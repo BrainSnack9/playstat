@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import { setRequestLocale } from 'next-intl/server'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -84,22 +84,24 @@ const getCachedTeamData = unstable_cache(
 )
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params
+  const { id, locale } = await params
   const team = await getCachedTeamData(id)
 
   if (!team) {
     return { title: 'Team Not Found' }
   }
 
+  const t = await getTranslations({ locale, namespace: 'team' })
   const recentForm = (team.seasonStats?.form || team.recentMatches?.recentForm) || undefined
-  const localeCode = (await params).locale === 'ko' ? 'ko_KR' : 'en_US'
 
   return buildMetadata(
     generateTeamSEO({
       name: team.name,
       league: team.league.name,
-      recentForm,
-      locale: localeCode,
+      translations: {
+        description: t('seo_description', { name: team.name, recentForm: recentForm ? ` (${recentForm})` : '' }),
+        keywords: [team.name, team.league.name, t('analysis'), t('squad'), t('tactics')],
+      },
     })
   )
 }
@@ -135,6 +137,10 @@ function StatCard({
 export default async function TeamPage({ params }: Props) {
   const { locale, id } = await params
   setRequestLocale(locale)
+
+  const t = await getTranslations({ locale, namespace: 'team' })
+  const tMatch = await getTranslations({ locale, namespace: 'match' })
+  const tCommon = await getTranslations({ locale, namespace: 'common' })
 
   const team = await getCachedTeamData(id)
 
@@ -239,11 +245,11 @@ export default async function TeamPage({ params }: Props) {
               <div className="text-center">
                 <div className="mb-2 flex items-center gap-2">
                   <Badge variant="outline" className="text-lg px-3 py-1">
-                    {stats.rank}위
+                    {tMatch('rank_value', { rank: stats.rank || 0 })}
                   </Badge>
-                  <Badge className="text-lg px-3 py-1">{stats.points}점</Badge>
+                  <Badge className="text-lg px-3 py-1">{tMatch('points_value', { points: stats.points || 0 })}</Badge>
                 </div>
-                <p className="mb-2 text-sm text-muted-foreground">최근 폼</p>
+                <p className="mb-2 text-sm text-muted-foreground">{tMatch('recent_form')}</p>
                 <FormBadge form={stats.form || team.recentMatches?.recentForm || null} size="lg" />
               </div>
             )}
@@ -253,10 +259,10 @@ export default async function TeamPage({ params }: Props) {
 
       <Tabs defaultValue="stats" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="stats">시즌 통계</TabsTrigger>
-          <TabsTrigger value="squad">선수단</TabsTrigger>
-          <TabsTrigger value="recent">최근 경기</TabsTrigger>
-          <TabsTrigger value="fixtures">경기 일정</TabsTrigger>
+          <TabsTrigger value="stats">{t('statistics')}</TabsTrigger>
+          <TabsTrigger value="squad">{t('squad')}</TabsTrigger>
+          <TabsTrigger value="recent">{t('results')}</TabsTrigger>
+          <TabsTrigger value="fixtures">{t('fixtures')}</TabsTrigger>
         </TabsList>
 
         {/* Stats */}
@@ -265,10 +271,10 @@ export default async function TeamPage({ params }: Props) {
             <div className="space-y-6">
               {/* 기본 통계 */}
               <div className="grid gap-4 md:grid-cols-4">
-                <StatCard label="경기" value={stats.gamesPlayed} icon={Calendar} />
-                <StatCard label="승" value={stats.wins} icon={TrendingUp} color="text-green-500" />
-                <StatCard label="무" value={stats.draws || 0} icon={Target} color="text-gray-500" />
-                <StatCard label="패" value={stats.losses} icon={Shield} color="text-red-500" />
+                <StatCard label={tMatch('games')} value={stats.gamesPlayed} icon={Calendar} />
+                <StatCard label={tMatch('win')} value={stats.wins} icon={TrendingUp} color="text-green-500" />
+                <StatCard label={tMatch('draw')} value={stats.draws || 0} icon={Target} color="text-gray-500" />
+                <StatCard label={tMatch('loss')} value={stats.losses} icon={Shield} color="text-red-500" />
               </div>
 
               {/* 승률 & 득실점 */}
@@ -276,7 +282,7 @@ export default async function TeamPage({ params }: Props) {
                 {/* 승률 분석 */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>승률 분석</CardTitle>
+                    <CardTitle>{t('win_rate_analysis')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
@@ -297,25 +303,25 @@ export default async function TeamPage({ params }: Props) {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-green-500">
-                          승 {((stats.wins / stats.gamesPlayed) * 100).toFixed(0)}%
+                          {tMatch('win')} {((stats.wins / stats.gamesPlayed) * 100).toFixed(0)}%
                         </span>
                         <span className="text-gray-500">
-                          무 {(((stats.draws || 0) / stats.gamesPlayed) * 100).toFixed(0)}%
+                          {tMatch('draw')} {(((stats.draws || 0) / stats.gamesPlayed) * 100).toFixed(0)}%
                         </span>
                         <span className="text-red-500">
-                          패 {((stats.losses / stats.gamesPlayed) * 100).toFixed(0)}%
+                          {tMatch('loss')} {((stats.losses / stats.gamesPlayed) * 100).toFixed(0)}%
                         </span>
                       </div>
                       {/* 세부 지표 */}
                       <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                         <div>
-                          <p className="text-sm text-muted-foreground">경기당 득점</p>
+                          <p className="text-sm text-muted-foreground">{t('avg_goals_scored')}</p>
                           <p className="text-2xl font-bold">
                             {((stats.goalsFor || 0) / stats.gamesPlayed).toFixed(2)}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-muted-foreground">경기당 실점</p>
+                          <p className="text-sm text-muted-foreground">{t('avg_goals_conceded')}</p>
                           <p className="text-2xl font-bold">
                             {((stats.goalsAgainst || 0) / stats.gamesPlayed).toFixed(2)}
                           </p>
@@ -328,14 +334,14 @@ export default async function TeamPage({ params }: Props) {
                 {/* 득실점 */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>득실점</CardTitle>
+                    <CardTitle>{tMatch('goals_for_short')} / {tMatch('goals_against_short')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       {/* 득점 바 */}
                       <div>
                         <div className="flex justify-between mb-1">
-                          <span className="text-sm text-muted-foreground">득점</span>
+                          <span className="text-sm text-muted-foreground">{tMatch('goals_for')}</span>
                           <span className="font-bold text-green-600">{stats.goalsFor || 0}</span>
                         </div>
                         <div className="h-3 bg-muted rounded-full overflow-hidden">
@@ -350,7 +356,7 @@ export default async function TeamPage({ params }: Props) {
                       {/* 실점 바 */}
                       <div>
                         <div className="flex justify-between mb-1">
-                          <span className="text-sm text-muted-foreground">실점</span>
+                          <span className="text-sm text-muted-foreground">{tMatch('goals_against')}</span>
                           <span className="font-bold text-red-600">{stats.goalsAgainst || 0}</span>
                         </div>
                         <div className="h-3 bg-muted rounded-full overflow-hidden">
@@ -364,7 +370,7 @@ export default async function TeamPage({ params }: Props) {
                       </div>
                       {/* 골득실 */}
                       <div className="pt-4 border-t text-center">
-                        <p className="text-sm text-muted-foreground">골득실</p>
+                        <p className="text-sm text-muted-foreground">{tMatch('goal_difference')}</p>
                         <p className={`text-3xl font-bold ${(stats.goalDifference || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {(stats.goalDifference || 0) > 0 ? '+' : ''}
                           {stats.goalDifference || 0}
@@ -393,10 +399,10 @@ export default async function TeamPage({ params }: Props) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                선수단
+                {t('squad')}
                 {team.players.length > 0 && (
                   <span className="text-sm font-normal text-muted-foreground">
-                    ({team.players.length}명)
+                    ({t('players_count', { count: team.players.length })})
                   </span>
                 )}
               </CardTitle>
@@ -420,10 +426,10 @@ export default async function TeamPage({ params }: Props) {
                     if (positionPlayers.length === 0) return null
 
                     const positionLabels: Record<string, string> = {
-                      Goalkeeper: '골키퍼',
-                      Defence: '수비수',
-                      Midfield: '미드필더',
-                      Offence: '공격수',
+                      Goalkeeper: tMatch('goalkeeper'),
+                      Defence: tMatch('defender'),
+                      Midfield: tMatch('midfielder'),
+                      Offence: tMatch('forward'),
                     }
 
                     return (
@@ -461,7 +467,7 @@ export default async function TeamPage({ params }: Props) {
                                 <p className="text-sm text-muted-foreground truncate">
                                   {player.nationality}
                                   {player.birthDate && (
-                                    <> · {new Date().getFullYear() - new Date(player.birthDate).getFullYear()}세</>
+                                    <> · {t('age_value', { age: new Date().getFullYear() - new Date(player.birthDate).getFullYear() })}</>
                                   )}
                                 </p>
                               </div>
@@ -479,9 +485,9 @@ export default async function TeamPage({ params }: Props) {
                 </div>
               ) : (
                 <p className="text-center text-muted-foreground py-8">
-                  선수 데이터가 없습니다.
+                  {t('no_squad_data')}
                   <br />
-                  <span className="text-sm">크론 작업을 실행하여 선수 데이터를 수집해주세요.</span>
+                  <span className="text-sm">{t('run_cron_message')}</span>
                 </p>
               )}
             </CardContent>
@@ -492,7 +498,7 @@ export default async function TeamPage({ params }: Props) {
         <TabsContent value="recent">
           <Card>
             <CardHeader>
-              <CardTitle>최근 경기 결과</CardTitle>
+              <CardTitle>{t('recent_match_results')}</CardTitle>
             </CardHeader>
             <CardContent>
               {recentMatches && recentMatches.length > 0 ? (
@@ -507,7 +513,7 @@ export default async function TeamPage({ params }: Props) {
                           variant={match.isHome ? 'default' : 'outline'}
                           className="w-12 justify-center"
                         >
-                          {match.isHome ? '홈' : '원정'}
+                          {match.isHome ? tMatch('home') : tMatch('away')}
                         </Badge>
                         <div className="flex items-center gap-2">
                           {match.opponentCrest && (
@@ -541,7 +547,7 @@ export default async function TeamPage({ params }: Props) {
                 </div>
               ) : (
                 <p className="text-center text-muted-foreground py-8">
-                  최근 경기 데이터가 없습니다.
+                  {t('no_recent_matches')}
                 </p>
               )}
             </CardContent>
@@ -554,7 +560,7 @@ export default async function TeamPage({ params }: Props) {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Calendar className="mr-2 h-5 w-5" />
-                예정 경기
+                {t('fixtures')}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -565,7 +571,7 @@ export default async function TeamPage({ params }: Props) {
                       <div className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted">
                         <div className="flex items-center gap-4">
                           <Badge variant={match.isHome ? 'default' : 'outline'}>
-                            {match.isHome ? '홈' : '원정'}
+                            {match.isHome ? tMatch('home') : tMatch('away')}
                           </Badge>
                           <div className="flex items-center gap-2">
                             {match.opponent.logoUrl && (
@@ -581,16 +587,16 @@ export default async function TeamPage({ params }: Props) {
                           </div>
                           {match.matchAnalysis && (
                             <Badge variant="outline" className="text-xs">
-                              AI 분석
+                              {t('ai_analysis')}
                             </Badge>
                           )}
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center">
                             <Clock className="mr-1 h-4 w-4" />
-                            {format(new Date(match.kickoffAt), 'M월 d일 HH:mm', { locale: ko })}
+                            {format(new Date(match.kickoffAt), tCommon('date_medium_format'), { locale: locale === 'ko' ? ko : undefined })}
                           </div>
-                          <Badge className="bg-blue-500">예정</Badge>
+                          <Badge className="bg-blue-500">{tMatch('upcoming')}</Badge>
                         </div>
                       </div>
                     </Link>
@@ -598,7 +604,7 @@ export default async function TeamPage({ params }: Props) {
                 </div>
               ) : (
                 <p className="text-center text-muted-foreground py-8">
-                  예정된 경기가 없습니다.
+                  {t('no_fixtures')}
                 </p>
               )}
             </CardContent>

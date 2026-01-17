@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Users, Search } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { TeamCard } from '@/components/team-card'
+import Image from 'next/image'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -156,15 +157,17 @@ export default async function TeamsPage({ params, searchParams }: Props) {
             <section key={leagueName}>
               <h2 className="mb-4 text-xl font-bold flex items-center gap-2">
                 {league.logoUrl && (
-                  <img
+                  <Image
                     src={league.logoUrl}
                     alt={leagueName}
-                    className="h-6 w-6 rounded"
+                    width={24}
+                    height={24}
+                    className="rounded"
                   />
                 )}
                 {leagueName}
                 <span className="text-sm font-normal text-muted-foreground">
-                  ({leagueTeams.length} {t('teams')})
+                  ({t('teams_count', { count: leagueTeams.length })})
                 </span>
               </h2>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

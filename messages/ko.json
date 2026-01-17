@@ -15,7 +15,12 @@
     "view_all": "전체 보기",
     "view_more": "더 보기",
     "share": "공유",
-    "back": "뒤로"
+    "back": "뒤로",
+    "date_full": "{year}년 {month}월 {day}일 ({weekday})",
+    "date_medium": "{month}월 {day}일 ({weekday})",
+    "date_short": "{month}월 {day}일",
+    "date_medium_format": "M월 d일 (EEE)",
+    "date_full_format": "yyyy년 MM월 dd일 (EEEE)"
   },
   "home": {
     "title": "PlayStat - AI 스포츠 분석 플랫폼",
@@ -29,6 +34,7 @@
     "featured_analysis": "추천 분석",
     "featured_leagues": "주요 리그",
     "no_matches_today": "오늘 예정된 경기가 없습니다.",
+    "hot_label": "HOT",
     "match_schedule": "경기 일정",
     "no_matches_scheduled": "예정된 경기가 없습니다.",
     "run_cron_message": "크론 작업을 실행하여 경기 데이터를 수집해주세요.",
@@ -49,6 +55,8 @@
     "vs": "vs",
     "home": "홈",
     "away": "원정",
+    "round_value": "{round}라운드",
+    "rank_value": "({rank}위)",
     "analysis": "경기 분석",
     "summary": "요약",
     "tactics": "전술 분석",
@@ -82,7 +90,25 @@
     "loss": "패",
     "goals_for": "득점",
     "goals_against": "실점",
-    "goal_difference": "득실차"
+    "goal_difference": "득실차",
+    "back_to_leagues": "리그 목록으로",
+    "league_standings": "리그 순위",
+    "no_standings_data": "순위 데이터가 없습니다. 크론 작업을 실행해주세요.",
+    "team": "팀",
+    "goals_for_short": "득",
+    "goals_against_short": "실",
+    "goal_difference_short": "득실",
+    "no_teams_data": "팀 데이터가 없습니다.",
+    "seo_description_with_analysis": "{homeTeam}와 {awayTeam}의 경기 AI 분석. 최근 폼, 전술 분석, 핵심 관전 포인트를 확인하세요.",
+    "seo_description_no_analysis": "{date} {league} 경기: {homeTeam} vs {awayTeam}",
+    "preview": "프리뷰",
+    "tactics": "전술분석",
+    "goalkeeper": "골키퍼",
+    "defender": "수비수",
+    "midfielder": "미드필더",
+    "forward": "공격수",
+    "rank_value": "{rank}위",
+    "points_value": "{points}점"
   },
   "team": {
     "overview": "개요",
@@ -102,7 +128,19 @@
     "all": "전체",
     "teams": "팀",
     "no_teams": "팀이 없습니다.",
-    "run_cron_message": "크론 작업을 실행하여 팀 데이터를 수집해주세요."
+    "run_cron_message": "크론 작업을 실행하여 팀 데이터를 수집해주세요.",
+    "teams_count": "{count}개 팀",
+    "seo_description": "{name} 팀 분석. 최근 폼{recentForm}, 스쿼드, 경기 일정, 전술 스타일을 확인하세요.",
+    "founded_value": "{year}년 창단",
+    "win_rate_analysis": "승률 분석",
+    "avg_goals_scored": "경기당 득점",
+    "avg_goals_conceded": "경기당 실점",
+    "no_stats_data": "시즌 통계 데이터가 없습니다.",
+    "players_count": "{count}명",
+    "no_squad_data": "선수 데이터가 없습니다.",
+    "recent_match_results": "최근 경기 결과",
+    "no_recent_matches": "최근 경기 데이터가 없습니다.",
+    "no_fixtures": "예정된 경기가 없습니다."
   },
   "player": {
     "overview": "개요",
@@ -123,7 +161,9 @@
     "page_title": "리그",
     "page_description": "전 세계 주요 축구 리그의 경기와 AI 분석을 확인하세요",
     "round": "라운드",
-    "teams": "팀"
+    "teams": "팀",
+    "seo_title": "{name} {season} 시즌",
+    "seo_description": "{name} {season} 시즌 순위, 경기 일정, 팀 분석을 확인하세요."
   },
   "news": {
     "latest": "최신 뉴스",
@@ -133,14 +173,24 @@
     "related_teams": "관련 팀",
     "read_more": "자세히 보기",
     "source": "출처",
-    "published_at": "발행일"
+    "published_at": "발행일",
+    "no_news": "최신 뉴스를 불러올 수 없습니다.",
+    "try_again": "잠시 후 다시 시도해주세요."
   },
   "daily_report": {
     "title": "데일리 리포트",
     "description": "오늘의 스포츠 하이라이트와 주요 분석",
     "hot_matches": "주목 경기",
     "key_news": "핵심 뉴스",
-    "insights": "오늘의 인사이트"
+    "insights": "오늘의 인사이트",
+    "matches_count": "{count}개 경기",
+    "strategic_insights": "오늘의 핵심 관전 인사이트",
+    "matches_by_league": "리그별 경기 일정",
+    "ai_insights_sidebar": "AI 심층 분석",
+    "no_sections": "해당 날짜의 심층 분석 섹션이 없습니다.",
+    "keywords": "관련 키워드",
+    "no_keywords": "관련 키워드가 없습니다.",
+    "football_analysis_title": "{date} 축구 경기 분석"
   },
   "trends": {
     "winning_streak": "{value}연승 중",

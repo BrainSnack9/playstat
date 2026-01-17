@@ -49,6 +49,7 @@
     "vs": "vs",
     "home": "Local",
     "away": "Visitante",
+    "rank_value": "(Posición {rank})",
     "analysis": "Análisis del Partido",
     "summary": "Resumen",
     "tactics": "Análisis Táctico",
@@ -82,7 +83,15 @@
     "loss": "P",
     "goals_for": "GF",
     "goals_against": "GC",
-    "goal_difference": "DG"
+    "goal_difference": "DG",
+    "back_to_leagues": "Volver a las ligas",
+    "league_standings": "Clasificación de la liga",
+    "no_standings_data": "No hay datos de clasificación disponibles. Ejecute la tarea cron.",
+    "team": "Equipo",
+    "goals_for_short": "GF",
+    "goals_against_short": "GC",
+    "goal_difference_short": "DG",
+    "no_teams_data": "No se encontraron equipos."
   },
   "team": {
     "overview": "Resumen",
@@ -123,14 +132,24 @@
     "related_teams": "Equipos Relacionados",
     "read_more": "Leer más",
     "source": "Fuente",
-    "published_at": "Publicado"
+    "published_at": "Publicado",
+    "no_news": "No se pudieron cargar las últimas noticias.",
+    "try_again": "Por favor, inténtelo de nuevo más tarde."
   },
   "daily_report": {
     "title": "Reporte Diario",
     "description": "Lo más destacado del deporte de hoy y análisis clave",
     "hot_matches": "Partidos Destacados",
     "key_news": "Noticias Clave",
-    "insights": "Conocimientos de Hoy"
+    "insights": "Conocimientos de Hoy",
+    "matches_count": "{count} Partidos",
+    "strategic_insights": "Perspectivas estratégicas de hoy",
+    "matches_by_league": "Partidos por liga",
+    "ai_insights_sidebar": "Perspectivas de IA",
+    "no_sections": "No hay secciones de análisis detalladas para esta fecha.",
+    "keywords": "Palabras clave",
+    "no_keywords": "No se encontraron palabras clave relacionadas.",
+    "football_analysis_title": "Análisis de fútbol del {date}"
   },
   "trends": {
     "winning_streak": "{value} victorias consecutivas",

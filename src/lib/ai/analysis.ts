@@ -87,37 +87,37 @@ export interface DailyReportOutput {
 function formatMatchDataForPrompt(input: MatchAnalysisInput): string {
   const parts: string[] = []
 
-  parts.push(`경기: ${input.homeTeam.name} vs ${input.awayTeam.name}`)
-  if (input.competition) parts.push(`대회: ${input.competition}`)
-  if (input.venue) parts.push(`경기장: ${input.venue}`)
+  parts.push(`Match: ${input.homeTeam.name} vs ${input.awayTeam.name}`)
+  if (input.competition) parts.push(`Competition: ${input.competition}`)
+  if (input.venue) parts.push(`Venue: ${input.venue}`)
 
-  parts.push(`\n[${input.homeTeam.name} 정보]`)
-  parts.push(`- 최근 폼: ${input.homeTeam.recentForm}`)
-  parts.push(`- 최근 경기: ${input.homeTeam.recentMatches.join(', ')}`)
+  parts.push(`\n[${input.homeTeam.name} Info]`)
+  parts.push(`- Recent Form: ${input.homeTeam.recentForm}`)
+  parts.push(`- Recent Matches: ${input.homeTeam.recentMatches.join(', ')}`)
   parts.push(
-    `- 시즌 스탯: 득점 ${input.homeTeam.stats.goalsFor}, 실점 ${input.homeTeam.stats.goalsAgainst}, 클린시트 ${input.homeTeam.stats.cleanSheets}`
+    `- Season Stats: Goals For ${input.homeTeam.stats.goalsFor}, Goals Against ${input.homeTeam.stats.goalsAgainst}, Clean Sheets ${input.homeTeam.stats.cleanSheets}`
   )
   if (input.injuries?.home?.length) {
-    parts.push(`- 부상/결장: ${input.injuries.home.join(', ')}`)
+    parts.push(`- Injuries/Absences: ${input.injuries.home.join(', ')}`)
   }
 
-  parts.push(`\n[${input.awayTeam.name} 정보]`)
-  parts.push(`- 최근 폼: ${input.awayTeam.recentForm}`)
-  parts.push(`- 최근 경기: ${input.awayTeam.recentMatches.join(', ')}`)
+  parts.push(`\n[${input.awayTeam.name} Info]`)
+  parts.push(`- Recent Form: ${input.awayTeam.recentForm}`)
+  parts.push(`- Recent Matches: ${input.awayTeam.recentMatches.join(', ')}`)
   parts.push(
-    `- 시즌 스탯: 득점 ${input.awayTeam.stats.goalsFor}, 실점 ${input.awayTeam.stats.goalsAgainst}, 클린시트 ${input.awayTeam.stats.cleanSheets}`
+    `- Season Stats: Goals For ${input.awayTeam.stats.goalsFor}, Goals Against ${input.awayTeam.stats.goalsAgainst}, Clean Sheets ${input.awayTeam.stats.cleanSheets}`
   )
   if (input.injuries?.away?.length) {
-    parts.push(`- 부상/결장: ${input.injuries.away.join(', ')}`)
+    parts.push(`- Injuries/Absences: ${input.injuries.away.join(', ')}`)
   }
 
   if (input.headToHead?.length) {
-    parts.push(`\n[상대 전적]`)
+    parts.push(`\n[Head-to-Head]`)
     parts.push(input.headToHead.join('\n'))
   }
 
   if (input.additionalContext) {
-    parts.push(`\n[추가 정보]`)
+    parts.push(`\n[Additional Info]`)
     parts.push(input.additionalContext)
   }
 

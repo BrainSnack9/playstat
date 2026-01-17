@@ -15,7 +15,12 @@
     "view_all": "View All",
     "view_more": "View More",
     "share": "Share",
-    "back": "Back"
+    "back": "Back",
+    "date_full": "{month} {day}, {year} ({weekday})",
+    "date_medium": "{month} {day} ({weekday})",
+    "date_short": "{month} {day}",
+    "date_medium_format": "MMM d (EEE)",
+    "date_full_format": "EEEE, MMMM d, yyyy"
   },
   "home": {
     "title": "PlayStat - AI Sports Analysis Platform",
@@ -29,6 +34,7 @@
     "featured_analysis": "Featured Analysis",
     "featured_leagues": "Featured Leagues",
     "no_matches_today": "No matches scheduled for today.",
+    "hot_label": "HOT",
     "match_schedule": "Match Schedule",
     "no_matches_scheduled": "No matches scheduled.",
     "run_cron_message": "Run the cron job to collect match data.",
@@ -49,6 +55,8 @@
     "vs": "vs",
     "home": "Home",
     "away": "Away",
+    "round_value": "Round {round}",
+    "rank_value": "({rank}th)",
     "analysis": "Match Analysis",
     "summary": "Summary",
     "tactics": "Tactical Analysis",
@@ -82,7 +90,25 @@
     "loss": "L",
     "goals_for": "GF",
     "goals_against": "GA",
-    "goal_difference": "GD"
+    "goal_difference": "GD",
+    "back_to_leagues": "Back to leagues",
+    "league_standings": "League Standings",
+    "no_standings_data": "No standings data available. Run the cron job.",
+    "team": "Team",
+    "goals_for_short": "GF",
+    "goals_against_short": "GA",
+    "goal_difference_short": "GD",
+    "no_teams_data": "No teams found.",
+    "seo_description_with_analysis": "AI match analysis for {homeTeam} vs {awayTeam}. Check recent form, tactical analysis, and key points.",
+    "seo_description_no_analysis": "{league} match on {date}: {homeTeam} vs {awayTeam}",
+    "preview": "Preview",
+    "tactics": "Tactics",
+    "goalkeeper": "Goalkeeper",
+    "defender": "Defender",
+    "midfielder": "Midfielder",
+    "forward": "Forward",
+    "rank_value": "{rank}th",
+    "points_value": "{points}pts"
   },
   "team": {
     "overview": "Overview",
@@ -102,7 +128,19 @@
     "all": "All",
     "teams": "teams",
     "no_teams": "No teams found.",
-    "run_cron_message": "Run the cron job to collect team data."
+    "run_cron_message": "Run the cron job to collect team data.",
+    "teams_count": "{count} teams",
+    "seo_description": "{name} team analysis. Check recent form{recentForm}, squad, fixtures, and tactical style.",
+    "founded_value": "Founded in {year}",
+    "win_rate_analysis": "Win Rate Analysis",
+    "avg_goals_scored": "Avg Goals Scored",
+    "avg_goals_conceded": "Avg Goals Conceded",
+    "no_stats_data": "No season statistics available.",
+    "players_count": "{count} players",
+    "no_squad_data": "No squad data available.",
+    "recent_match_results": "Recent Match Results",
+    "no_recent_matches": "No recent matches found.",
+    "no_fixtures": "No upcoming fixtures found."
   },
   "player": {
     "overview": "Overview",
@@ -123,7 +161,9 @@
     "page_title": "Leagues",
     "page_description": "Explore football leagues worldwide with AI-powered match analysis",
     "round": "Round",
-    "teams": "teams"
+    "teams": "teams",
+    "seo_title": "{name} {season} Season",
+    "seo_description": "Check {name} {season} season standings, fixtures, and team analysis."
   },
   "news": {
     "latest": "Latest News",
@@ -133,14 +173,24 @@
     "related_teams": "Related Teams",
     "read_more": "Read More",
     "source": "Source",
-    "published_at": "Published"
+    "published_at": "Published",
+    "no_news": "Could not load latest news.",
+    "try_again": "Please try again later."
   },
   "daily_report": {
     "title": "Daily Report",
     "description": "Today's sports highlights and key analysis",
     "hot_matches": "Featured Matches",
     "key_news": "Key News",
-    "insights": "Today's Insights"
+    "insights": "Today's Insights",
+    "matches_count": "{count} Matches",
+    "strategic_insights": "Today's Strategic Insights",
+    "matches_by_league": "Matches by League",
+    "ai_insights_sidebar": "AI Insights",
+    "no_sections": "No detailed analysis sections available for this date.",
+    "keywords": "Keywords",
+    "no_keywords": "No related keywords found.",
+    "football_analysis_title": "{date} Football Analysis"
   },
   "trends": {
     "winning_streak": "{value} match winning streak",

@@ -49,6 +49,7 @@
     "vs": "vs",
     "home": "ホーム",
     "away": "アウェイ",
+    "rank_value": "({rank}位)",
     "analysis": "試合分析",
     "summary": "要約",
     "tactics": "戦術分析",
@@ -82,7 +83,15 @@
     "loss": "敗",
     "goals_for": "得点",
     "goals_against": "失点",
-    "goal_difference": "得失点差"
+    "goal_difference": "得失点差",
+    "back_to_leagues": "リーグ一覧に戻る",
+    "league_standings": "リーグ順位",
+    "no_standings_data": "順位データがありません。クロンジョブを実行してください。",
+    "team": "チーム",
+    "goals_for_short": "得",
+    "goals_against_short": "失",
+    "goal_difference_short": "差",
+    "no_teams_data": "チームデータがありません。"
   },
   "team": {
     "overview": "概要",
@@ -130,7 +139,15 @@
     "description": "今日のスポーツハイライトと主要分析",
     "hot_matches": "注目試合",
     "key_news": "主要ニュース",
-    "insights": "今日のインサイト"
+    "insights": "今日のインサイト",
+    "matches_count": "{count}試合",
+    "strategic_insights": "今日の戦略的インサイト",
+    "matches_by_league": "リーグ別試合日程",
+    "ai_insights_sidebar": "AIインサイト",
+    "no_sections": "この日の詳細な分析セクションはありません。",
+    "keywords": "キーワード",
+    "no_keywords": "関連するキーワードは見つかりませんでした。",
+    "football_analysis_title": "{date} サッカー試合分析"
   },
   "trends": {
     "winning_streak": "{value}連勝中",

@@ -111,13 +111,14 @@ export default async function TodayMatchesPage({ params }: Props) {
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'home' })
+  const tCommon = await getTranslations({ locale, namespace: 'common' })
 
   // 쿠키에서 타임존 가져오기 (기본값: Asia/Seoul)
   const cookieStore = await cookies()
   const timezone = cookieStore.get('timezone')?.value || 'Asia/Seoul'
 
   const dateLocale = locale === 'ko' ? ko : enUS
-  const today = format(new Date(), locale === 'ko' ? 'yyyy년 MM월 dd일 (EEEE)' : 'EEEE, MMMM d, yyyy', {
+  const today = format(new Date(), tCommon('date_full_format'), {
     locale: dateLocale,
   })
 

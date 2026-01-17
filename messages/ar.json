@@ -49,6 +49,7 @@
     "vs": "ضد",
     "home": "صاحب الأرض",
     "away": "الضيف",
+    "rank_value": "(المركز {rank})",
     "analysis": "تحليل المباراة",
     "summary": "ملخص",
     "tactics": "التحليل التكتيكي",
@@ -82,7 +83,15 @@
     "loss": "خسارة",
     "goals_for": "أهداف له",
     "goals_against": "أهداف عليه",
-    "goal_difference": "فارق الأهداف"
+    "goal_difference": "فارق الأهداف",
+    "back_to_leagues": "العودة للدوريات",
+    "league_standings": "ترتيب الدوري",
+    "no_standings_data": "لا تتوفر بيانات الترتيب. قم بتشغيل وظيفة الكرون.",
+    "team": "الفريق",
+    "goals_for_short": "له",
+    "goals_against_short": "عليه",
+    "goal_difference_short": "فارق",
+    "no_teams_data": "لم يتم العثور على فرق."
   },
   "team": {
     "overview": "نظرة عامة",
@@ -130,7 +139,15 @@
     "description": "أبرز الأحداث الرياضية لليوم والتحليل الرئيسي",
     "hot_matches": "مباريات مميزة",
     "key_news": "أخبار رئيسية",
-    "insights": "رؤى اليوم"
+    "insights": "رؤى اليوم",
+    "matches_count": "{count} مباريات",
+    "strategic_insights": "رؤى استراتيجية لليوم",
+    "matches_by_league": "المباريات حسب الدوري",
+    "ai_insights_sidebar": "رؤى الذكاء الاصطناعي",
+    "no_sections": "لا توجد أقسام تحليل مفصلة لهذا التاريخ.",
+    "keywords": "الكلمات المفتاحية",
+    "no_keywords": "لم يتم العثور على كلمات مفتاحية ذات صلة.",
+    "football_analysis_title": "تحليل مباريات كرة القدم لليوم {date}"
   },
   "trends": {
     "winning_streak": "سلسلة انتصارات لـ {value} مباريات",

@@ -102,28 +102,17 @@ export function generateMatchSEO(match: {
   league: string
   date: string
   hasAnalysis: boolean
-  locale?: string
+  translations: {
+    description: string
+    keywords: string[]
+  }
 }): SEOConfig {
-  const isEn = match.locale?.startsWith('en')
   const title = `${match.homeTeam} vs ${match.awayTeam} - ${match.league}`
   
-  let description = ''
-  if (isEn) {
-    description = match.hasAnalysis
-      ? `AI match analysis for ${match.homeTeam} vs ${match.awayTeam}. Check recent form, tactical analysis, and key points.`
-      : `${match.league} match on ${match.date}: ${match.homeTeam} vs ${match.awayTeam}`
-  } else {
-    description = match.hasAnalysis
-      ? `${match.homeTeam}와 ${match.awayTeam}의 경기 AI 분석. 최근 폼, 전술 분석, 핵심 관전 포인트를 확인하세요.`
-      : `${match.date} ${match.league} 경기: ${match.homeTeam} vs ${match.awayTeam}`
-  }
-
   return {
     title,
-    description,
-    keywords: isEn 
-      ? [match.homeTeam, match.awayTeam, match.league, 'analysis', 'preview', 'tactics']
-      : [match.homeTeam, match.awayTeam, match.league, '경기분석', '프리뷰', '전술분석'],
+    description: match.translations.description,
+    keywords: match.translations.keywords,
     type: 'article',
   }
 }
@@ -134,25 +123,17 @@ export function generateMatchSEO(match: {
 export function generateTeamSEO(team: {
   name: string
   league: string
-  recentForm?: string
-  locale?: string
-}): SEOConfig {
-  const isEn = team.locale?.startsWith('en')
-  const title = isEn ? `${team.name} - ${team.league}` : `${team.name} - ${team.league}`
-  
-  let description = ''
-  if (isEn) {
-    description = `${team.name} team analysis. Check recent form${team.recentForm ? ` (${team.recentForm})` : ''}, squad, fixtures, and tactical style.`
-  } else {
-    description = `${team.name} 팀 분석. 최근 폼${team.recentForm ? ` (${team.recentForm})` : ''}, 스쿼드, 경기 일정, 전술 스타일을 확인하세요.`
+  translations: {
+    description: string
+    keywords: string[]
   }
-
+}): SEOConfig {
+  const title = `${team.name} - ${team.league}`
+  
   return {
     title,
-    description,
-    keywords: isEn
-      ? [team.name, team.league, 'analysis', 'squad', 'tactics']
-      : [team.name, team.league, '팀분석', '스쿼드', '전술'],
+    description: team.translations.description,
+    keywords: team.translations.keywords,
     type: 'website',
   }
 }
@@ -164,24 +145,16 @@ export function generateLeagueSEO(league: {
   name: string
   country: string
   season: string
-  locale?: string
-}): SEOConfig {
-  const isEn = league.locale?.startsWith('en')
-  const title = isEn ? `${league.name} ${league.season} Season` : `${league.name} ${league.season} 시즌`
-  
-  let description = ''
-  if (isEn) {
-    description = `Check ${league.name} ${league.season} season standings, fixtures, and team analysis.`
-  } else {
-    description = `${league.name} ${league.season} 시즌 순위, 경기 일정, 팀 분석을 확인하세요.`
+  translations: {
+    title: string
+    description: string
+    keywords: string[]
   }
-
+}): SEOConfig {
   return {
-    title,
-    description,
-    keywords: isEn
-      ? [league.name, league.country, league.season, 'standings', 'fixtures']
-      : [league.name, league.country, league.season, '순위', '일정'],
+    title: league.translations.title,
+    description: league.translations.description,
+    keywords: league.translations.keywords,
     type: 'website',
   }
 }

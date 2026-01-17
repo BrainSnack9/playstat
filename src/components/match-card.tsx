@@ -47,9 +47,10 @@ interface MatchCardProps {
 export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
   const { favoriteTeamIds } = useFavoriteTeams()
   const t = useTranslations('match')
+  const tCommon = useTranslations('common')
   const dateLocale = locale === 'ko' ? ko : enUS
   const kickoffTime = format(new Date(match.kickoffAt), 'HH:mm')
-  const kickoffDate = format(new Date(match.kickoffAt), locale === 'ko' ? 'M월 d일 (EEE)' : 'MMM d (EEE)', {
+  const kickoffDate = format(new Date(match.kickoffAt), tCommon('date_medium_format'), {
     locale: dateLocale,
   })
 
@@ -93,7 +94,7 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
               {match.matchAnalysis && (
                 <Badge variant="outline" className="text-xs">
                   <Sparkles className="h-3 w-3 me-1" />
-                  AI
+                  {t('ai_analysis')}
                 </Badge>
               )}
           <MatchStatusBadge 

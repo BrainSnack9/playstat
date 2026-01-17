@@ -106,7 +106,7 @@ export async function HotTrends({ locale }: HotTrendsProps) {
                     ) : (
                       <span className="flex items-center gap-1">
                         <Zap className="h-3 w-3 fill-current" />
-                        HOT
+                        {t('hot_label')}
                       </span>
                     )}
                   </Badge>

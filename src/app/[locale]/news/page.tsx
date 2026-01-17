@@ -36,10 +36,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 function NewsCard({ news, locale }: { news: NewsItem; locale: string }) {
-  const dateLocale = locale === 'ko' ? ko : enUS
   const timeAgo = formatDistanceToNow(new Date(news.pubDate), { 
     addSuffix: true, 
-    locale: dateLocale 
+    locale: locale === 'ko' ? ko : enUS 
   })
 
   return (

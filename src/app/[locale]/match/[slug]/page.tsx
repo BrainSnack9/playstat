@@ -77,16 +77,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Match Not Found' }
   }
 
-  const localeCode = locale === 'ko' ? 'ko_KR' : 'en_US'
+  const t = await getTranslations({ locale, namespace: 'match' })
+  const dateFormatted = format(new Date(match.kickoffAt), 'yyyy-MM-dd')
 
   return buildMetadata(
     generateMatchSEO({
       homeTeam: match.homeTeam.name,
       awayTeam: match.awayTeam.name,
       league: match.league.name,
-      date: new Date(match.kickoffAt).toISOString(),
+      date: dateFormatted,
       hasAnalysis: Boolean(match.matchAnalysis),
-      locale: localeCode,
+      translations: {
+        description: match.matchAnalysis
+          ? t('seo_description_with_analysis', { homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name })
+          : t('seo_description_no_analysis', { league: match.league.name, date: dateFormatted, homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name }),
+        keywords: [match.homeTeam.name, match.awayTeam.name, match.league.name, t('analysis'), t('preview'), t('tactics')],
+      },
     })
   )
 }
@@ -96,6 +102,7 @@ export default async function MatchPage({ params }: Props) {
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'match' })
+  const tCommon = await getTranslations({ locale, namespace: 'common' })
   const initialMatch = await getCachedMatch(slug)
 
   if (!initialMatch) {
@@ -108,8 +115,7 @@ export default async function MatchPage({ params }: Props) {
     : initialMatch
 
   const dateLocale = locale === 'ko' ? ko : enUS
-  const dateFormat = locale === 'ko' ? 'yyyy년 MM월 dd일 (EEEE)' : 'MMMM d, yyyy (EEEE)'
-  const kickoffDate = format(new Date(match.kickoffAt), dateFormat, { locale: dateLocale })
+  const kickoffDate = format(new Date(match.kickoffAt), tCommon('date_full_format'), { locale: dateLocale })
   const kickoffTime = format(new Date(match.kickoffAt), 'HH:mm')
 
   // Get status label

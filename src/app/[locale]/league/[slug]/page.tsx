@@ -105,22 +105,26 @@ type TeamWithStats = LeagueWithRelations['teams'][number]
 type MatchWithRelations = LeagueWithRelations['matches'][number]
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params
+  const { slug, locale } = await params
   const league = await getCachedLeagueData(slug)
 
   if (!league) {
     return { title: 'League Not Found' }
   }
 
+  const t = await getTranslations({ locale, namespace: 'league' })
   const seasonLabel = league.season ? String(league.season) : 'current'
-  const localeCode = (await params).locale === 'ko' ? 'ko_KR' : 'en_US'
 
   return buildMetadata(
     generateLeagueSEO({
       name: league.name,
-      country: league.country,
+      country: league.country || '',
       season: seasonLabel,
-      locale: localeCode,
+      translations: {
+        title: t('seo_title', { name: league.name, season: seasonLabel }),
+        description: t('seo_description', { name: league.name, season: seasonLabel }),
+        keywords: [league.name, league.country || '', seasonLabel, t('standings'), t('fixtures')],
+      },
     })
   )
 }
@@ -134,6 +138,7 @@ export default async function LeaguePage({ params }: Props) {
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'match' })
+  const tCommon = await getTranslations({ locale, namespace: 'common' })
   const league = await getCachedLeagueData(slug)
 
   if (!league) {
@@ -156,7 +161,7 @@ export default async function LeaguePage({ params }: Props) {
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
-          리그 목록으로
+          {t('back_to_leagues')}
         </Link>
       </div>
 
@@ -183,7 +188,7 @@ export default async function LeaguePage({ params }: Props) {
               {league.currentMatchday && (
                 <>
                   <span>•</span>
-                  <span>라운드 {league.currentMatchday}</span>
+                  <span>{t('round')} {league.currentMatchday}</span>
                 </>
               )}
             </div>
@@ -193,9 +198,9 @@ export default async function LeaguePage({ params }: Props) {
 
       <Tabs defaultValue="standings" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="standings">순위표</TabsTrigger>
-          <TabsTrigger value="fixtures">경기 일정</TabsTrigger>
-          <TabsTrigger value="teams">팀 목록</TabsTrigger>
+          <TabsTrigger value="standings">{t('standings')}</TabsTrigger>
+          <TabsTrigger value="fixtures">{t('fixtures')}</TabsTrigger>
+          <TabsTrigger value="teams">{t('teams')}</TabsTrigger>
         </TabsList>
 
         {/* Standings */}
@@ -204,13 +209,13 @@ export default async function LeaguePage({ params }: Props) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
-                리그 순위
+                {t('league_standings')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {standings.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
-                  순위 데이터가 없습니다. 크론 작업을 실행해주세요.
+                  {t('no_standings_data')}
                 </p>
               ) : (
                 <div className="overflow-x-auto">
@@ -218,16 +223,16 @@ export default async function LeaguePage({ params }: Props) {
                     <thead>
                       <tr className="border-b text-left text-sm text-muted-foreground">
                         <th className="pb-3 pr-4">#</th>
-                        <th className="pb-3 pr-4">팀</th>
-                        <th className="pb-3 pr-4 text-center">경기</th>
-                        <th className="pb-3 pr-4 text-center">승</th>
-                        <th className="pb-3 pr-4 text-center">무</th>
-                        <th className="pb-3 pr-4 text-center">패</th>
-                        <th className="pb-3 pr-4 text-center">득</th>
-                        <th className="pb-3 pr-4 text-center">실</th>
-                        <th className="pb-3 pr-4 text-center">득실</th>
-                        <th className="pb-3 pr-4 text-center">최근</th>
-                        <th className="pb-3 text-center">승점</th>
+                        <th className="pb-3 pr-4">{t('team')}</th>
+                        <th className="pb-3 pr-4 text-center">{t('games')}</th>
+                        <th className="pb-3 pr-4 text-center">{t('win')}</th>
+                        <th className="pb-3 pr-4 text-center">{t('draw')}</th>
+                        <th className="pb-3 pr-4 text-center">{t('loss')}</th>
+                        <th className="pb-3 pr-4 text-center">{t('goals_for_short')}</th>
+                        <th className="pb-3 pr-4 text-center">{t('goals_against_short')}</th>
+                        <th className="pb-3 pr-4 text-center">{t('goal_difference_short')}</th>
+                        <th className="pb-3 pr-4 text-center">{t('recent_form')}</th>
+                        <th className="pb-3 text-center">{t('points')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -290,9 +295,9 @@ export default async function LeaguePage({ params }: Props) {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center p-8 text-center">
                   <Calendar className="mb-4 h-12 w-12 text-muted-foreground" />
-                  <p className="text-muted-foreground">예정된 경기가 없습니다.</p>
+                  <p className="text-muted-foreground">{t('no_matches_scheduled')}</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    크론 작업을 실행하여 경기 데이터를 수집해주세요.
+                    {t('run_cron_message')}
                   </p>
                 </CardContent>
               </Card>
@@ -346,11 +351,11 @@ export default async function LeaguePage({ params }: Props) {
                               </span>
                             )}
                             <span className="text-xs text-muted-foreground mt-1">
-                              {format(new Date(match.kickoffAt), 'M월 d일 (EEE)', { locale: ko })}
+                              {format(new Date(match.kickoffAt), tCommon('date_medium_format'), { locale: locale === 'ko' ? ko : undefined })}
                             </span>
                             {match.matchAnalysis && (
                               <Badge variant="outline" className="mt-1 text-xs">
-                                AI 분석
+                                {t('ai_analysis')}
                               </Badge>
                             )}
                           </div>
@@ -398,7 +403,7 @@ export default async function LeaguePage({ params }: Props) {
               <Card className="col-span-full">
                 <CardContent className="flex flex-col items-center justify-center p-8 text-center">
                   <TrendingDown className="mb-4 h-12 w-12 text-muted-foreground" />
-                  <p className="text-muted-foreground">팀 데이터가 없습니다.</p>
+                  <p className="text-muted-foreground">{t('no_teams_data')}</p>
                 </CardContent>
               </Card>
             ) : (
@@ -422,7 +427,7 @@ export default async function LeaguePage({ params }: Props) {
                       <h3 className="font-semibold">{team.name}</h3>
                       {team.seasonStats && (
                         <p className="text-sm text-muted-foreground">
-                          {team.seasonStats.rank}위 • {team.seasonStats.points}점
+                          {team.seasonStats.rank}{t('rank')} • {team.seasonStats.points}{t('points')}
                         </p>
                       )}
                     </div>

@@ -97,13 +97,15 @@ const getCachedMatches = unstable_cache(
 )
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { date: dateStr } = await params
+  const { date: dateStr, locale } = await params
+  const tDaily = await getTranslations({ locale, namespace: 'daily_report' })
+  const tCommon = await getTranslations({ locale, namespace: 'common' })
 
   // today는 실제 날짜로 리다이렉트
   if (dateStr === 'today') {
     const today = format(new Date(), 'yyyy-MM-dd')
     return {
-      title: '오늘의 축구 경기 분석',
+      title: tDaily('football_analysis_title', { date: tCommon('home') }),
       alternates: {
         canonical: `/daily/${today}`,
       },
@@ -112,38 +114,47 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const report = await getCachedDailyReport(dateStr)
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
-  const dateKo = isValid(parsed)
-    ? format(parsed, 'yyyy년 M월 d일', { locale: ko })
+  const dateFormatted = isValid(parsed)
+    ? format(parsed, tCommon('date_full_format'), { 
+        locale: locale === 'ko' ? ko : undefined 
+      })
     : dateStr
 
   if (!report) {
     return {
-      title: `${dateKo} 축구 경기 일정 및 분석`,
-      description: `${dateKo} 프리미어리그, 라리가, 세리에A, 분데스리가 경기 일정과 AI 분석`,
+      title: tDaily('football_analysis_title', { date: dateFormatted }),
+      description: tDaily('description'),
     }
   }
 
   let content: ReportContent | null = null
   try {
-    content = JSON.parse(report.summary) as ReportContent
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const translations = (report.translations as any) || {}
+    const langData = translations[locale] || translations['en'] || {}
+    content = {
+      title: langData.title || '',
+      metaDescription: langData.metaDescription || '',
+      summary: langData.summary || '',
+      sections: langData.sections || [],
+      keywords: langData.keywords || [],
+    }
   } catch {
     content = null
   }
 
-  const title = content?.title || `${dateKo} 축구 경기 분석`
-  const description =
-    content?.metaDescription ||
-    `${dateKo} 유럽 5대 리그 축구 경기 프리뷰 및 AI 분석. 프리미어리그, 라리가, 세리에A, 분데스리가, 리그1 경기 일정.`
+  const title = content?.title || tDaily('football_analysis_title', { date: dateFormatted })
+  const description = content?.metaDescription || tDaily('description')
 
   return {
     title,
     description,
     keywords: content?.keywords || [
-      '축구',
-      '경기 분석',
-      '프리미어리그',
-      '라리가',
-      dateKo,
+      tCommon('matches'),
+      tCommon('analysis'),
+      'Premier League',
+      'La Liga',
+      dateFormatted,
     ],
     openGraph: {
       title,
@@ -159,24 +170,41 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 // JSON-LD 구조화 데이터
-function JsonLd({
+async function JsonLd({
   report,
   dateStr,
   matches,
+  locale,
 }: {
   report: Awaited<ReturnType<typeof getCachedDailyReport>>
   dateStr: string
   matches: Awaited<ReturnType<typeof getCachedMatches>>
+  locale: string
 }) {
+  const tDaily = await getTranslations({ locale, namespace: 'daily_report' })
+  const tCommon = await getTranslations({ locale, namespace: 'common' })
+  const tMatch = await getTranslations({ locale, namespace: 'match' })
+
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
-  const dateKo = isValid(parsed)
-    ? format(parsed, 'yyyy년 M월 d일', { locale: ko })
+  const dateFormatted = isValid(parsed)
+    ? format(parsed, tCommon('date_full_format'), { 
+        locale: locale === 'ko' ? ko : undefined 
+      })
     : dateStr
 
   let content: ReportContent | null = null
   if (report) {
     try {
-      content = JSON.parse(report.summary) as ReportContent
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const translations = (report.translations as any) || {}
+      const langData = translations[locale] || translations['en'] || {}
+      content = {
+        title: langData.title || '',
+        metaDescription: langData.metaDescription || '',
+        summary: langData.summary || '',
+        sections: langData.sections || [],
+        keywords: langData.keywords || [],
+      }
     } catch {
       content = null
     }
@@ -185,10 +213,8 @@ function JsonLd({
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
-    headline: content?.title || `${dateKo} 축구 경기 분석`,
-    description:
-      content?.metaDescription ||
-      `${dateKo} 유럽 5대 리그 축구 경기 분석`,
+    headline: content?.title || tDaily('football_analysis_title', { date: dateFormatted }),
+    description: content?.metaDescription || tDaily('description'),
     datePublished: report?.createdAt ? new Date(report.createdAt).toISOString() : new Date().toISOString(),
     dateModified: report?.updatedAt ? new Date(report.updatedAt).toISOString() : new Date().toISOString(),
     author: {
@@ -201,7 +227,7 @@ function JsonLd({
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://playstat.io/daily/${dateStr}`,
+      '@id': `https://playstat.space/${locale}/daily/${dateStr}`,
     },
   }
 
@@ -223,7 +249,7 @@ function JsonLd({
       '@type': 'SportsTeam',
       name: match.awayTeam.name,
     },
-    description: `${match.league.name} ${match.matchday ? `라운드 ${match.matchday}` : ''} 경기`,
+    description: `${match.league.name} ${match.matchday ? tMatch('round_value', { round: match.matchday }) : ''} ${tCommon('matches')}`,
   }))
 
   // 모든 JSON-LD 데이터를 하나의 배열로 합침
@@ -270,11 +296,13 @@ export default async function DailyReportPage({ params }: Props) {
     ? await ensureDailyReportTranslations(initialReport)
     : null
 
-  const dateKo = format(parsed, 'yyyy년 M월 d일 (EEEE)', { locale: ko })
-  const dateEn = format(parsed, 'MMMM d, yyyy (EEEE)')
-  const isEn = locale === 'en'
-  const dateFormatted = isEn ? dateEn : dateKo
-  const dateShort = isEn ? format(parsed, 'MMM d') : format(parsed, 'M월 d일', { locale: ko })
+  const dateFormatted = format(parsed, tCommon('date_full_format'), { 
+    locale: locale === 'ko' ? ko : undefined 
+  })
+  
+  const dateShort = format(parsed, tCommon('date_medium_format'), {
+    locale: locale === 'ko' ? ko : undefined
+  })
 
   let content: ReportContent | null = null
   let hotMatches: HotMatch[] = []
@@ -296,7 +324,7 @@ export default async function DailyReportPage({ params }: Props) {
     } catch {
       // JSON 파싱 실패 시 일반 텍스트 요약으로 처리
       content = {
-        title: isEn ? `${dateFormatted} Football Analysis` : `${dateKo} 축구 경기 분석`,
+        title: tDaily('football_analysis_title', { date: dateFormatted }),
         summary: report.summary || "",
         sections: [],
         keywords: [],
@@ -318,7 +346,7 @@ export default async function DailyReportPage({ params }: Props) {
 
   return (
     <>
-      <JsonLd report={report} dateStr={dateStr} matches={matches} />
+      <JsonLd report={report} dateStr={dateStr} matches={matches} locale={locale} />
 
       <div className="container px-6 py-8 md:px-8">
         {/* Breadcrumb */}
@@ -343,7 +371,7 @@ export default async function DailyReportPage({ params }: Props) {
         {/* Page Header - H1 for SEO */}
         <header className="mb-10 text-start max-w-6xl mx-auto">
           <h1 className="text-3xl font-extrabold mb-3 break-keep sm:text-4xl">
-            {content?.title || (isEn ? `${dateFormatted} Football Analysis` : `${dateKo} 축구 경기 분석`)}
+            {content?.title || tDaily('football_analysis_title', { date: dateFormatted })}
           </h1>
           <div className="text-muted-foreground flex items-center justify-start gap-4 text-sm sm:text-base">
             <span className="flex items-center gap-1.5">
@@ -353,7 +381,7 @@ export default async function DailyReportPage({ params }: Props) {
             <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
             <span className="flex items-center gap-1.5">
               <Trophy className="h-4 w-4 text-primary" />
-              {matches.length}{isEn ? ' Matches' : '개 경기'}
+              {tDaily('matches_count', { count: matches.length })}
             </span>
           </div>
         </header>
@@ -368,7 +396,7 @@ export default async function DailyReportPage({ params }: Props) {
               <CardHeader className="text-start pb-2">
                 <CardTitle className="flex items-center justify-start gap-2 text-xl font-black text-primary">
                   <Sparkles className="h-5 w-5" />
-                  {isEn ? "Today's Strategic Insights" : '오늘의 핵심 관전 인사이트'}
+                  {tDaily('strategic_insights')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -448,7 +476,7 @@ export default async function DailyReportPage({ params }: Props) {
                 <div className="mb-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-xl font-bold flex items-center gap-2 text-start">
                     <Trophy className="h-5 w-5 text-primary" />
-                    {isEn ? 'Matches by League' : '리그별 경기 일정'}
+                    {tDaily('matches_by_league')}
                   </h2>
 
                   {/* Weekly Date Picker */}
@@ -460,7 +488,7 @@ export default async function DailyReportPage({ params }: Props) {
                             const d = addDays(parsed, offset)
                             const dStr = format(d, 'yyyy-MM-dd')
                             const isCurrent = offset === 0
-                            const dayName = format(d, 'EEE', { locale: isEn ? undefined : ko })
+                            const dayName = format(d, 'EEE', { locale: locale === 'ko' ? ko : undefined })
                             const dayNum = format(d, 'd')
 
                             return (
@@ -500,7 +528,7 @@ export default async function DailyReportPage({ params }: Props) {
                       )}
                       {leagueName}
                       <Badge variant="outline" className="text-xs">
-                        {leagueMatches.length}{isEn ? ' matches' : '경기'}
+                        {tDaily('matches_count', { count: leagueMatches.length })}
                       </Badge>
                     </h3>
 
@@ -547,7 +575,7 @@ export default async function DailyReportPage({ params }: Props) {
                                         {homeWins && <Trophy className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
                                         {match.homeTeam.seasonStats?.rank && (
                                           <span className="text-[10px] text-muted-foreground opacity-70">
-                                            ({match.homeTeam.seasonStats.rank}{isEn ? 'th' : '위'})
+                                            {tMatch('rank_value', { rank: match.homeTeam.seasonStats.rank })}
                                           </span>
                                         )}
                                         {!isFinished && (
@@ -573,7 +601,7 @@ export default async function DailyReportPage({ params }: Props) {
                                         {awayWins && <Trophy className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
                                         {match.awayTeam.seasonStats?.rank && (
                                           <span className="text-[10px] text-muted-foreground opacity-70">
-                                            ({match.awayTeam.seasonStats.rank}{isEn ? 'th' : '위'})
+                                            {tMatch('rank_value', { rank: match.awayTeam.seasonStats.rank })}
                                           </span>
                                         )}
                                         {!isFinished && (
@@ -607,7 +635,7 @@ export default async function DailyReportPage({ params }: Props) {
                                           className="text-[10px] py-0 h-5 bg-primary/10 text-primary border-none"
                                         >
                                           <Sparkles className="h-3 w-3 mr-1" />
-                                          {isEn ? 'AI' : 'AI 분석'}
+                                          {tMatch('ai_analysis')}
                                         </Badge>
                                       )}
                                     </div>
@@ -639,7 +667,7 @@ export default async function DailyReportPage({ params }: Props) {
             <aside className="space-y-6">
               <div className="flex items-center gap-2 px-1 mb-4">
                 <TrendingUp className="h-5 w-5 text-primary" />
-                <h3 className="text-xl font-bold">{isEn ? 'AI Insights' : 'AI 심층 분석'}</h3>
+                <h3 className="text-xl font-bold">{tDaily('ai_insights_sidebar')}</h3>
               </div>
 
               {/* AI Deep Analysis Sections */}
@@ -662,7 +690,7 @@ export default async function DailyReportPage({ params }: Props) {
               ) : (
                 <Card className="border-none shadow-sm bg-muted/10 border-dashed border-2">
                   <CardContent className="p-8 text-center text-muted-foreground italic">
-                    {isEn ? 'No detailed analysis sections available for this date.' : '해당 날짜의 심층 분석 섹션이 없습니다.'}
+                    {tDaily('no_sections')}
                   </CardContent>
                 </Card>
               )}
@@ -671,7 +699,7 @@ export default async function DailyReportPage({ params }: Props) {
               <div className="pt-4">
                 <div className="flex items-center gap-2 px-1 mb-4">
                   <Clock className="h-4 w-4 text-primary" />
-                  <h3 className="text-lg font-bold">{isEn ? 'Keywords' : '관련 키워드'}</h3>
+                  <h3 className="text-lg font-bold">{tDaily('keywords')}</h3>
                 </div>
                 <Card className="border-none shadow-sm bg-muted/30">
                   <CardContent className="p-4">
@@ -684,7 +712,7 @@ export default async function DailyReportPage({ params }: Props) {
                         ))
                       ) : (
                         <p className="text-xs text-muted-foreground italic">
-                          {isEn ? 'No related keywords found.' : '관련 키워드가 없습니다.'}
+                          {tDaily('no_keywords')}
                         </p>
                       )}
                     </div>
