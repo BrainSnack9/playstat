@@ -2,23 +2,26 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Newspaper, Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { ko } from 'date-fns/locale'
 import Image from 'next/image'
 import { collectAllFootballNews, type NewsItem } from '@/lib/api/news-api'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
+import { getDateLocale } from '@/lib/utils'
 
 // 서버 공유 캐시 적용: 최신 뉴스 조회
-const getCachedNews = unstable_cache(
-  async (limit: number) => {
+const getCachedNews = (limit: number) => unstable_cache(
+  async () => {
     return await collectAllFootballNews(limit)
   },
-  ['latest-news-data'],
+  [`latest-news-data-${limit}`],
   { revalidate: CACHE_REVALIDATE } // 1시간 캐시
-)
+)()
 
-function NewsCard({ news }: { news: NewsItem }) {
-  const timeAgo = formatDistanceToNow(new Date(news.pubDate), { addSuffix: true, locale: ko })
+function NewsCard({ news, locale }: { news: NewsItem; locale: string }) {
+  const timeAgo = formatDistanceToNow(new Date(news.pubDate), { 
+    addSuffix: true, 
+    locale: getDateLocale(locale) 
+  })
 
   return (
     <a href={news.link} target="_blank" rel="noopener noreferrer">
@@ -85,7 +88,7 @@ function NewsCardSkeleton() {
   )
 }
 
-export async function LatestNews() {
+export async function LatestNews({ locale = 'ko' }: { locale?: string }) {
   let news: NewsItem[] = []
   let error = false
 
@@ -113,7 +116,7 @@ export async function LatestNews() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {news.map((item, index) => (
-        <NewsCard key={`${item.pubDate}-${index}`} news={item} />
+        <NewsCard key={`${item.pubDate}-${index}`} news={item} locale={locale} />
       ))}
     </div>
   )

@@ -1,7 +1,6 @@
 'use client'
 
 import { format } from 'date-fns'
-import { ko, enUS } from 'date-fns/locale'
 import { Clock, Sparkles, Star, Trophy } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +10,7 @@ import { useFavoriteTeams } from '@/stores/favorite-teams'
 import { useTranslations } from 'next-intl'
 import { MatchStatusBadge } from './match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
+import { getDateLocale } from '@/lib/utils'
 
 interface MatchCardProps {
   match: {
@@ -48,11 +48,19 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
   const { favoriteTeamIds } = useFavoriteTeams()
   const t = useTranslations('match')
   const tCommon = useTranslations('common')
-  const dateLocale = locale === 'ko' ? ko : enUS
   const kickoffTime = format(new Date(match.kickoffAt), 'HH:mm')
-  const kickoffDate = format(new Date(match.kickoffAt), tCommon('date_medium_format'), {
-    locale: dateLocale,
-  })
+  
+  let kickoffDate = format(new Date(match.kickoffAt), 'MMM d')
+  try {
+    const mediumFormat = tCommon('date_medium_format')
+    if (mediumFormat && mediumFormat !== 'date_medium_format') {
+      kickoffDate = format(new Date(match.kickoffAt), mediumFormat, {
+        locale: getDateLocale(locale),
+      })
+    }
+  } catch {
+    // Fallback already set
+  }
 
   const hasHomeFavorite = favoriteTeamIds.includes(match.homeTeam.id)
   const hasAwayFavorite = favoriteTeamIds.includes(match.awayTeam.id)

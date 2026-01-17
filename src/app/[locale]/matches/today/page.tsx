@@ -3,7 +3,6 @@ import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { cookies } from 'next/headers'
 import { Card, CardContent } from '@/components/ui/card'
 import { format } from 'date-fns'
-import { ko, enUS } from 'date-fns/locale'
 import { Calendar, Clock } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
@@ -11,6 +10,7 @@ import { getTodayRangeInTimezone } from '@/lib/timezone'
 import { MatchCard } from '@/components/match-card'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
+import { getDateLocale } from '@/lib/utils'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -21,18 +21,17 @@ export const revalidate = CACHE_REVALIDATE
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params
   const t = await getTranslations({ locale, namespace: 'home' })
+  const tCommon = await getTranslations({ locale, namespace: 'common' })
 
   return {
     title: t('today_matches'),
-    description: "Today's football matches with AI analysis",
+    description: tCommon('description'),
   }
 }
 
 // 서버 공유 캐시 적용: 경기 목록 데이터 조회
-const getCachedMatches = unstable_cache(
-  async (timezone: string, _dateStr: string) => {
-    // _dateStr is used by unstable_cache to invalidate cache daily
-    void _dateStr;
+const getCachedMatches = (timezone: string, dateStr: string) => unstable_cache(
+  async () => {
     // 사용자 타임존 기준 오늘의 시작/끝
     const { start, end } = getTodayRangeInTimezone(timezone)
 
@@ -85,9 +84,9 @@ const getCachedMatches = unstable_cache(
       return { todayMatches: [], upcomingMatches: [] }
     }
   },
-  ['today-matches-data'],
+  [`today-matches-data-${timezone}-${dateStr}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
-)
+)()
 
 type MatchWithRelations = Awaited<ReturnType<typeof getCachedMatches>>['todayMatches'][number]
 
@@ -117,10 +116,17 @@ export default async function TodayMatchesPage({ params }: Props) {
   const cookieStore = await cookies()
   const timezone = cookieStore.get('timezone')?.value || 'Asia/Seoul'
 
-  const dateLocale = locale === 'ko' ? ko : enUS
-  const today = format(new Date(), tCommon('date_full_format'), {
-    locale: dateLocale,
-  })
+  let today = format(new Date(), 'yyyy-MM-dd')
+  try {
+    const fullFormat = tCommon('date_full_format')
+    if (fullFormat && fullFormat !== 'date_full_format') {
+      today = format(new Date(), fullFormat, {
+        locale: getDateLocale(locale),
+      })
+    }
+  } catch {
+    // Fallback set above
+  }
 
   const dateStr = format(new Date(), 'yyyy-MM-dd')
   const { todayMatches, upcomingMatches } = await getCachedMatches(timezone, dateStr)

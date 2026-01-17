@@ -17,13 +17,13 @@ import {
 } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 import { format } from 'date-fns'
-import { ko } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
 import { generateMetadata as buildMetadata, generateTeamSEO, generateTeamJsonLd } from '@/lib/seo'
 import { FormBadge } from '@/components/form-badge'
+import { getDateLocale } from '@/lib/utils'
 
 interface Props {
   params: Promise<{ locale: string; id: string }>
@@ -32,8 +32,8 @@ interface Props {
 export const revalidate = CACHE_REVALIDATE
 
 // 서버 공유 캐시 적용: 팀 데이터 조회
-const getCachedTeamData = unstable_cache(
-  async (id: string) => {
+const getCachedTeamData = (id: string) => unstable_cache(
+  async () => {
     try {
       const team = await prisma.team.findUnique({
         where: { id },
@@ -79,9 +79,9 @@ const getCachedTeamData = unstable_cache(
       return null
     }
   },
-  ['team-page-data'],
+  [`team-page-data-${id}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
-)
+)()
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, locale } = await params
@@ -223,7 +223,7 @@ export default async function TeamPage({ params }: Props) {
                 {team.founded && (
                   <div className="flex items-center">
                     <Building className="mr-1 h-4 w-4" />
-                    {team.founded}년 창단
+                    {t('founded_value', { year: team.founded })}
                   </div>
                 )}
                 {team.venue && (
@@ -384,9 +384,9 @@ export default async function TeamPage({ params }: Props) {
           ) : (
             <Card>
               <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground">시즌 통계 데이터가 없습니다.</p>
+                <p className="text-muted-foreground">{t('no_stats_data')}</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  크론 작업을 실행하여 팀 데이터를 수집해주세요.
+                  {t('run_cron_message')}
                 </p>
               </CardContent>
             </Card>
@@ -594,7 +594,17 @@ export default async function TeamPage({ params }: Props) {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center">
                             <Clock className="mr-1 h-4 w-4" />
-                            {format(new Date(match.kickoffAt), tCommon('date_medium_format'), { locale: locale === 'ko' ? ko : undefined })}
+                            {(() => {
+                              try {
+                                const mediumFormat = tCommon('date_medium_format')
+                                if (mediumFormat && mediumFormat !== 'date_medium_format') {
+                                  return format(new Date(match.kickoffAt), mediumFormat, { locale: getDateLocale(locale) })
+                                }
+                                return format(new Date(match.kickoffAt), 'MMM d')
+                              } catch {
+                                return format(new Date(match.kickoffAt), 'MM-dd')
+                              }
+                            })()}
                           </div>
                           <Badge className="bg-blue-500">{tMatch('upcoming')}</Badge>
                         </div>

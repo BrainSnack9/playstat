@@ -4,20 +4,20 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Newspaper, Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { ko, enUS } from 'date-fns/locale'
 import Image from 'next/image'
 import { collectAllFootballNews, type NewsItem } from '@/lib/api/news-api'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
+import { getDateLocale } from '@/lib/utils'
 
 // 서버 공유 캐시 적용: 뉴스 데이터 조회
-const getCachedNews = unstable_cache(
-  async (limit: number) => {
+const getCachedNews = (limit: number) => unstable_cache(
+  async () => {
     return await collectAllFootballNews(limit)
   },
-  ['news-page-data'],
+  [`news-page-data-${limit}`],
   { revalidate: CACHE_REVALIDATE }
-)
+)()
 
 // 빌드 시 RSS fetch 방지 - 런타임에만 실행
 export const dynamic = 'force-dynamic'
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function NewsCard({ news, locale }: { news: NewsItem; locale: string }) {
   const timeAgo = formatDistanceToNow(new Date(news.pubDate), { 
     addSuffix: true, 
-    locale: locale === 'ko' ? ko : enUS 
+    locale: getDateLocale(locale) 
   })
 
   return (

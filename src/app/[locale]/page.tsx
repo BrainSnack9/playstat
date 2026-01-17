@@ -187,7 +187,7 @@ export default async function HomePage({ params }: Props) {
           </Button>
         </div>
         <Suspense fallback={<LatestNewsSkeleton />}>
-          <LatestNews />
+          <LatestNews locale={locale} />
         </Suspense>
       </section>
 

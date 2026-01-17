@@ -12,10 +12,8 @@ import { CACHE_REVALIDATE } from '@/lib/cache'
 import { format } from 'date-fns'
 
 // 서버 공유 캐시 적용: 홈 화면 트렌드 경기
-const getCachedTrendingMatches = unstable_cache(
-  async (_dateStr: string) => {
-    // _dateStr is used by unstable_cache to invalidate cache daily
-    void _dateStr;
+const getCachedTrendingMatches = (dateStr: string) => unstable_cache(
+  async () => {
     const { start, end } = getKSTDayRange()
 
     const matches = await prisma.match.findMany({
@@ -67,9 +65,9 @@ const getCachedTrendingMatches = unstable_cache(
     .filter((m) => m.homeTrends.length > 0 || m.awayTrends.length > 0 || m.combined)
     .slice(0, 3)
   },
-  ['home-trending-matches-v2'],
+  [`home-trending-matches-${dateStr}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
-)
+)()
 
 interface HotTrendsProps {
   locale: string

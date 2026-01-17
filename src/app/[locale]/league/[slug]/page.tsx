@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Trophy, Calendar, TrendingUp, TrendingDown, ChevronLeft } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 import { format } from 'date-fns'
-import { ko } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
@@ -17,6 +16,7 @@ import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { getTranslations } from 'next-intl/server'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
+import { getDateLocale } from '@/lib/utils'
 
 interface Props {
   params: Promise<{ locale: string; slug: string }>
@@ -52,8 +52,8 @@ const LEAGUE_LOGOS: Record<string, string> = {
 }
 
 // 서버 공유 캐시 적용: 리그 데이터 조회
-const getCachedLeagueData = unstable_cache(
-  async (slug: string) => {
+const getCachedLeagueData = (slug: string) => unstable_cache(
+  async () => {
     const code = SLUG_TO_CODE[slug]
     if (!code) return null
 
@@ -95,9 +95,9 @@ const getCachedLeagueData = unstable_cache(
       return null
     }
   },
-  ['league-page-data'],
+  [`league-page-data-${slug}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
-)
+)()
 
 // Types
 type LeagueWithRelations = NonNullable<Awaited<ReturnType<typeof getCachedLeagueData>>>
@@ -351,7 +351,17 @@ export default async function LeaguePage({ params }: Props) {
                               </span>
                             )}
                             <span className="text-xs text-muted-foreground mt-1">
-                              {format(new Date(match.kickoffAt), tCommon('date_medium_format'), { locale: locale === 'ko' ? ko : undefined })}
+                              {(() => {
+                                try {
+                                  const mediumFormat = tCommon('date_medium_format')
+                                  if (mediumFormat && mediumFormat !== 'date_medium_format') {
+                                    return format(new Date(match.kickoffAt), mediumFormat, { locale: getDateLocale(locale) })
+                                  }
+                                  return format(new Date(match.kickoffAt), 'MMM d')
+                                } catch {
+                                  return format(new Date(match.kickoffAt), 'MM-dd')
+                                }
+                              })()}
                             </span>
                             {match.matchAnalysis && (
                               <Badge variant="outline" className="mt-1 text-xs">

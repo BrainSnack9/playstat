@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { notFound, redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -14,16 +15,16 @@ import {
 } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 import { format, parse, isValid, addDays } from 'date-fns'
-import { ko } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
-import { getKSTDayRange } from '@/lib/timezone'
+import { getTimezoneFromCookies, getTimezoneOffset, getUTCDayRange } from '@/lib/timezone'
 import { ensureDailyReportTranslations } from '@/lib/ai/translate'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
 import { CACHE_REVALIDATE, DAILY_REPORT_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
+import { getDateLocale } from '@/lib/utils'
 
 export const revalidate = DAILY_REPORT_REVALIDATE
 
@@ -50,12 +51,11 @@ interface HotMatch {
   keyPoint: string
 }
 
-// 서버 공유 캐시 적용: 데일리 리포트 데이터
-const getCachedDailyReport = unstable_cache(
-  async (dateStr: string) => {
+const getCachedDailyReport = (dateStr: string) => unstable_cache(
+  async () => {
     try {
-      const { start } = getKSTDayRange(dateStr === 'today' ? undefined : dateStr)
-      
+      const { start } = getUTCDayRange(dateStr === 'today' ? undefined : dateStr)
+
       return await prisma.dailyReport.findUnique({
         where: { date: start },
       })
@@ -63,15 +63,15 @@ const getCachedDailyReport = unstable_cache(
       return null
     }
   },
-  ['daily-report-data-v2'],
+  [`daily-report-${dateStr}`],
   { revalidate: DAILY_REPORT_REVALIDATE, tags: ['daily-report'] }
-)
+)()
 
 // 서버 공유 캐시 적용: 경기 목록 데이터
-const getCachedMatches = unstable_cache(
-  async (dateStr: string) => {
+const getCachedMatches = (dateStr: string) => unstable_cache(
+  async () => {
     try {
-      const { start, end } = getKSTDayRange(dateStr === 'today' ? undefined : dateStr)
+      const { start, end } = getUTCDayRange(dateStr === 'today' ? undefined : dateStr)
 
       return await prisma.match.findMany({
         where: {
@@ -92,18 +92,18 @@ const getCachedMatches = unstable_cache(
       return []
     }
   },
-  ['daily-matches-data-v2'],
+  [`daily-matches-lookup-${dateStr}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
-)
+)()
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { date: dateStr, locale } = await params
   const tDaily = await getTranslations({ locale, namespace: 'daily_report' })
   const tCommon = await getTranslations({ locale, namespace: 'common' })
 
-  // today는 실제 날짜로 리다이렉트
+  // today는 실제 날짜로 리다이렉트 (UTC 기준)
   if (dateStr === 'today') {
-    const today = format(new Date(), 'yyyy-MM-dd')
+    const today = new Date().toISOString().slice(0, 10)
     return {
       title: tDaily('football_analysis_title', { date: tCommon('home') }),
       alternates: {
@@ -114,11 +114,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const report = await getCachedDailyReport(dateStr)
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
-  const dateFormatted = isValid(parsed)
-    ? format(parsed, tCommon('date_full_format'), { 
-        locale: locale === 'ko' ? ko : undefined 
-      })
-    : dateStr
+  const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
+  const cookieStore = await cookies()
+  const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
+  const offsetMinutes = getTimezoneOffset(timezone)
+  const displayDate = new Date(utcBase.getTime() + offsetMinutes * 60 * 1000)
+  
+  let dateFormatted = dateStr
+  if (isValid(parsed)) {
+    try {
+      const formatStr = tCommon('date_full_format')
+      // date-fns format() throws if the format string has unescaped latin letters that aren't tokens
+      // If tCommon returns the key name itself (e.g. "date_full_format"), it contains 'o' which throws.
+      if (formatStr && formatStr !== 'date_full_format') {
+        dateFormatted = format(displayDate, formatStr, { 
+          locale: getDateLocale(locale) 
+        })
+      } else {
+        dateFormatted = format(displayDate, 'yyyy-MM-dd')
+      }
+    } catch (e) {
+      console.error('Date formatting error in Metadata:', e)
+      dateFormatted = format(displayDate, 'yyyy-MM-dd')
+    }
+  }
 
   if (!report) {
     return {
@@ -186,11 +205,26 @@ async function JsonLd({
   const tMatch = await getTranslations({ locale, namespace: 'match' })
 
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
-  const dateFormatted = isValid(parsed)
-    ? format(parsed, tCommon('date_full_format'), { 
-        locale: locale === 'ko' ? ko : undefined 
-      })
-    : dateStr
+  const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
+  const cookieStore = await cookies()
+  const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
+  const offsetMinutes = getTimezoneOffset(timezone)
+  const displayDate = new Date(utcBase.getTime() + offsetMinutes * 60 * 1000)
+  let dateFormatted = dateStr
+  if (isValid(parsed)) {
+    try {
+      const formatStr = tCommon('date_full_format')
+      if (formatStr && formatStr !== 'date_full_format') {
+        dateFormatted = format(displayDate, formatStr, { 
+          locale: getDateLocale(locale) 
+        })
+      } else {
+        dateFormatted = format(displayDate, 'yyyy-MM-dd')
+      }
+    } catch {
+      dateFormatted = format(displayDate, 'yyyy-MM-dd')
+    }
+  }
 
   let content: ReportContent | null = null
   if (report) {
@@ -275,13 +309,18 @@ export default async function DailyReportPage({ params }: Props) {
   const tDaily = await getTranslations({ locale, namespace: 'daily_report' })
   const tMatch = await getTranslations({ locale, namespace: 'match' })
 
-  // today는 실제 날짜로 리다이렉트
+  // today는 실제 날짜로 리다이렉트 (UTC 기준)
   if (dateStr === 'today') {
-    const today = format(new Date(), 'yyyy-MM-dd')
+    const today = new Date().toISOString().slice(0, 10)
     redirect(`/daily/${today}`)
   }
 
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
+  const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
+  const cookieStore = await cookies()
+  const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
+  const offsetMinutes = getTimezoneOffset(timezone)
+  const displayDate = new Date(utcBase.getTime() + offsetMinutes * 60 * 1000)
   if (!isValid(parsed)) {
     notFound()
   }
@@ -291,18 +330,38 @@ export default async function DailyReportPage({ params }: Props) {
     getCachedMatches(dateStr),
   ])
 
-  // 다국어 번역 확인 및 생성 (없을 경우에만)
-  const report = initialReport 
-    ? await ensureDailyReportTranslations(initialReport)
-    : null
+  // 번역은 생성 시점에 완료된 데이터만 사용 (렌더링 중 생성하지 않음)
+  const report = initialReport || null
+  const reportTranslations = (report?.translations as Record<string, unknown> | null) || null
+  const isTranslating = Boolean(report && (!reportTranslations || !reportTranslations[locale]))
 
-  const dateFormatted = format(parsed, tCommon('date_full_format'), { 
-    locale: locale === 'ko' ? ko : undefined 
-  })
+  let dateFormatted = dateStr
+  let dateShort = dateStr
   
-  const dateShort = format(parsed, tCommon('date_medium_format'), {
-    locale: locale === 'ko' ? ko : undefined
-  })
+  if (isValid(parsed)) {
+    try {
+      const fullFormat = tCommon('date_full_format')
+      if (fullFormat && fullFormat !== 'date_full_format') {
+        dateFormatted = format(displayDate, fullFormat, { 
+          locale: getDateLocale(locale) 
+        })
+      } else {
+        dateFormatted = format(displayDate, 'yyyy-MM-dd')
+      }
+
+      const mediumFormat = tCommon('date_medium_format')
+      if (mediumFormat && mediumFormat !== 'date_medium_format') {
+        dateShort = format(displayDate, mediumFormat, {
+          locale: getDateLocale(locale)
+        })
+      } else {
+        dateShort = format(displayDate, 'MMM d')
+      }
+    } catch {
+      dateFormatted = format(displayDate, 'yyyy-MM-dd')
+      dateShort = format(displayDate, 'MM-dd')
+    }
+  }
 
   let content: ReportContent | null = null
   let hotMatches: HotMatch[] = []
@@ -314,13 +373,46 @@ export default async function DailyReportPage({ params }: Props) {
       const langData = translations[locale] || translations['en'] || {}
       
       content = {
-        title: langData.title || '',
-        metaDescription: langData.metaDescription || '',
-        summary: langData.summary || '',
-        sections: langData.sections || [],
-        keywords: langData.keywords || [],
+        title: langData.title || tDaily('football_analysis_title', { date: dateFormatted }),
+        metaDescription: langData.metaDescription || tDaily('description'),
+        summary: langData.summary || report.summary || '',
+        sections: (langData.sections && langData.sections.length > 0) ? [...langData.sections] : [],
+        keywords: (langData.keywords && langData.keywords.length > 0) ? [...langData.keywords] : [],
       }
-      hotMatches = (report.hotMatches as unknown as HotMatch[]) || []
+      
+      // 주목 경기(Hot Matches) 번역본 적용
+      if (langData.hotMatches && Array.isArray(langData.hotMatches)) {
+        hotMatches = [...langData.hotMatches]
+      } else {
+        hotMatches = (report.hotMatches as unknown as HotMatch[]) || []
+      }
+      
+      // 1. 만약 insights 필드에 데이터가 있다면 섹션에 추가 (구버전 호환)
+      const insightsText = typeof report.insights === 'string' ? report.insights : ''
+      if (insightsText && !content.sections.some(s => s.content === insightsText)) {
+        content.sections.push({
+          type: 'key_storylines',
+          title: tDaily('strategic_insights'),
+          content: insightsText
+        })
+      }
+
+      // 2. 만약 sections가 여전히 비어있고 summary가 JSON 문자열인 경우
+      if (content.sections.length === 0 && report.summary && report.summary.startsWith('{')) {
+        try {
+          const legacySummary = JSON.parse(report.summary)
+          if (legacySummary.sections && Array.isArray(legacySummary.sections)) {
+            content.sections = [...legacySummary.sections]
+          }
+          if (legacySummary.keywords && Array.isArray(legacySummary.keywords)) {
+            content.keywords = [...legacySummary.keywords]
+          }
+          // 주목 경기 번역본이 root에만 있을 경우 처리
+          if (!langData.hotMatches && legacySummary.hotMatches && Array.isArray(legacySummary.hotMatches)) {
+            hotMatches = [...legacySummary.hotMatches]
+          }
+        } catch { /* ignore */ }
+      }
     } catch {
       // JSON 파싱 실패 시 일반 텍스트 요약으로 처리
       content = {
@@ -373,6 +465,14 @@ export default async function DailyReportPage({ params }: Props) {
           <h1 className="text-3xl font-extrabold mb-3 break-keep sm:text-4xl">
             {content?.title || tDaily('football_analysis_title', { date: dateFormatted })}
           </h1>
+          {isTranslating && (
+            <Badge
+              variant="outline"
+              className="mb-3 inline-flex items-center gap-2 rounded-full border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-200"
+            >
+              {tCommon('translating')}
+            </Badge>
+          )}
           <div className="text-muted-foreground flex items-center justify-start gap-4 text-sm sm:text-base">
             <span className="flex items-center gap-1.5">
               <Calendar className="h-4 w-4 text-primary" />
@@ -418,58 +518,59 @@ export default async function DailyReportPage({ params }: Props) {
         {/* Main Content Grid - Centered Container */}
         <div className="max-w-6xl mx-auto">
           <div className="grid gap-8 lg:grid-cols-3">
-          {/* Left Column - Match List (2/3) */}
-          <div className="lg:col-span-2 space-y-10">
-            {/* Hot Matches - Filter and show only if valid matches exist */}
-            {(() => {
-              const validHotMatches = hotMatches.filter(hot => 
-                matches.some(m => m.id === hot.matchId)
-              );
+            {/* Left Column - Match List (2/3) */}
+            <div className="lg:col-span-2 space-y-10">
+              {/* Hot Matches - Filter and show only if valid matches exist */}
+              {(() => {
+                const validHotMatches = hotMatches.filter(hot => 
+                  matches.some(m => m.id === hot.matchId)
+                );
 
-              if (validHotMatches.length === 0) return null;
+                if (validHotMatches.length === 0) return null;
 
-              return (
-                <section>
-                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-start">
-                    <Star className="h-5 w-5 text-yellow-500" />
-                    {tDaily('hot_matches')}
-                  </h2>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {validHotMatches.map((hot, i) => {
-                      const match = matches.find((m) => m.id === hot.matchId)!;
+                return (
+                  <section>
+                    <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-start">
+                      <Star className="h-5 w-5 text-yellow-500" />
+                      {tDaily('hot_matches')}
+                    </h2>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {validHotMatches.map((hot, i) => {
+                        const match = matches.find((m) => m.id === hot.matchId)!;
 
-                      return (
-                        <Link
-                          key={i}
-                          href={`/match/${match.slug || match.id}`}
-                        >
-                          <Card className="h-full transition-all hover:shadow-md hover:border-primary/50">
-                            <CardContent className="p-4">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="secondary" className="text-xs">
-                                  {match.league.name}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  {format(match.kickoffAt, 'HH:mm')}
-                                </span>
-                              </div>
-                              <h3 className="font-semibold mb-1 text-start">{hot.title}</h3>
-                              <p className="text-sm text-muted-foreground mb-2 text-start line-clamp-2">
-                                {hot.preview}
-                              </p>
-                              <p className="text-xs text-primary flex items-center gap-1 text-start font-bold">
-                                <TrendingUp className="h-3 w-3" />
-                                {hot.keyPoint}
-                              </p>
-                            </CardContent>
-                          </Card>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </section>
-              );
-            })()}
+                        const fromDaily = `/daily/${dateStr}`
+                        return (
+                          <Link
+                            key={i}
+                            href={`/match/${match.slug || match.id}?from=${encodeURIComponent(fromDaily)}`}
+                          >
+                            <Card className="h-full transition-all hover:shadow-md hover:border-primary/50">
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {match.league.name}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(match.kickoffAt, 'HH:mm')}
+                                  </span>
+                                </div>
+                                <h3 className="font-semibold mb-1 text-start">{hot.title}</h3>
+                                <p className="text-sm text-muted-foreground mb-2 text-start line-clamp-2">
+                                  {hot.preview}
+                                </p>
+                                <p className="text-xs text-primary flex items-center gap-1 text-start font-bold">
+                                  <TrendingUp className="h-3 w-3" />
+                                  {hot.keyPoint}
+                                </p>
+                              </CardContent>
+                            </Card>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })()}
 
               {/* Matches by League */}
               <section>
@@ -485,11 +586,13 @@ export default async function DailyReportPage({ params }: Props) {
                       <CardContent className="p-1.5">
                         <div className="flex justify-between gap-1">
                           {[-3, -2, -1, 0, 1, 2, 3].map((offset) => {
-                            const d = addDays(parsed, offset)
+                            const d = addDays(utcBase, offset)
                             const dStr = format(d, 'yyyy-MM-dd')
                             const isCurrent = offset === 0
-                            const dayName = format(d, 'EEE', { locale: locale === 'ko' ? ko : undefined })
-                            const dayNum = format(d, 'd')
+                            
+                            const displayDay = new Date(d.getTime() + offsetMinutes * 60 * 1000)
+                            const dayName = format(displayDay, 'EEE', { locale: getDateLocale(locale) })
+                            const dayNum = format(displayDay, 'd')
 
                             return (
                               <Link
@@ -539,10 +642,11 @@ export default async function DailyReportPage({ params }: Props) {
                         const homeWins = isFinished && (match.homeScore ?? 0) > (match.awayScore ?? 0)
                         const awayWins = isFinished && (match.awayScore ?? 0) > (match.homeScore ?? 0)
 
+                        const fromDaily = `/daily/${dateStr}`
                         return (
                           <Link
                             key={match.id}
-                            href={`/match/${match.slug || match.id}`}
+                            href={`/match/${match.slug || match.id}?from=${encodeURIComponent(fromDaily)}`}
                           >
                             <Card className={`transition-all hover:shadow-sm ${
                               isFinished ? 'opacity-60 bg-muted/20' : 

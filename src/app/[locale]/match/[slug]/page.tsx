@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 import { format } from 'date-fns'
-import { ko, enUS } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
@@ -26,12 +25,13 @@ import { MatchStatusBadge } from '@/components/match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
 import { ensureMatchAnalysisTranslations } from '@/lib/ai/translate'
 import { unstable_cache } from 'next/cache'
+import { getDateLocale } from '@/lib/utils'
 
 export const revalidate = CACHE_REVALIDATE
 
 // 서버 공유 캐시 적용: 개별 경기 데이터
-const getCachedMatch = unstable_cache(
-  async (slug: string) => {
+const getCachedMatch = (slug: string) => unstable_cache(
+  async () => {
     try {
       return await prisma.match.findUnique({
         where: { slug },
@@ -54,9 +54,9 @@ const getCachedMatch = unstable_cache(
       return null
     }
   },
-  ['match-detail-data'],
+  [`match-detail-data-${slug}`],
   { revalidate: CACHE_REVALIDATE, tags: ['match-detail'] }
-)
+)()
 
 // 마크다운 **bold** 텍스트를 일반 텍스트로 변환
 function stripMarkdownBold(text: string): string {
@@ -65,6 +65,7 @@ function stripMarkdownBold(text: string): string {
 
 interface Props {
   params: Promise<{ locale: string; slug: string }>
+  searchParams?: Promise<{ from?: string }>
 }
 
 type MatchWithRelations = NonNullable<Awaited<ReturnType<typeof getCachedMatch>>>
@@ -97,8 +98,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   )
 }
 
-export default async function MatchPage({ params }: Props) {
+export default async function MatchPage({ params, searchParams }: Props) {
   const { locale, slug } = await params
+  const { from } = searchParams ? await searchParams : { from: undefined }
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'match' })
@@ -114,8 +116,15 @@ export default async function MatchPage({ params }: Props) {
     ? { ...initialMatch, matchAnalysis: await ensureMatchAnalysisTranslations(initialMatch.matchAnalysis) }
     : initialMatch
 
-  const dateLocale = locale === 'ko' ? ko : enUS
-  const kickoffDate = format(new Date(match.kickoffAt), tCommon('date_full_format'), { locale: dateLocale })
+  let kickoffDate = format(new Date(match.kickoffAt), 'yyyy-MM-dd')
+  try {
+    const fullFormat = tCommon('date_full_format')
+    if (fullFormat && fullFormat !== 'date_full_format') {
+      kickoffDate = format(new Date(match.kickoffAt), fullFormat, { locale: getDateLocale(locale) })
+    }
+  } catch {
+    // Fallback set above
+  }
   const kickoffTime = format(new Date(match.kickoffAt), 'HH:mm')
 
   // Get status label
@@ -170,7 +179,7 @@ export default async function MatchPage({ params }: Props) {
       {/* Back Navigation */}
       <div className="mb-4">
         <Link
-          href="/matches/today"
+          href={from?.startsWith('/daily/') ? from : '/matches/today'}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />

@@ -37,7 +37,7 @@ export function generateMetadata(config: SEOConfig): Metadata {
   return {
     title: fullTitle,
     description,
-    keywords: [...keywords, 'PlayStat', '스포츠분석', 'AI분석', '축구', 'NBA', 'MLB'],
+    keywords: [...keywords, 'PlayStat'],
     authors: [{ name: SITE_NAME }],
     creator: SITE_NAME,
     publisher: SITE_NAME,
@@ -177,7 +177,6 @@ export function generateMatchJsonLd(match: {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
     name: `${match.homeTeam.name} vs ${match.awayTeam.name}`,
-    description: `${match.league} 경기`,
     startDate: match.kickoffAt,
     location: match.venue
       ? {

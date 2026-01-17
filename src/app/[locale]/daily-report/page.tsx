@@ -13,14 +13,15 @@ import {
   Lightbulb,
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { ko } from 'date-fns/locale'
+import { getDateLocale } from '@/lib/utils'
 
 interface Props {
   params: Promise<{ locale: string }>
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  const today = format(new Date(), 'yyyy년 MM월 dd일', { locale: ko })
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params
+  const today = format(new Date(), 'yyyy년 MM월 dd일', { locale: getDateLocale(locale) })
   return {
     title: `데일리 리포트 - ${today}`,
     description: '오늘의 스포츠 하이라이트와 AI 분석',
@@ -85,7 +86,7 @@ export default async function DailyReportPage({ params }: Props) {
   setRequestLocale(locale)
 
   const reportDate = format(new Date(demoReport.date), 'yyyy년 MM월 dd일 (EEEE)', {
-    locale: ko,
+    locale: getDateLocale(locale),
   })
 
   return (

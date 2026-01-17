@@ -10,12 +10,20 @@
     "daily_report": "التقرير اليومي",
     "search": "بحث",
     "loading": "جاري التحميل...",
+    "loading_analysis": "جاري تحميل بيانات التحليل...",
+    "translating": "جارٍ إنشاء الترجمة...",
     "error": "حدث خطأ ما",
     "no_data": "لا توجد بيانات متاحة",
     "view_all": "عرض الكل",
     "view_more": "عرض المزيد",
     "share": "مشاركة",
-    "back": "رجوع"
+    "back": "رجوع",
+    "description": "منصة تحليل رياضي مدعومة بالذكاء الاصطناعي. احصل على تحليل لمباريات كرة القدم، NBA، MLB، الفرق واللاعبين.",
+    "date_full": "{day} {month} {year} ({weekday})",
+    "date_medium": "{day} {month} ({weekday})",
+    "date_short": "{day} {month}",
+    "date_medium_format": "d MMM (EEE)",
+    "date_full_format": "EEEE، d MMMM yyyy"
   },
   "home": {
     "title": "PlayStat - منصة تحليل رياضي بالذكاء الاصطناعي",
@@ -29,9 +37,10 @@
     "featured_analysis": "تحليل مميز",
     "featured_leagues": "دوريات مميزة",
     "no_matches_today": "لا توجد مباريات مجدولة اليوم.",
+    "hot_label": "HOT",
     "match_schedule": "جدول المباريات",
     "no_matches_scheduled": "لا توجد مباريات مجدولة.",
-    "run_cron_message": "قم بتشغيل وظيفة الكرون لجمع بيانات المباريات.",
+    "run_cron_message": "جاري تحضير بيانات المباريات. يرجى التحقق مرة أخرى قريباً.",
     "upcoming_matches": "المباريات القادمة",
     "next_7_days": "الأيام السبعة القادمة"
   },
@@ -49,6 +58,7 @@
     "vs": "ضد",
     "home": "صاحب الأرض",
     "away": "الضيف",
+    "round_value": "الجولة {round}",
     "rank_value": "(المركز {rank})",
     "analysis": "تحليل المباراة",
     "summary": "ملخص",
@@ -86,12 +96,21 @@
     "goal_difference": "فارق الأهداف",
     "back_to_leagues": "العودة للدوريات",
     "league_standings": "ترتيب الدوري",
-    "no_standings_data": "لا تتوفر بيانات الترتيب. قم بتشغيل وظيفة الكرون.",
+    "no_standings_data": "جاري تحضير بيانات الترتيب.",
     "team": "الفريق",
     "goals_for_short": "له",
     "goals_against_short": "عليه",
     "goal_difference_short": "فارق",
-    "no_teams_data": "لم يتم العثور على فرق."
+    "no_teams_data": "لم يتم العثور على فرق.",
+    "seo_description_with_analysis": "تحليل مباراة بالذكاء الاصطناعي لـ {homeTeam} ضد {awayTeam}. تحقق من النتائج الأخيرة، التحليل التكتيكي، والنقاط الرئيسية.",
+    "seo_description_no_analysis": "مباراة {league} في {date}: {homeTeam} ضد {awayTeam}",
+    "preview": "معاينة",
+    "goalkeeper": "حارس مرمى",
+    "defender": "مدافع",
+    "midfielder": "لاعب وسط",
+    "forward": "مهاجم",
+    "rank_value": "المركز {rank}",
+    "points_value": "{points} نقطة"
   },
   "team": {
     "overview": "نظرة عامة",
@@ -100,6 +119,7 @@
     "results": "النتائج",
     "statistics": "الإحصائيات",
     "analysis": "تحليل الفريق",
+    "ai_analysis": "تحليل الذكاء الاصطناعي",
     "strengths": "نقاط القوة",
     "weaknesses": "نقاط الضعف",
     "tactics": "الأسلوب التكتيكي",
@@ -111,7 +131,30 @@
     "all": "الكل",
     "teams": "فرق",
     "no_teams": "لم يتم العثور على فرق.",
-    "run_cron_message": "قم بتشغيل وظيفة الكرون لجمع بيانات الفريق."
+    "run_cron_message": "جاري تحضير بيانات الفرق. يرجى التحقق مرة أخرى قريباً.",
+    "teams_count": "{count} فرق",
+    "seo_description": "تحليل فريق {name}. تحقق من النتائج الأخيرة{recentForm}، التشكيلة، المباريات، والأسلوب التكتيكي.",
+    "founded_value": "تأسس في {year}",
+    "age_value": "{age} سنة",
+    "win_rate_analysis": "تحليل نسبة الفوز",
+    "avg_goals_scored": "معدل الأهداف المسجلة",
+    "avg_goals_conceded": "معدل الأهداف المستلمة",
+    "no_stats_data": "لا تتوفر إحصائيات الموسم.",
+    "players_count": "{count} لاعبين",
+    "no_squad_data": "لا توجد بيانات تشكيلة متاحة.",
+    "recent_match_results": "نتائج المباريات الأخيرة",
+    "no_recent_matches": "لم يتم العثور على مباريات أخيرة.",
+    "no_fixtures": "لم يتم العثور على مباريات قادمة."
+  },
+  "player": {
+    "overview": "نظرة عامة",
+    "statistics": "الإحصائيات",
+    "nationality": "الجنسية",
+    "position": "المركز",
+    "age": "العمر",
+    "height": "الطول",
+    "weight": "الوزن",
+    "number": "الرقم"
   },
   "league": {
     "standings": "الترتيب",
@@ -122,7 +165,9 @@
     "page_title": "الدوريات",
     "page_description": "استكشف دوريات كرة القدم في العالم مع تحليل مباريات مدعوم بالذكاء الاصطناعي",
     "round": "الجولة",
-    "teams": "فرق"
+    "teams": "فرق",
+    "seo_title": "موسم {season} لـ {name}",
+    "seo_description": "تحقق من ترتيب موسم {season} لـ {name}، والمباريات، وتحليل الفريق."
   },
   "news": {
     "latest": "آخر الأخبار",
@@ -147,7 +192,9 @@
     "no_sections": "لا توجد أقسام تحليل مفصلة لهذا التاريخ.",
     "keywords": "الكلمات المفتاحية",
     "no_keywords": "لم يتم العثور على كلمات مفتاحية ذات صلة.",
-    "football_analysis_title": "تحليل مباريات كرة القدم لليوم {date}"
+    "football_analysis_title": "تحليل مباريات كرة القدم لليوم {date}",
+    "no_news": "تعذر تحميل آخر الأخبار.",
+    "try_again": "يرجى المحاولة مرة أخرى لاحقاً."
   },
   "trends": {
     "winning_streak": "سلسلة انتصارات لـ {value} مباريات",

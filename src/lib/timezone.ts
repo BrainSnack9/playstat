@@ -29,6 +29,25 @@ export function getTimezoneOffset(timezone: string): number {
 export const KST_OFFSET_MS = 9 * 60 * 60 * 1000
 
 /**
+ * 특정 날짜(또는 현재)를 UTC 기준 날짜로 변환하여 시작/끝 시간을 반환
+ */
+export function getUTCDayRange(date?: Date | string): { start: Date; end: Date; utcDate: Date } {
+  const baseDate = date
+    ? new Date(`${date}T00:00:00.000Z`)
+    : new Date()
+
+  const utcDateStart = new Date(Date.UTC(
+    baseDate.getUTCFullYear(),
+    baseDate.getUTCMonth(),
+    baseDate.getUTCDate(),
+    0, 0, 0, 0
+  ))
+  const utcEnd = new Date(utcDateStart.getTime() + 24 * 60 * 60 * 1000 - 1)
+
+  return { start: utcDateStart, end: utcEnd, utcDate: utcDateStart }
+}
+
+/**
  * 특정 날짜(또는 현재)를 KST 기준 날짜로 변환하여 시작/끝 시간을 UTC로 반환
  */
 export function getKSTDayRange(date?: Date | string): { start: Date; end: Date; kstDate: Date } {

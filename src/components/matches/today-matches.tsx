@@ -9,10 +9,8 @@ import { CACHE_REVALIDATE } from '@/lib/cache'
 import { format } from 'date-fns'
 
 // 서버 공유 캐시 적용: 홈 화면 오늘 경기
-const getCachedTodayMatches = unstable_cache(
-  async (_dateStr: string) => {
-    // _dateStr is used by unstable_cache to invalidate cache daily
-    void _dateStr;
+const getCachedTodayMatches = (dateStr: string) => unstable_cache(
+  async () => {
     const { start, end } = getKSTDayRange()
 
     return await prisma.match.findMany({
@@ -40,9 +38,9 @@ const getCachedTodayMatches = unstable_cache(
       take: 6,
     })
   },
-  ['home-today-matches-v2'],
+  [`home-today-matches-${dateStr}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
-)
+)()
 
 interface TodayMatchesProps {
   locale: string
