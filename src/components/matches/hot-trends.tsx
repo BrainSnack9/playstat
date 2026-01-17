@@ -6,29 +6,10 @@ import { Link } from '@/i18n/routing'
 import { TrendingUp, Flame, Zap } from 'lucide-react'
 import { analyzeTeamTrend, getMatchCombinedTrend } from '@/lib/ai/trend-engine'
 import Image from 'next/image'
+import { getKSTDayRange } from '@/lib/timezone'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { format } from 'date-fns'
-
-// KST (UTC+9) 오프셋 (밀리초)
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000
-
-function getKSTDayRange(): { start: Date; end: Date } {
-  const now = new Date()
-  const kstTime = new Date(now.getTime() + KST_OFFSET_MS)
-
-  const kstDateStart = new Date(
-    Date.UTC(kstTime.getUTCFullYear(), kstTime.getUTCMonth(), kstTime.getUTCDate(), 0, 0, 0)
-  )
-  const utcStart = new Date(kstDateStart.getTime() - KST_OFFSET_MS)
-
-  const kstDateEnd = new Date(
-    Date.UTC(kstTime.getUTCFullYear(), kstTime.getUTCMonth(), kstTime.getUTCDate(), 23, 59, 59)
-  )
-  const utcEnd = new Date(kstDateEnd.getTime() - KST_OFFSET_MS)
-
-  return { start: utcStart, end: utcEnd }
-}
 
 // 서버 공유 캐시 적용: 홈 화면 트렌드 경기
 const getCachedTrendingMatches = unstable_cache(

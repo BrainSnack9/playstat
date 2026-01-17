@@ -13,10 +13,11 @@ import {
   Star,
 } from 'lucide-react'
 import { Link } from '@/i18n/routing'
-import { format, parse, isValid, startOfDay, addDays } from 'date-fns'
+import { format, parse, isValid, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
+import { getKSTDayRange } from '@/lib/timezone'
 import { ensureDailyReportTranslations } from '@/lib/ai/translate'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
@@ -53,23 +54,16 @@ interface HotMatch {
 const getCachedDailyReport = unstable_cache(
   async (dateStr: string) => {
     try {
-      let targetDate: Date
-      if (dateStr === 'today') {
-        targetDate = startOfDay(new Date())
-      } else {
-        const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
-        if (!isValid(parsed)) return null
-        targetDate = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 0, 0, 0))
-      }
-
+      const { start } = getKSTDayRange(dateStr === 'today' ? undefined : dateStr)
+      
       return await prisma.dailyReport.findUnique({
-        where: { date: targetDate },
+        where: { date: start },
       })
     } catch {
       return null
     }
   },
-  ['daily-report-data'],
+  ['daily-report-data-v2'],
   { revalidate: DAILY_REPORT_REVALIDATE, tags: ['daily-report'] }
 )
 
@@ -77,24 +71,13 @@ const getCachedDailyReport = unstable_cache(
 const getCachedMatches = unstable_cache(
   async (dateStr: string) => {
     try {
-      let targetDate: Date
-      if (dateStr === 'today') {
-        targetDate = new Date()
-      } else {
-        const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
-        if (!isValid(parsed)) return []
-        targetDate = parsed
-      }
-
-      const dayStart = startOfDay(targetDate)
-      const dayEnd = new Date(dayStart)
-      dayEnd.setDate(dayEnd.getDate() + 1)
+      const { start, end } = getKSTDayRange(dateStr === 'today' ? undefined : dateStr)
 
       return await prisma.match.findMany({
         where: {
           kickoffAt: {
-            gte: dayStart,
-            lt: dayEnd,
+            gte: start,
+            lte: end,
           },
         },
         include: {
@@ -109,7 +92,7 @@ const getCachedMatches = unstable_cache(
       return []
     }
   },
-  ['daily-matches-data'],
+  ['daily-matches-data-v2'],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )
 

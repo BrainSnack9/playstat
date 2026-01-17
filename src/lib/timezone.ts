@@ -25,6 +25,33 @@ export function getTimezoneOffset(timezone: string): number {
   }
 }
 
+// KST (UTC+9) 오프셋 (밀리초)
+export const KST_OFFSET_MS = 9 * 60 * 60 * 1000
+
+/**
+ * 특정 날짜(또는 현재)를 KST 기준 날짜로 변환하여 시작/끝 시간을 UTC로 반환
+ */
+export function getKSTDayRange(date?: Date | string): { start: Date; end: Date; kstDate: Date } {
+  const baseDate = date ? new Date(date) : new Date()
+  
+  // 입력된 날짜를 KST로 변환
+  const kstTime = new Date(baseDate.getTime() + KST_OFFSET_MS)
+
+  // KST 기준 00:00:00 (UTC 시간으로는 -9시간)
+  const kstDateStart = new Date(Date.UTC(
+    kstTime.getUTCFullYear(),
+    kstTime.getUTCMonth(),
+    kstTime.getUTCDate(),
+    0, 0, 0, 0
+  ))
+  const utcStart = new Date(kstDateStart.getTime() - KST_OFFSET_MS)
+
+  // KST 기준 23:59:59.999
+  const utcEnd = new Date(utcStart.getTime() + 24 * 60 * 60 * 1000 - 1)
+
+  return { start: utcStart, end: utcEnd, kstDate: kstTime }
+}
+
 // 사용자 타임존 기준 오늘의 시작/끝 (UTC로 반환)
 export function getTodayRangeInTimezone(timezone: string): { start: Date; end: Date } {
   const now = new Date()

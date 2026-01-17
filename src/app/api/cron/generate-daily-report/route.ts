@@ -3,30 +3,9 @@ import { openai, AI_MODELS, TOKEN_LIMITS } from '@/lib/openai'
 import type { PrismaClient } from '@prisma/client'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import { getKSTDayRange } from '@/lib/timezone'
 
 import { revalidateTag } from 'next/cache'
-
-// KST (UTC+9) 오프셋 (밀리초)
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000
-
-/**
- * 현재 시간을 KST 기준 날짜로 변환하여 시작/끝 시간을 UTC로 반환
- */
-function getKSTDayRange(): { start: Date; end: Date; kstDate: Date } {
-  const now = new Date()
-  // KST 시간 계산
-  const kstTime = new Date(now.getTime() + KST_OFFSET_MS)
-
-  // KST 기준 오늘 00:00:00 (UTC 시간으로는 전날 15:00)
-  const kstDateStart = new Date(Date.UTC(kstTime.getUTCFullYear(), kstTime.getUTCMonth(), kstTime.getUTCDate(), 0, 0, 0))
-  const utcStart = new Date(kstDateStart.getTime() - KST_OFFSET_MS)
-
-  // KST 기준 오늘 23:59:59 (UTC 시간으로는 오늘 14:59:59)
-  const kstDateEnd = new Date(Date.UTC(kstTime.getUTCFullYear(), kstTime.getUTCMonth(), kstTime.getUTCDate(), 23, 59, 59))
-  const utcEnd = new Date(kstDateEnd.getTime() - KST_OFFSET_MS)
-
-  return { start: utcStart, end: utcEnd, kstDate: kstTime }
-}
 
 const CRON_SECRET = process.env.CRON_SECRET
 
