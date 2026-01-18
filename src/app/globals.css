@@ -57,6 +57,26 @@
     --chart-4: 262 83% 58%;
     --chart-5: 0 84% 60%;
   }
+
+  html[data-sport="football"] {
+    --background: 222 30% 6%;
+    --foreground: 210 20% 96%;
+    --card: 223 26% 10%;
+    --card-foreground: 210 20% 96%;
+    --popover: 223 26% 10%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 84 100% 54%;
+    --primary-foreground: 222 30% 6%;
+    --secondary: 222 30% 10%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 222 30% 10%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 199 89% 48%;
+    --accent-foreground: 210 20% 96%;
+    --border: 222 30% 14%;
+    --input: 222 30% 14%;
+    --ring: 84 100% 54%;
+  }
 }
 
 @layer base {
