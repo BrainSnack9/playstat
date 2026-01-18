@@ -17,7 +17,7 @@ import { Link } from '@/i18n/routing'
 import { format, parse, isValid, addDays } from 'date-fns'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
-import { getTimezoneFromCookies, getTimezoneOffset, getUTCDayRange } from '@/lib/timezone'
+import { getDayRangeInTimezone, getTimezoneFromCookies, getTimezoneOffsetAtDate, getUTCDayRange } from '@/lib/timezone'
 import { ensureDailyReportTranslations } from '@/lib/ai/translate'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
@@ -68,10 +68,10 @@ const getCachedDailyReport = (dateStr: string) => unstable_cache(
 )()
 
 // 서버 공유 캐시 적용: 경기 목록 데이터
-const getCachedMatches = (dateStr: string) => unstable_cache(
+const getCachedMatches = (dateStr: string, timezone: string) => unstable_cache(
   async () => {
     try {
-      const { start, end } = getUTCDayRange(dateStr === 'today' ? undefined : dateStr)
+      const { start, end } = getDayRangeInTimezone(dateStr === 'today' ? format(new Date(), 'yyyy-MM-dd') : dateStr, timezone)
 
       return await prisma.match.findMany({
         where: {
@@ -92,7 +92,7 @@ const getCachedMatches = (dateStr: string) => unstable_cache(
       return []
     }
   },
-  [`daily-matches-lookup-${dateStr}`],
+  [`daily-matches-lookup-${dateStr}-${timezone}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )()
 
@@ -117,7 +117,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
   const cookieStore = await cookies()
   const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
-  const offsetMinutes = getTimezoneOffset(timezone)
+  const offsetMinutes = getTimezoneOffsetAtDate(timezone, utcBase)
   const displayDate = new Date(utcBase.getTime() + offsetMinutes * 60 * 1000)
   
   let dateFormatted = dateStr
@@ -208,7 +208,7 @@ async function JsonLd({
   const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
   const cookieStore = await cookies()
   const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
-  const offsetMinutes = getTimezoneOffset(timezone)
+  const offsetMinutes = getTimezoneOffsetAtDate(timezone, utcBase)
   const displayDate = new Date(utcBase.getTime() + offsetMinutes * 60 * 1000)
   let dateFormatted = dateStr
   if (isValid(parsed)) {
@@ -319,7 +319,7 @@ export default async function DailyReportPage({ params }: Props) {
   const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
   const cookieStore = await cookies()
   const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
-  const offsetMinutes = getTimezoneOffset(timezone)
+  const offsetMinutes = getTimezoneOffsetAtDate(timezone, utcBase)
   const displayDate = new Date(utcBase.getTime() + offsetMinutes * 60 * 1000)
   if (!isValid(parsed)) {
     notFound()
@@ -327,7 +327,7 @@ export default async function DailyReportPage({ params }: Props) {
 
   const [initialReport, matches] = await Promise.all([
     getCachedDailyReport(dateStr),
-    getCachedMatches(dateStr),
+    getCachedMatches(dateStr, timezone),
   ])
 
   // 번역은 생성 시점에 완료된 데이터만 사용 (렌더링 중 생성하지 않음)

@@ -25,6 +25,17 @@ export function getTimezoneOffset(timezone: string): number {
   }
 }
 
+// 특정 날짜 기준 타임존 오프셋 계산 (분 단위)
+export function getTimezoneOffsetAtDate(timezone: string, date: Date): number {
+  try {
+    const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }))
+    const tzDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }))
+    return (tzDate.getTime() - utcDate.getTime()) / (1000 * 60)
+  } catch {
+    return getTimezoneOffset(timezone)
+  }
+}
+
 // KST (UTC+9) 오프셋 (밀리초)
 export const KST_OFFSET_MS = 9 * 60 * 60 * 1000
 
@@ -89,6 +100,21 @@ export function getTodayRangeInTimezone(timezone: string): { start: Date; end: D
 
   // UTC로 변환 (오프셋 빼기)
   const startUTC = new Date(userMidnight.getTime() - offsetMinutes * 60 * 1000)
+  const endUTC = new Date(startUTC.getTime() + 24 * 60 * 60 * 1000 - 1)
+
+  return { start: startUTC, end: endUTC }
+}
+
+// 사용자 타임존 기준 특정 날짜의 시작/끝 (UTC로 반환)
+export function getDayRangeInTimezone(dateStr: string, timezone: string): { start: Date; end: Date } {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  if (!year || !month || !day) {
+    return getTodayRangeInTimezone(timezone)
+  }
+
+  const utcBase = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
+  const offsetMinutes = getTimezoneOffsetAtDate(timezone, utcBase)
+  const startUTC = new Date(utcBase.getTime() - offsetMinutes * 60 * 1000)
   const endUTC = new Date(startUTC.getTime() + 24 * 60 * 60 * 1000 - 1)
 
   return { start: startUTC, end: endUTC }
