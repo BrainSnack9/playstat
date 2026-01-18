@@ -33,8 +33,13 @@ export const revalidate = CACHE_REVALIDATE
 const getCachedMatch = (slug: string) => unstable_cache(
   async () => {
     try {
-      return await prisma.match.findUnique({
-        where: { slug },
+      return await prisma.match.findFirst({
+        where: {
+          OR: [
+            { slug },
+            { id: slug },
+          ],
+        },
         include: {
           homeTeam: {
             include: {
@@ -355,7 +360,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
                         <span className="mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                           {i + 1}
                         </span>
-                        {point}
+                        {stripMarkdownBold(point)}
                       </li>
                     ))}
                   </ul>
