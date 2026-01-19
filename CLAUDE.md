@@ -78,6 +78,21 @@ PlayStat은 **합법적인 스포츠 데이터 인사이트 플랫폼**입니다
 - 애드센스 승인 가능한 합법적 콘텐츠
 - 데이터 인사이트만 제공, 판단은 사용자의 몫
 
+## 이메일 설정 (ImprovMX)
+
+도메인 이메일 포워딩을 위해 **ImprovMX** 무료 플랜 사용.
+
+### DNS 레코드 (Vercel DNS)
+```
+MX   @   mx1.improvmx.com   Priority: 10
+MX   @   mx2.improvmx.com   Priority: 20
+TXT  @   v=spf1 include:spf.improvmx.com ~all
+```
+
+### 포워딩 설정
+- `contact@playstat.space` → 개인 Gmail로 포워딩
+- Media.net, 광고 네트워크 신청 시 비즈니스 이메일로 활용
+
 ## 참고 문서
 
 상세 가이드라인은 `PLAYSTAT_GUIDELINES.md` 참조
