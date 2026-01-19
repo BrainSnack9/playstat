@@ -1,0 +1,30 @@
+name: 3. Generate Analysis
+
+on:
+  schedule:
+    - cron: '20 18 * * *'  # UTC 18:20 = KST 03:20
+  workflow_dispatch:
+
+env:
+  API_BASE_URL: https://playstat.space
+
+jobs:
+  generate-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Generate Analysis
+        run: |
+          echo "🤖 Generating AI analysis..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.API_BASE_URL }}/api/cron/generate-analysis" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 600)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+          if [ "$http_code" -ge 400 ]; then
+            echo "❌ Failed"
+            exit 1
+          fi
+          echo "✅ Completed"

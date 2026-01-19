@@ -1,0 +1,30 @@
+name: 1. Collect Matches
+
+on:
+  schedule:
+    - cron: '0 18 * * *'  # UTC 18:00 = KST 03:00
+  workflow_dispatch:
+
+env:
+  API_BASE_URL: https://playstat.space
+
+jobs:
+  collect-matches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Collect Matches
+        run: |
+          echo "🏟️ Collecting matches..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.API_BASE_URL }}/api/cron/collect-matches" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 600)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+          if [ "$http_code" -ge 400 ]; then
+            echo "❌ Failed"
+            exit 1
+          fi
+          echo "✅ Completed"
