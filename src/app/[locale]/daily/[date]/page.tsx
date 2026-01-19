@@ -314,7 +314,10 @@ export default async function DailyReportPage({ params }: Props) {
     const cookieStore = await cookies()
     const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
     const { start } = getTodayRangeInTimezone(timezone)
-    const today = format(start, 'yyyy-MM-dd')
+    // start는 UTC 시간이므로, 타임존 오프셋을 더해서 사용자 로컬 날짜를 구함
+    const offsetMinutes = getTimezoneOffsetAtDate(timezone, start)
+    const userLocalDate = new Date(start.getTime() + offsetMinutes * 60 * 1000)
+    const today = `${userLocalDate.getUTCFullYear()}-${String(userLocalDate.getUTCMonth() + 1).padStart(2, '0')}-${String(userLocalDate.getUTCDate()).padStart(2, '0')}`
     redirect(`/daily/${today}`)
   }
 
