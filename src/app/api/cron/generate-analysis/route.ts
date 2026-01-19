@@ -44,6 +44,30 @@ export async function GET(request: Request) {
 
   try {
     const now = new Date()
+
+    // 오늘 collect-team-data가 성공했는지 체크
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+
+    const teamDataLog = await prisma.schedulerLog.findFirst({
+      where: {
+        jobName: 'collect-team-data',
+        executedAt: { gte: todayStart },
+        result: { in: ['success', 'partial'] },
+      },
+      orderBy: { executedAt: 'desc' },
+    })
+
+    if (!teamDataLog) {
+      console.log('[Cron] collect-team-data not completed today, skipping analysis generation')
+      return NextResponse.json({
+        success: false,
+        error: 'collect-team-data not completed today',
+        hint: 'Run collect-team-data first',
+      }, { status: 400 })
+    }
+
+    console.log(`[Cron] collect-team-data completed at ${teamDataLog.executedAt}, proceeding...`)
     const in48Hours = addHours(now, 48)
 
     // 48시간 이내 경기 중 아직 분석이 없는 것들 또는 다국어 번역이 누락된 것들 조회

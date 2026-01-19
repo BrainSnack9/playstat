@@ -35,6 +35,30 @@ export async function GET(request: Request) {
   const startTime = Date.now()
 
   try {
+    // 오늘 generate-analysis가 성공했는지 체크
+    const checkTodayStart = new Date()
+    checkTodayStart.setHours(0, 0, 0, 0)
+
+    const analysisLog = await prisma.schedulerLog.findFirst({
+      where: {
+        jobName: 'generate-analysis',
+        executedAt: { gte: checkTodayStart },
+        result: { in: ['success', 'partial'] },
+      },
+      orderBy: { executedAt: 'desc' },
+    })
+
+    if (!analysisLog) {
+      console.log('[Cron] generate-analysis not completed today, skipping daily report')
+      return NextResponse.json({
+        success: false,
+        error: 'generate-analysis not completed today',
+        hint: 'Run generate-analysis first',
+      }, { status: 400 })
+    }
+
+    console.log(`[Cron] generate-analysis completed at ${analysisLog.executedAt}, proceeding...`)
+
     // 한국 시간(KST) 기준으로 오늘 날짜 계산
     const { start: todayStart, end: todayEnd, kstDate } = getKSTDayRange()
 
