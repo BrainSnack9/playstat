@@ -387,9 +387,10 @@ export default async function DailyReportPage({ params }: Props) {
         hotMatches = (report.hotMatches as unknown as HotMatch[]) || []
       }
       
-      // 1. 만약 insights 필드에 데이터가 있다면 섹션에 추가 (구버전 호환)
+      // 1. 만약 insights 필드에 데이터가 있고, 번역된 key_storylines 섹션이 없을 때만 추가 (구버전 호환)
       const insightsText = typeof report.insights === 'string' ? report.insights : ''
-      if (insightsText && !content.sections.some(s => s.content === insightsText)) {
+      const hasKeyStorylinesSection = content.sections.some(s => s.type === 'key_storylines')
+      if (insightsText && !hasKeyStorylinesSection) {
         content.sections.push({
           type: 'key_storylines',
           title: tDaily('strategic_insights'),
