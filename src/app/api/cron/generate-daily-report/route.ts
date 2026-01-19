@@ -7,6 +7,10 @@ import { getKSTDayRange } from '@/lib/timezone'
 
 import { revalidateTag } from 'next/cache'
 
+// Vercel Function 설정 - App Router
+export const maxDuration = 300 // 5분
+export const dynamic = 'force-dynamic'
+
 const CRON_SECRET = process.env.CRON_SECRET
 
 async function getPrisma(): Promise<PrismaClient> {

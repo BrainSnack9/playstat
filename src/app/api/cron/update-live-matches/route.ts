@@ -6,6 +6,10 @@ import { format, subDays, addDays } from 'date-fns'
 import type { PrismaClient, MatchStatus } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
 
+// Vercel Function 설정 - App Router
+export const maxDuration = 60 // 1분 (실시간 업데이트는 빨라야 함)
+export const dynamic = 'force-dynamic'
+
 const CRON_SECRET = process.env.CRON_SECRET
 
 async function getPrisma(): Promise<PrismaClient> {

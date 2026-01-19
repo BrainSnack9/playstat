@@ -8,6 +8,10 @@ import {
 import { addDays } from 'date-fns'
 import type { PrismaClient } from '@prisma/client'
 
+// Vercel Function 설정 - App Router에서는 이렇게 설정
+export const maxDuration = 300 // 5분
+export const dynamic = 'force-dynamic'
+
 const CRON_SECRET = process.env.CRON_SECRET
 
 // 동적 prisma 가져오기

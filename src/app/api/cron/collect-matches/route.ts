@@ -10,6 +10,10 @@ import type { PrismaClient, MatchStatus } from '@prisma/client'
 
 import { revalidateTag } from 'next/cache'
 
+// Vercel Function 설정 - App Router
+export const maxDuration = 300 // 5분
+export const dynamic = 'force-dynamic'
+
 // Vercel Cron 인증
 const CRON_SECRET = process.env.CRON_SECRET
 
