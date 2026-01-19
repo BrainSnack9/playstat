@@ -1,0 +1,89 @@
+name: Daily Data Collection
+
+on:
+  schedule:
+    # UTC 18:00 = KST 03:00 (매일 새벽 3시)
+    - cron: '0 18 * * *'
+  workflow_dispatch: # 수동 실행 가능
+
+env:
+  API_BASE_URL: https://playstat.space
+
+jobs:
+  collect-and-generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Collect Matches
+        run: |
+          echo "🏟️ Collecting matches..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.API_BASE_URL }}/api/cron/collect-matches" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 300)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+          if [ "$http_code" -ge 400 ]; then
+            echo "❌ Failed with status $http_code"
+            exit 1
+          fi
+          echo "✅ Collect matches completed"
+
+      - name: Wait before next job
+        run: sleep 10
+
+      - name: Collect Team Data
+        run: |
+          echo "👥 Collecting team data..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.API_BASE_URL }}/api/cron/collect-team-data" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 300)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+          if [ "$http_code" -ge 400 ]; then
+            echo "❌ Failed with status $http_code"
+            exit 1
+          fi
+          echo "✅ Collect team data completed"
+
+      - name: Wait before next job
+        run: sleep 10
+
+      - name: Generate Analysis
+        run: |
+          echo "🤖 Generating AI analysis..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.API_BASE_URL }}/api/cron/generate-analysis" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 600)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+          if [ "$http_code" -ge 400 ]; then
+            echo "❌ Failed with status $http_code"
+            exit 1
+          fi
+          echo "✅ Generate analysis completed"
+
+      - name: Wait before next job
+        run: sleep 10
+
+      - name: Generate Daily Report
+        run: |
+          echo "📊 Generating daily report..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.API_BASE_URL }}/api/cron/generate-daily-report" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 300)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+          if [ "$http_code" -ge 400 ]; then
+            echo "❌ Failed with status $http_code"
+            exit 1
+          fi
+          echo "✅ Generate daily report completed"
