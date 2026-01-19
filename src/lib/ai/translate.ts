@@ -19,7 +19,7 @@ export async function translateText(
       messages: [
         {
           role: 'system',
-          content: `You are a professional sports translator. Translate the following English ${context} into natural ${targetLang === 'ko' ? 'Korean' : targetLang === 'es' ? 'Spanish' : targetLang === 'ja' ? 'Japanese' : 'Arabic'}. Keep the original meaning and technical terms. Use professional sports terminology.`
+          content: `You are a professional sports translator. Translate the following English ${context} into natural ${targetLang === 'ko' ? 'Korean' : targetLang === 'es' ? 'Spanish' : targetLang === 'ja' ? 'Japanese' : 'German'}. Keep the original meaning and technical terms. Use professional sports terminology.`
         },
         {
           role: 'user',
@@ -182,7 +182,7 @@ export async function ensureDailyReportTranslations(report: any) {
           messages: [
             {
               role: 'system',
-              content: `Translate the provided JSON content from English to natural ${lang === 'ko' ? 'Korean' : lang === 'es' ? 'Spanish' : lang === 'ja' ? 'Japanese' : 'Arabic'}. Return ONLY the translated JSON.`
+              content: `Translate the provided JSON content from English to natural ${lang === 'ko' ? 'Korean' : lang === 'es' ? 'Spanish' : lang === 'ja' ? 'Japanese' : 'German'}. Return ONLY the translated JSON.`
             },
             { role: 'user', content: JSON.stringify(englishData) }
           ],

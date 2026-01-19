@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { ko, enUS, ja, es, arSA } from 'date-fns/locale'
+import { ko, enUS, ja, es, de } from 'date-fns/locale'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -14,8 +14,8 @@ export function getDateLocale(locale: string) {
       return ja
     case 'es':
       return es
-    case 'ar':
-      return arSA
+    case 'de':
+      return de
     case 'en':
     default:
       return enUS
