@@ -95,9 +95,12 @@ export default async function HomePage({ params }: Props) {
     const footballUrl = isLocal
       ? `http://football.localhost:3030${localePrefix}`
       : `https://football.playstat.space${localePrefix}`
-    const racingUrl = isLocal
-      ? `http://racing.localhost:3030${localePrefix}`
-      : `https://racing.playstat.space${localePrefix}`
+    const basketballUrl = isLocal
+      ? `http://basketball.localhost:3030${localePrefix}`
+      : `https://basketball.playstat.space${localePrefix}`
+    const baseballUrl = isLocal
+      ? `http://baseball.localhost:3030${localePrefix}`
+      : `https://baseball.playstat.space${localePrefix}`
 
     return (
       <div className={`min-h-screen bg-[#0b0f14] text-white ${spaceGrotesk.className}`}>
@@ -175,13 +178,13 @@ export default async function HomePage({ params }: Props) {
                     <span className="text-sm uppercase tracking-[0.2em]">Football</span>
                   </a>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="h-14 w-full border-white/30 text-white hover:bg-white/10">
-                  <a href="#sports" className="flex items-center justify-center gap-2">
+                <Button asChild size="lg" className="h-14 w-full bg-gradient-to-r from-orange-400 to-orange-500 text-black shadow-[0_0_24px_rgba(249,115,22,0.25)] hover:from-orange-300 hover:to-orange-400">
+                  <a href={basketballUrl} className="flex items-center justify-center gap-2">
                     <span className="text-sm uppercase tracking-[0.2em]">Basketball</span>
                   </a>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="h-14 w-full border-white/30 text-white hover:bg-white/10">
-                  <a href="#sports" className="flex items-center justify-center gap-2">
+                <Button asChild size="lg" className="h-14 w-full bg-gradient-to-r from-emerald-400 to-emerald-500 text-black shadow-[0_0_24px_rgba(16,185,129,0.25)] hover:from-emerald-300 hover:to-emerald-400">
+                  <a href={baseballUrl} className="flex items-center justify-center gap-2">
                     <span className="text-sm uppercase tracking-[0.2em]">Baseball</span>
                   </a>
                 </Button>

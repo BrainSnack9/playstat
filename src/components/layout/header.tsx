@@ -87,8 +87,8 @@ export function Header({ variant = 'default' }: { variant?: 'default' | 'landing
                     <NavigationMenuLink
                       className={cn(
                         navigationMenuTriggerStyle(),
-                        pathname === item.href && (isNeon ? 'bg-lime-300/10 text-lime-300' : 'bg-accent'),
-                        isNeon && 'bg-transparent text-white/70 hover:text-lime-300 hover:bg-lime-300/10 focus:text-lime-300 focus:bg-lime-300/10 data-[state=open]:text-lime-300 data-[state=open]:bg-lime-300/10'
+                        pathname === item.href && (isNeon ? 'bg-primary/10 text-primary' : 'bg-accent'),
+                        isNeon && 'bg-transparent text-white/70 hover:text-primary hover:bg-primary/10 focus:text-primary focus:bg-primary/10 data-[state=open]:text-primary data-[state=open]:bg-primary/10'
                       )}
                       style={isNeon ? { fontFamily: spaceGrotesk.style.fontFamily } : undefined}
                     >
@@ -123,7 +123,7 @@ export function Header({ variant = 'default' }: { variant?: 'default' | 'landing
                       href={item.href}
                       className={cn(
                       'flex items-center gap-2 text-lg font-medium transition-colors hover:text-primary',
-                      pathname === item.href && (isNeon ? 'text-lime-300' : 'text-primary'),
+                      pathname === item.href && 'text-primary',
                       isNeon && 'text-white/80 hover:text-white'
                       )}
                     >

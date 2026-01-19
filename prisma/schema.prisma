@@ -22,8 +22,8 @@ model League {
   name            String
   country         String
   sportType       SportType @default(FOOTBALL)
-  externalId      String?   @unique     // Football-Data.org competition ID
-  code            String?   @unique     // Football-Data.org competition code (e.g., "PL", "BL1")
+  externalId      String?   // External API competition ID
+  code            String?   // Competition code (e.g., "PL", "NBA")
   logoUrl         String?
   season          Int?      // 현재 시즌
   currentMatchday Int?      // 현재 라운드
@@ -34,6 +34,8 @@ model League {
   teams   Team[]
   matches Match[]
 
+  @@unique([sportType, externalId])
+  @@unique([sportType, code])
   @@index([sportType])
   @@index([country])
   @@index([code])
@@ -47,7 +49,7 @@ model Team {
   shortName   String?
   tla         String?   // 3글자 약어 (e.g., "MUN", "ARS")
   logoUrl     String?
-  externalId  String?   @unique  // Football-Data.org team ID
+  externalId  String?   // External API team ID
   sportType   SportType @default(FOOTBALL)
   founded     Int?
   venue       String?
@@ -65,6 +67,7 @@ model Team {
   homeH2H          HeadToHead[]       @relation("H2HTeamA")
   awayH2H          HeadToHead[]       @relation("H2HTeamB")
 
+  @@unique([sportType, externalId])
   @@index([leagueId])
   @@index([name])
   @@index([sportType])
@@ -125,7 +128,7 @@ model Match {
   stage         String?     // 스테이지 (예: "GROUP_STAGE", "FINAL")
   venue         String?
   slug          String?     @unique
-  externalId    String?     @unique  // Football-Data.org match ID
+  externalId    String?     // External API match ID
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -135,6 +138,7 @@ model Match {
   matchStats    MatchStats?
   matchAnalysis MatchAnalysis?
 
+  @@unique([sportType, externalId])
   @@index([leagueId])
   @@index([kickoffAt])
   @@index([status])
@@ -276,9 +280,9 @@ model MatchAnalysis {
 // 데일리 리포트 테이블
 model DailyReport {
   id         String    @id @default(cuid())
-  date       DateTime  @unique @db.Date
+  date       DateTime  @db.Date
   sportType  SportType @default(FOOTBALL)
-  
+
   // 다국어 번역본 통합 저장
   // 구조: { "en": { "title": "...", "summary": "...", ... }, "ko": { ... }, ... }
   translations Json?
@@ -291,6 +295,7 @@ model DailyReport {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  @@unique([date, sportType])
   @@index([date])
   @@index([sportType])
 }

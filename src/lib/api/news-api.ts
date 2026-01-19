@@ -1,45 +1,47 @@
 /**
- * 축구 뉴스 수집 API
- * RSS 피드에서 축구 뉴스를 수집
+ * 스포츠 뉴스 수집 API
+ * RSS 피드에서 스포츠별 뉴스를 수집
  */
 
 import { openai, AI_MODELS, TOKEN_LIMITS } from '@/lib/openai'
+import type { SportId } from '@/lib/sport'
 
-// RSS 피드 소스 (무료, 무제한)
-const RSS_SOURCES = [
-  // 영어 소스
-  {
-    name: 'ESPN Football',
-    url: 'https://www.espn.com/espn/rss/soccer/news',
-    language: 'en',
-  },
-  {
-    name: 'BBC Sport Football',
-    url: 'https://feeds.bbci.co.uk/sport/football/rss.xml',
-    language: 'en',
-  },
-  {
-    name: 'Sky Sports Football',
-    url: 'https://www.skysports.com/rss/12040',
-    language: 'en',
-  },
-  // 한국어 소스
-  {
-    name: '풋볼리스트',
-    url: 'https://www.footballist.co.kr/rss/allArticle.xml',
-    language: 'ko',
-  },
-  {
-    name: '동아일보 스포츠',
-    url: 'https://rss.donga.com/sports.xml',
-    language: 'ko',
-  },
-  {
-    name: '연합뉴스TV 스포츠',
-    url: 'https://www.yonhapnewstv.co.kr/category/news/sports/feed/',
-    language: 'ko',
-  },
-]
+interface RSSSource {
+  name: string
+  url: string
+  language: 'en' | 'ko'
+}
+
+// 스포츠별 RSS 피드 소스
+const RSS_SOURCES: Record<SportId, RSSSource[]> = {
+  football: [
+    // 영어 소스
+    { name: 'ESPN Football', url: 'https://www.espn.com/espn/rss/soccer/news', language: 'en' },
+    { name: 'BBC Sport Football', url: 'https://feeds.bbci.co.uk/sport/football/rss.xml', language: 'en' },
+    { name: 'Sky Sports Football', url: 'https://www.skysports.com/rss/12040', language: 'en' },
+    // 한국어 소스
+    { name: '풋볼리스트', url: 'https://www.footballist.co.kr/rss/allArticle.xml', language: 'ko' },
+    { name: '동아일보 스포츠', url: 'https://rss.donga.com/sports.xml', language: 'ko' },
+    { name: '연합뉴스TV 스포츠', url: 'https://www.yonhapnewstv.co.kr/category/news/sports/feed/', language: 'ko' },
+  ],
+  basketball: [
+    // 영어 소스
+    { name: 'ESPN NBA', url: 'https://www.espn.com/espn/rss/nba/news', language: 'en' },
+    { name: 'NBC Sports NBA', url: 'https://www.nbcsports.com/nba/rss', language: 'en' },
+    // 한국어 소스
+    { name: '스포츠조선 농구', url: 'https://sports.chosun.com/rss/rss_spo_nba.xml', language: 'ko' },
+  ],
+  baseball: [
+    // 영어 소스
+    { name: 'ESPN MLB', url: 'https://www.espn.com/espn/rss/mlb/news', language: 'en' },
+    { name: 'MLB News', url: 'https://www.mlb.com/feeds/news/rss.xml', language: 'en' },
+    // 한국어 소스
+    { name: '스포츠조선 야구', url: 'https://sports.chosun.com/rss/rss_spo_mlb.xml', language: 'ko' },
+  ],
+}
+
+// 기존 코드 호환성을 위한 축구 RSS 소스
+const FOOTBALL_RSS_SOURCES = RSS_SOURCES.football
 
 export interface NewsItem {
   title: string
@@ -335,19 +337,25 @@ function isFootballNews(news: NewsItem, sourceName: string): boolean {
 }
 
 /**
- * 모든 소스에서 뉴스 통합 수집 (RSS 기반)
- * 영어 + 한국어 RSS 피드에서 축구 뉴스 수집
+ * 스포츠별 뉴스 수집 (RSS 기반)
+ * 영어 + 한국어 RSS 피드에서 스포츠별 뉴스 수집
  */
-export async function collectAllFootballNews(limit: number = 15): Promise<NewsItem[]> {
+export async function collectSportsNews(sport: SportId, limit: number = 15): Promise<NewsItem[]> {
   const allNews: NewsItem[] = []
+  const sources = RSS_SOURCES[sport] || []
 
-  // 각 소스별로 뉴스 수집 및 필터링
-  for (const source of RSS_SOURCES) {
+  // 각 소스별로 뉴스 수집
+  for (const source of sources) {
     const items = await fetchRSSFeed(source)
 
-    // 축구 뉴스만 필터링
-    const footballItems = items.filter(item => isFootballNews(item, source.name))
-    allNews.push(...footballItems)
+    // 축구는 추가 필터링 적용 (일반 스포츠 피드에서 축구만 추출)
+    if (sport === 'football') {
+      const footballItems = items.filter(item => isFootballNews(item, source.name))
+      allNews.push(...footballItems)
+    } else {
+      // 농구/야구는 전용 피드이므로 필터링 없이 사용
+      allNews.push(...items)
+    }
   }
 
   // 날짜순 정렬 (최신순)
@@ -359,4 +367,12 @@ export async function collectAllFootballNews(limit: number = 15): Promise<NewsIt
   )
 
   return uniqueNews.slice(0, limit)
+}
+
+/**
+ * 모든 소스에서 뉴스 통합 수집 (RSS 기반) - 기존 함수 호환성 유지
+ * 영어 + 한국어 RSS 피드에서 축구 뉴스 수집
+ */
+export async function collectAllFootballNews(limit: number = 15): Promise<NewsItem[]> {
+  return collectSportsNews('football', limit)
 }

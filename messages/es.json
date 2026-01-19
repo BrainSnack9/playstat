@@ -265,6 +265,7 @@
     "page_title": "Ligas",
     "page_description": "Explore ligas de fútbol de todo el mundo con análisis de partidos impulsados por IA",
     "round": "Ronda",
+    "rank": "Posición",
     "teams": "equipos",
     "seo_title": "{name} Temporada {season}",
     "seo_description": "Consulte la clasificación de la temporada {season} de {name}, el calendario y el análisis del equipo."
@@ -294,7 +295,9 @@
     "no_sections": "No hay secciones de análisis detalladas para esta fecha.",
     "keywords": "Palabras clave",
     "no_keywords": "No se encontraron palabras clave relacionadas.",
-    "football_analysis_title": "Análisis de fútbol del {date}"
+    "football_analysis_title": "Análisis de fútbol del {date}",
+    "basketball_analysis_title": "Vista previa de juegos NBA del {date}",
+    "baseball_analysis_title": "Vista previa de juegos MLB del {date}"
   },
   "trends": {
     "winning_streak": "{value} victorias consecutivas",

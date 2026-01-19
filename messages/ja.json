@@ -267,6 +267,7 @@
     "page_title": "リーグ",
     "page_description": "AI駆動の試合分析で世界中のサッカーリーグを探索する",
     "round": "ラウンド",
+    "rank": "順位",
     "teams": "チーム",
     "seo_title": "{name} {season} シーズン",
     "seo_description": "{name} {season} シーズンの順位、試合日程、チーム分析を確認してください。"
@@ -296,7 +297,9 @@
     "no_sections": "この日の詳細な分析セクションはありません。",
     "keywords": "キーワード",
     "no_keywords": "関連するキーワードは見つかりませんでした。",
-    "football_analysis_title": "{date} サッカー試合分析"
+    "football_analysis_title": "{date} サッカー試合分析",
+    "basketball_analysis_title": "{date} NBA試合プレビュー",
+    "baseball_analysis_title": "{date} MLB試合プレビュー"
   },
   "trends": {
     "winning_streak": "{value}連勝中",

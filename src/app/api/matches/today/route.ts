@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { format, startOfDay, endOfDay } from 'date-fns'
+import { getSportTypeFromRequest } from '@/lib/sport'
 
 /**
  * GET /api/matches/today
@@ -9,7 +10,7 @@ import { format, startOfDay, endOfDay } from 'date-fns'
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const sportType = searchParams.get('sport') || 'FOOTBALL'
+    const sportType = getSportTypeFromRequest(request)
     const dateParam = searchParams.get('date')
 
     const targetDate = dateParam ? new Date(dateParam) : new Date()
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
           gte: dayStart,
           lte: dayEnd,
         },
-        sportType: sportType as 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL',
+        sportType,
       },
       include: {
         league: {

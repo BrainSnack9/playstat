@@ -1,10 +1,12 @@
 import { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { cookies } from 'next/headers'
 import { Card, CardContent } from '@/components/ui/card'
 import { Users, Search } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { TeamCard } from '@/components/team-card'
 import Image from 'next/image'
+import { SPORT_COOKIE, getSportFromCookie, sportIdToEnum } from '@/lib/sport'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -20,11 +22,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-async function getTeams() {
+async function getTeams(sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL') {
   try {
     const teams = await prisma.team.findMany({
       where: {
-        sportType: 'FOOTBALL',
+        sportType,
       },
       include: {
         league: true,
@@ -46,12 +48,12 @@ async function getTeams() {
   }
 }
 
-async function getLeagues() {
+async function getLeagues(sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL') {
   try {
     // code가 있는 리그만 가져옴 (API에서 수집된 실제 리그)
     const leagues = await prisma.league.findMany({
       where: {
-        sportType: 'FOOTBALL',
+        sportType,
         code: { not: null },
       },
       orderBy: { name: 'asc' },
@@ -86,10 +88,14 @@ export default async function TeamsPage({ params, searchParams }: Props) {
   const { league: leagueFilter, search } = await searchParams
   setRequestLocale(locale)
 
+  // 쿠키에서 스포츠 타입 가져오기
+  const cookieStore = await cookies()
+  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value))
+
   const t = await getTranslations({ locale, namespace: 'team' })
 
-  let teams = await getTeams()
-  const leagues = await getLeagues()
+  let teams = await getTeams(sportType)
+  const leagues = await getLeagues(sportType)
 
   // Filter by league if specified
   if (leagueFilter) {

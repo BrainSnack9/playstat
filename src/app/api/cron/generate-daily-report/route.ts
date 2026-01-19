@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { openai, AI_MODELS, TOKEN_LIMITS } from '@/lib/openai'
-import type { PrismaClient } from '@prisma/client'
+import type { PrismaClient, SportType } from '@prisma/client'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { getKSTDayRange } from '@/lib/timezone'
+import { getUTCDayRange } from '@/lib/timezone'
+import { getSportFromRequest, sportIdToEnum } from '@/lib/sport'
 
 import { revalidateTag } from 'next/cache'
 
@@ -34,31 +35,44 @@ export async function GET(request: Request) {
   const prisma = await getPrisma()
   const startTime = Date.now()
 
+  // sport 파라미터로 스포츠 타입 결정 (기본값: football)
+  const sportId = getSportFromRequest(request)
+  const sportTypeEnum = sportIdToEnum(sportId) as SportType
+  const sportLabel = sportId === 'basketball' ? 'NBA' : sportId === 'baseball' ? 'MLB' : '축구'
+  const sportLabelEn = sportId === 'basketball' ? 'NBA' : sportId === 'baseball' ? 'MLB' : 'Football'
+
   try {
-    // 한국 시간(KST) 기준으로 오늘 날짜 계산
-    const { start: todayStart, end: todayEnd, kstDate } = getKSTDayRange()
+    // 날짜 파라미터 확인 (기본값: 오늘 UTC)
+    const url = new URL(request.url)
+    const dateParam = url.searchParams.get('date') // YYYY-MM-DD format
 
-    const dateStr = format(kstDate, 'yyyy-MM-dd')
-    const dateKo = format(kstDate, 'yyyy년 M월 d일 (EEEE)', { locale: ko })
-    const dateEn = format(kstDate, 'EEEE, MMMM do, yyyy')
+    // UTC 기준으로 날짜 계산
+    const { start: todayStart, end: todayEnd, utcDate } = dateParam
+      ? getUTCDayRange(dateParam)
+      : getUTCDayRange()
 
-    // 이미 오늘 리포트가 있는지 확인
-    const existingReport = await prisma.dailyReport.findUnique({
-      where: { date: todayStart },
+    const dateStr = format(utcDate, 'yyyy-MM-dd')
+    const dateKo = format(utcDate, 'yyyy년 M월 d일 (EEEE)', { locale: ko })
+    const dateEn = format(utcDate, 'EEEE, MMMM do, yyyy')
+
+    // 이미 오늘 리포트가 있는지 확인 (스포츠 타입별)
+    const existingReport = await prisma.dailyReport.findFirst({
+      where: { date: todayStart, sportType: sportTypeEnum },
     })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (existingReport && (existingReport as any).translations) {
       return NextResponse.json({
         success: true,
-        message: 'Daily report already exists with translations',
+        message: `Daily report already exists with translations for ${sportId}`,
         reportId: existingReport.id,
       })
     }
 
-    // 오늘 경기 조회
+    // 오늘 경기 조회 (스포츠 타입 필터)
     const todayMatches = await prisma.match.findMany({
       where: {
+        sportType: sportTypeEnum,
         kickoffAt: {
           gte: todayStart,
           lte: todayEnd,
@@ -83,8 +97,8 @@ export async function GET(request: Request) {
       await prisma.dailyReport.create({
         data: {
           date: todayStart,
-          sportType: 'FOOTBALL',
-          summary: `${dateKo} - 오늘은 주요 리그 경기가 예정되어 있지 않습니다.`,
+          sportType: sportTypeEnum,
+          summary: `${dateKo} - 오늘은 ${sportLabel} 경기가 예정되어 있지 않습니다.`,
           hotMatches: [],
           keyNews: [],
           insights: [],
@@ -93,7 +107,7 @@ export async function GET(request: Request) {
 
       return NextResponse.json({
         success: true,
-        message: 'No matches today, created empty report',
+        message: `No ${sportId} matches today, created empty report`,
       })
     }
 
@@ -130,6 +144,7 @@ export async function GET(request: Request) {
 
     const { DAILY_REPORT_PROMPT_EN } = await import('@/lib/ai/prompts')
     const prompt = DAILY_REPORT_PROMPT_EN
+      .replace(/{sport}/g, sportLabelEn)
       .replace('{date}', dateEn)
       .replace('{matchData}', JSON.stringify({
         totalMatches: matchData.length,
@@ -163,22 +178,33 @@ export async function GET(request: Request) {
       hotMatches: parsed.hotMatches || [],
     }
 
-    const report = await prisma.dailyReport.upsert({
-      where: { date: todayStart },
-      update: {
-        translations: { en: reportData },
-        summary: JSON.stringify(reportData), // 하위 호환성
-      },
-      create: {
-        date: todayStart,
-        sportType: 'FOOTBALL',
-        translations: { en: reportData },
-        summary: JSON.stringify(reportData),
-        hotMatches: parsed.hotMatches || [],
-        keyNews: [],
-        insights: parsed.sections?.find((s: { type: string }) => s.type === 'key_storylines')?.content || null,
-      },
+    // 스포츠 타입별로 리포트 저장 (findFirst + create/update 패턴)
+    const existingForSport = await prisma.dailyReport.findFirst({
+      where: { date: todayStart, sportType: sportTypeEnum },
     })
+
+    let report
+    if (existingForSport) {
+      report = await prisma.dailyReport.update({
+        where: { id: existingForSport.id },
+        data: {
+          translations: { en: reportData },
+          summary: JSON.stringify(reportData),
+        },
+      })
+    } else {
+      report = await prisma.dailyReport.create({
+        data: {
+          date: todayStart,
+          sportType: sportTypeEnum,
+          translations: { en: reportData },
+          summary: JSON.stringify(reportData),
+          hotMatches: parsed.hotMatches || [],
+          keyNews: [],
+          insights: parsed.sections?.find((s: { type: string }) => s.type === 'key_storylines')?.content || null,
+        },
+      })
+    }
 
     // 즉시 다국어 번역 수행 (KO, ES, JA, AR)
     const { ensureDailyReportTranslations } = await import('@/lib/ai/translate')

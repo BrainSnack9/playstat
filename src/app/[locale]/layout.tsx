@@ -63,7 +63,8 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
   const sport = getSportFromCookie(cookies().get(SPORT_COOKIE)?.value)
   const host = headers().get('host')
   const isApex = isApexHost(host)
-  const isNeon = !isApex && sport === 'football'
+  // 모든 스포츠 서브도메인에 네온 테마 적용 (CSS 변수로 스포츠별 색상 구분)
+  const isNeon = !isApex
 
   return (
     <html lang={locale} dir={direction} className="dark" data-sport={sport} suppressHydrationWarning>

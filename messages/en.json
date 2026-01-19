@@ -257,6 +257,7 @@
     "page_title": "Leagues",
     "page_description": "Explore football leagues worldwide with AI-powered match analysis",
     "round": "Round",
+    "rank": "Rank",
     "teams": "teams",
     "seo_title": "{name} {season} Season",
     "seo_description": "Check {name} {season} season standings, fixtures, and team analysis."
@@ -286,7 +287,9 @@
     "no_sections": "No detailed analysis sections available for this date.",
     "keywords": "Keywords",
     "no_keywords": "No related keywords found.",
-    "football_analysis_title": "{date} Football Analysis"
+    "football_analysis_title": "{date} Football Analysis",
+    "basketball_analysis_title": "{date} NBA Game Preview",
+    "baseball_analysis_title": "{date} MLB Game Preview"
   },
   "trends": {
     "winning_streak": "{value} match winning streak",

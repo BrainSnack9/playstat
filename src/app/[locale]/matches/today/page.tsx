@@ -11,6 +11,7 @@ import { MatchCard } from '@/components/match-card'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
 import { getDateLocale } from '@/lib/utils'
+import { SPORT_COOKIE, getSportFromCookie, sportIdToEnum } from '@/lib/sport'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -30,7 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 // 서버 공유 캐시 적용: 경기 목록 데이터 조회
-const getCachedMatches = (timezone: string, dateStr: string) => unstable_cache(
+const getCachedMatches = (timezone: string, dateStr: string, sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL') => unstable_cache(
   async () => {
     // 사용자 타임존 기준 오늘의 시작/끝
     const { start, end } = getTodayRangeInTimezone(timezone)
@@ -43,7 +44,7 @@ const getCachedMatches = (timezone: string, dateStr: string) => unstable_cache(
             gte: start,
             lte: end,
           },
-          sportType: 'FOOTBALL',
+          sportType,
         },
         include: {
           homeTeam: true,
@@ -65,7 +66,7 @@ const getCachedMatches = (timezone: string, dateStr: string) => unstable_cache(
             gt: end, // 오늘 이후
             lte: weekLater,
           },
-          sportType: 'FOOTBALL',
+          sportType,
         },
         include: {
           homeTeam: true,
@@ -84,7 +85,7 @@ const getCachedMatches = (timezone: string, dateStr: string) => unstable_cache(
       return { todayMatches: [], upcomingMatches: [] }
     }
   },
-  [`today-matches-data-${timezone}-${dateStr}`],
+  [`today-matches-data-${timezone}-${dateStr}-${sportType}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )()
 
@@ -112,9 +113,10 @@ export default async function TodayMatchesPage({ params }: Props) {
   const t = await getTranslations({ locale, namespace: 'home' })
   const tCommon = await getTranslations({ locale, namespace: 'common' })
 
-  // 쿠키에서 타임존 가져오기 (기본값: Asia/Seoul)
+  // 쿠키에서 타임존과 스포츠 타입 가져오기
   const cookieStore = await cookies()
   const timezone = cookieStore.get('timezone')?.value || 'Asia/Seoul'
+  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value))
 
   let today = format(new Date(), 'yyyy-MM-dd')
   try {
@@ -129,7 +131,7 @@ export default async function TodayMatchesPage({ params }: Props) {
   }
 
   const dateStr = format(new Date(), 'yyyy-MM-dd')
-  const { todayMatches, upcomingMatches } = await getCachedMatches(timezone, dateStr)
+  const { todayMatches, upcomingMatches } = await getCachedMatches(timezone, dateStr, sportType)
 
   const todayByLeague = groupMatchesByLeague(todayMatches)
   const upcomingByLeague = groupMatchesByLeague(upcomingMatches)

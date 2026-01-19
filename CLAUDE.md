@@ -1,5 +1,10 @@
 # PlayStat - Claude Code 가이드라인
 
+## 개발 환경
+
+- **개발 서버 포트: 3030** (localhost:3030)
+- API 호출 시 반드시 `http://localhost:3030` 사용
+
 ## 프로젝트 개요
 
 PlayStat은 **합법적인 스포츠 데이터 인사이트 플랫폼**입니다.

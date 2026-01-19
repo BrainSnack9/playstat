@@ -77,6 +77,46 @@
     --input: 222 30% 14%;
     --ring: 84 100% 54%;
   }
+
+  html[data-sport="basketball"] {
+    --background: 220 25% 6%;
+    --foreground: 210 20% 96%;
+    --card: 220 22% 10%;
+    --card-foreground: 210 20% 96%;
+    --popover: 220 22% 10%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 220 25% 6%;
+    --secondary: 220 25% 10%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 220 25% 10%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 220 25% 6%;
+    --border: 220 25% 14%;
+    --input: 220 25% 14%;
+    --ring: 25 95% 53%;
+  }
+
+  html[data-sport="baseball"] {
+    --background: 215 28% 6%;
+    --foreground: 210 20% 96%;
+    --card: 215 24% 10%;
+    --card-foreground: 210 20% 96%;
+    --popover: 215 24% 10%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 215 28% 6%;
+    --secondary: 215 28% 10%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 215 28% 10%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 142 76% 36%;
+    --accent-foreground: 210 20% 96%;
+    --border: 215 28% 14%;
+    --input: 215 28% 14%;
+    --ring: 160 84% 39%;
+  }
 }
 
 @layer base {

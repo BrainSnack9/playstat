@@ -13,8 +13,8 @@ export function FormBadge({ form, size = 'md' }: FormBadgeProps) {
 
   const sizeClasses = {
     sm: 'h-5 w-5 text-[10px]',
-    md: 'h-6 w-6 text-xs',
-    lg: 'h-7 w-7 text-xs',
+    md: 'h-[22px] w-[22px] text-[11px]',
+    lg: 'h-6 w-6 text-xs',
   }
 
   return (
@@ -22,13 +22,13 @@ export function FormBadge({ form, size = 'md' }: FormBadgeProps) {
       {formArray.slice(0, 5).map((result, i) => (
         <span
           key={i}
-          className={`flex ${sizeClasses[size]} items-center justify-center rounded font-bold text-white shadow-sm ${
+          className={`flex ${sizeClasses[size]} items-center justify-center rounded-full font-semibold transition-colors ${
             result === 'W'
-              ? 'bg-green-500'
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
               : result === 'D'
-              ? 'bg-gray-400'
+              ? 'bg-slate-100 text-slate-500 dark:bg-slate-700/40 dark:text-slate-400'
               : result === 'L'
-              ? 'bg-red-500'
+              ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-400'
               : 'bg-muted text-muted-foreground'
           }`}
         >

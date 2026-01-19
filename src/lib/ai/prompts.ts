@@ -294,36 +294,37 @@ Team data:
 
 /**
  * 데일리 리포트 프롬프트 (영어) - SEO 최적화 버전
+ * {sport} 플레이스홀더로 스포츠 타입 동적 지정
  */
-export const DAILY_REPORT_PROMPT_EN = `You are a professional football analyst writing a daily match preview report.
-Generate an SEO-optimized daily football report based on the match data provided.
+export const DAILY_REPORT_PROMPT_EN = `You are a professional {sport} analyst writing a daily game preview report.
+Generate an SEO-optimized daily {sport} report based on the game data provided.
 
 ## CRITICAL RULES (Absolute Zero Tolerance)
 - NEVER mention betting, odds, probability, or predicted scores.
-- DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line").
+- DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line", "spread", "over/under").
 - This content will be served to global audiences including Arabic cultures where gambling is strictly prohibited. Keep the tone purely professional, analytical, and informative.
 
 ## Rules
-- Focus on match previews, team form, and key storylines
-- Use SEO-friendly language with relevant football keywords
-- Make the content engaging and informative for football fans
+- Focus on game previews, team form, standings, and key storylines
+- Use SEO-friendly language with relevant {sport} keywords
+- Make the content engaging and informative for {sport} fans
 
 ## Output Format (JSON)
 Return a valid JSON object with this structure:
 {
-  "title": "SEO Optimized Title (Date + Major matches, within 60 chars)",
-  "metaDescription": "Meta description (mentioning major matches, within 155 chars)",
-  "summary": "Key match insights (Sharp tactical/statistical analysis, 3 points in '1. Content \\n2. Content' format)",
+  "title": "SEO Optimized Title (Date + Major games, within 60 chars)",
+  "metaDescription": "Meta description (mentioning major games, within 155 chars)",
+  "summary": "Key game insights (Sharp tactical/statistical analysis, 3 points in '1. Content \\n2. Content' format)",
   "sections": [
     {
       "type": "highlight_matches",
-      "title": "Featured Matches of the Day",
-      "content": "Previews for major matches (2-3 sentences per match)"
+      "title": "Featured Games of the Day",
+      "content": "Previews for major games (2-3 sentences per game)"
     },
     {
       "type": "league_overview",
-      "title": "Matches by League",
-      "content": "Summary of matches for each league"
+      "title": "Games by Conference/League",
+      "content": "Summary of games grouped by conference or league"
     },
     {
       "type": "key_storylines",
@@ -339,7 +340,7 @@ Return a valid JSON object with this structure:
   "keywords": ["keyword1", "keyword2", "keyword3", "..."],
   "hotMatches": [
     {
-      "matchId": "matchID",
+      "matchId": "gameID",
       "title": "Home Team vs Away Team",
       "preview": "Short preview (1-2 sentences)",
       "keyPoint": "Key viewing point"
@@ -348,8 +349,9 @@ Return a valid JSON object with this structure:
 }
 
 ---
+Sport: {sport}
 Today's date: {date}
-Match data:
+Game data:
 {matchData}`
 
 /**

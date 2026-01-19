@@ -1,11 +1,13 @@
 import { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { cookies } from 'next/headers'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Trophy, Globe, TrendingUp } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
+import { SPORT_COOKIE, getSportFromCookie, sportIdToEnum } from '@/lib/sport'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -21,19 +23,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-// 무료 지원 리그 (Football-Data.org)
-const FREE_LEAGUES = [
-  { code: 'PL', name: 'Premier League', country: 'England', slug: 'epl' },
-  { code: 'PD', name: 'La Liga', country: 'Spain', slug: 'laliga' },
-  { code: 'SA', name: 'Serie A', country: 'Italy', slug: 'serie-a' },
-  { code: 'BL1', name: 'Bundesliga', country: 'Germany', slug: 'bundesliga' },
-  { code: 'FL1', name: 'Ligue 1', country: 'France', slug: 'ligue1' },
-  { code: 'CL', name: 'Champions League', country: 'Europe', slug: 'ucl' },
-  { code: 'DED', name: 'Eredivisie', country: 'Netherlands', slug: 'eredivisie' },
-  { code: 'PPL', name: 'Primeira Liga', country: 'Portugal', slug: 'primeira-liga' },
-]
+// 축구 리그 slug 매핑 (기존 호환성 유지)
+const FOOTBALL_LEAGUE_SLUGS: Record<string, string> = {
+  PL: 'epl',
+  PD: 'laliga',
+  SA: 'serie-a',
+  BL1: 'bundesliga',
+  FL1: 'ligue1',
+  CL: 'ucl',
+  DED: 'eredivisie',
+  PPL: 'primeira-liga',
+}
 
 interface LeagueData {
+  id: string
   code: string
   name: string
   country: string
@@ -43,11 +46,11 @@ interface LeagueData {
   currentMatchday?: number | null
 }
 
-async function getLeaguesFromDB(): Promise<LeagueData[]> {
+async function getLeaguesFromDB(sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL'): Promise<LeagueData[]> {
   try {
     const dbLeagues = await prisma.league.findMany({
       where: {
-        sportType: 'FOOTBALL',
+        sportType,
         isActive: true,
       },
       include: {
@@ -55,27 +58,21 @@ async function getLeaguesFromDB(): Promise<LeagueData[]> {
           select: { teams: true },
         },
       },
+      orderBy: { name: 'asc' },
     })
 
-    // DB 리그와 FREE_LEAGUES 매핑
-    return FREE_LEAGUES.map((freeLeague) => {
-      const dbLeague = dbLeagues.find((l) => l.code === freeLeague.code)
-      return {
-        code: freeLeague.code,
-        name: dbLeague?.name || freeLeague.name,
-        country: dbLeague?.country || freeLeague.country,
-        slug: freeLeague.slug,
-        logoUrl: dbLeague?.logoUrl,
-        teamCount: dbLeague?._count.teams || 0,
-        currentMatchday: dbLeague?.currentMatchday,
-      }
-    })
-  } catch {
-    // DB 연결 실패시 기본 데이터 반환
-    return FREE_LEAGUES.map((l) => ({
-      ...l,
-      teamCount: 0,
+    return dbLeagues.map((league) => ({
+      id: league.id,
+      code: league.code || '',
+      name: league.name,
+      country: league.country,
+      slug: league.code ? (FOOTBALL_LEAGUE_SLUGS[league.code] || league.code.toLowerCase()) : league.id,
+      logoUrl: league.logoUrl,
+      teamCount: league._count.teams,
+      currentMatchday: league.currentMatchday,
     }))
+  } catch {
+    return []
   }
 }
 
@@ -140,8 +137,12 @@ export default async function LeaguesPage({ params }: Props) {
   const { locale } = await params
   setRequestLocale(locale)
 
+  // 쿠키에서 스포츠 타입 가져오기
+  const cookieStore = await cookies()
+  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value))
+
   const t = await getTranslations({ locale, namespace: 'league' })
-  const leagues = await getLeaguesFromDB()
+  const leagues = await getLeaguesFromDB(sportType)
 
   const translations = {
     round: t('round'),

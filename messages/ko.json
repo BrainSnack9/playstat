@@ -266,6 +266,7 @@
     "page_title": "리그",
     "page_description": "전 세계 주요 축구 리그의 경기와 AI 분석을 확인하세요",
     "round": "라운드",
+    "rank": "순위",
     "teams": "팀",
     "seo_title": "{name} {season} 시즌",
     "seo_description": "{name} {season} 시즌 순위, 경기 일정, 팀 분석을 확인하세요."
@@ -295,7 +296,9 @@
     "no_sections": "해당 날짜의 심층 분석 섹션이 없습니다.",
     "keywords": "관련 키워드",
     "no_keywords": "관련 키워드가 없습니다.",
-    "football_analysis_title": "{date} 축구 경기 분석"
+    "football_analysis_title": "{date} 축구 경기 분석",
+    "basketball_analysis_title": "{date} NBA 경기 분석",
+    "baseball_analysis_title": "{date} MLB 경기 분석"
   },
   "trends": {
     "winning_streak": "{value}연승 중",

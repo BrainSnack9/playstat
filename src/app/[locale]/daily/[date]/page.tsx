@@ -25,6 +25,7 @@ import { MATCH_STATUS_KEYS } from '@/lib/constants'
 import { CACHE_REVALIDATE, DAILY_REPORT_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
 import { getDateLocale } from '@/lib/utils'
+import { SPORT_COOKIE, getSportFromCookie, sportIdToEnum } from '@/lib/sport'
 
 export const revalidate = DAILY_REPORT_REVALIDATE
 
@@ -51,24 +52,36 @@ interface HotMatch {
   keyPoint: string
 }
 
-const getCachedDailyReport = (dateStr: string) => unstable_cache(
+// 스포츠 타입에 따른 제목 번역 키 반환
+function getTitleKey(sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL'): string {
+  switch (sportType) {
+    case 'BASKETBALL':
+      return 'basketball_analysis_title'
+    case 'BASEBALL':
+      return 'baseball_analysis_title'
+    default:
+      return 'football_analysis_title'
+  }
+}
+
+const getCachedDailyReport = (dateStr: string, sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL') => unstable_cache(
   async () => {
     try {
       const { start } = getUTCDayRange(dateStr === 'today' ? undefined : dateStr)
 
-      return await prisma.dailyReport.findUnique({
-        where: { date: start },
+      return await prisma.dailyReport.findFirst({
+        where: { date: start, sportType },
       })
     } catch {
       return null
     }
   },
-  [`daily-report-${dateStr}`],
+  [`daily-report-${dateStr}-${sportType}`],
   { revalidate: DAILY_REPORT_REVALIDATE, tags: ['daily-report'] }
 )()
 
 // 서버 공유 캐시 적용: 경기 목록 데이터
-const getCachedMatches = (dateStr: string, timezone: string) => unstable_cache(
+const getCachedMatches = (dateStr: string, timezone: string, sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL') => unstable_cache(
   async () => {
     try {
       const { start, end } = getDayRangeInTimezone(dateStr === 'today' ? format(new Date(), 'yyyy-MM-dd') : dateStr, timezone)
@@ -79,6 +92,7 @@ const getCachedMatches = (dateStr: string, timezone: string) => unstable_cache(
             gte: start,
             lte: end,
           },
+          sportType,
         },
         include: {
           league: true,
@@ -92,7 +106,7 @@ const getCachedMatches = (dateStr: string, timezone: string) => unstable_cache(
       return []
     }
   },
-  [`daily-matches-lookup-${dateStr}-${timezone}`],
+  [`daily-matches-lookup-${dateStr}-${timezone}-${sportType}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )()
 
@@ -101,21 +115,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const tDaily = await getTranslations({ locale, namespace: 'daily_report' })
   const tCommon = await getTranslations({ locale, namespace: 'common' })
 
+  const cookieStore = await cookies()
+  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value))
+  const titleKey = getTitleKey(sportType)
+
   // today는 실제 날짜로 리다이렉트 (UTC 기준)
   if (dateStr === 'today') {
     const today = new Date().toISOString().slice(0, 10)
     return {
-      title: tDaily('football_analysis_title', { date: tCommon('home') }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      title: tDaily(titleKey as any, { date: tCommon('home') }),
       alternates: {
         canonical: `/daily/${today}`,
       },
     }
   }
 
-  const report = await getCachedDailyReport(dateStr)
+  const report = await getCachedDailyReport(dateStr, sportType)
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
   const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
-  const cookieStore = await cookies()
   const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
   const offsetMinutes = getTimezoneOffsetAtDate(timezone, utcBase)
   const displayDate = new Date(utcBase.getTime() + offsetMinutes * 60 * 1000)
@@ -141,7 +159,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!report) {
     return {
-      title: tDaily('football_analysis_title', { date: dateFormatted }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      title: tDaily(titleKey as any, { date: dateFormatted }),
       description: tDaily('description'),
     }
   }
@@ -162,7 +181,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     content = null
   }
 
-  const title = content?.title || tDaily('football_analysis_title', { date: dateFormatted })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const title = content?.title || tDaily(titleKey as any, { date: dateFormatted })
   const description = content?.metaDescription || tDaily('description')
 
   return {
@@ -194,12 +214,15 @@ async function JsonLd({
   dateStr,
   matches,
   locale,
+  sportType,
 }: {
   report: Awaited<ReturnType<typeof getCachedDailyReport>>
   dateStr: string
   matches: Awaited<ReturnType<typeof getCachedMatches>>
   locale: string
+  sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL'
 }) {
+  const titleKey = getTitleKey(sportType)
   const tDaily = await getTranslations({ locale, namespace: 'daily_report' })
   const tCommon = await getTranslations({ locale, namespace: 'common' })
   const tMatch = await getTranslations({ locale, namespace: 'match' })
@@ -247,7 +270,8 @@ async function JsonLd({
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
-    headline: content?.title || tDaily('football_analysis_title', { date: dateFormatted }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    headline: content?.title || tDaily(titleKey as any, { date: dateFormatted }),
     description: content?.metaDescription || tDaily('description'),
     datePublished: report?.createdAt ? new Date(report.createdAt).toISOString() : new Date().toISOString(),
     dateModified: report?.updatedAt ? new Date(report.updatedAt).toISOString() : new Date().toISOString(),
@@ -319,6 +343,8 @@ export default async function DailyReportPage({ params }: Props) {
   const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
   const cookieStore = await cookies()
   const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
+  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value))
+  const titleKey = getTitleKey(sportType)
   const offsetMinutes = getTimezoneOffsetAtDate(timezone, utcBase)
   const displayDate = new Date(utcBase.getTime() + offsetMinutes * 60 * 1000)
   if (!isValid(parsed)) {
@@ -326,8 +352,8 @@ export default async function DailyReportPage({ params }: Props) {
   }
 
   const [initialReport, matches] = await Promise.all([
-    getCachedDailyReport(dateStr),
-    getCachedMatches(dateStr, timezone),
+    getCachedDailyReport(dateStr, sportType),
+    getCachedMatches(dateStr, timezone, sportType),
   ])
 
   // 번역은 생성 시점에 완료된 데이터만 사용 (렌더링 중 생성하지 않음)
@@ -373,7 +399,8 @@ export default async function DailyReportPage({ params }: Props) {
       const langData = translations[locale] || translations['en'] || {}
       
       content = {
-        title: langData.title || tDaily('football_analysis_title', { date: dateFormatted }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        title: langData.title || tDaily(titleKey as any, { date: dateFormatted }),
         metaDescription: langData.metaDescription || tDaily('description'),
         summary: langData.summary || report.summary || '',
         sections: (langData.sections && langData.sections.length > 0) ? [...langData.sections] : [],
@@ -416,7 +443,8 @@ export default async function DailyReportPage({ params }: Props) {
     } catch {
       // JSON 파싱 실패 시 일반 텍스트 요약으로 처리
       content = {
-        title: tDaily('football_analysis_title', { date: dateFormatted }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        title: tDaily(titleKey as any, { date: dateFormatted }),
         summary: report.summary || "",
         sections: [],
         keywords: [],
@@ -438,7 +466,7 @@ export default async function DailyReportPage({ params }: Props) {
 
   return (
     <>
-      <JsonLd report={report} dateStr={dateStr} matches={matches} locale={locale} />
+      <JsonLd report={report} dateStr={dateStr} matches={matches} locale={locale} sportType={sportType} />
 
       <div className="container px-6 py-8 md:px-8">
         {/* Breadcrumb */}
@@ -463,7 +491,8 @@ export default async function DailyReportPage({ params }: Props) {
         {/* Page Header - H1 for SEO */}
         <header className="mb-10 text-start max-w-6xl mx-auto">
           <h1 className="text-3xl font-extrabold mb-3 break-keep sm:text-4xl">
-            {content?.title || tDaily('football_analysis_title', { date: dateFormatted })}
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {content?.title || tDaily(titleKey as any, { date: dateFormatted })}
           </h1>
           {isTranslating && (
             <Badge

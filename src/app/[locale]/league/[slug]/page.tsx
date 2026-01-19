@@ -17,6 +17,9 @@ import { MatchStatusBadge } from '@/components/match-status-badge'
 import { getTranslations } from 'next-intl/server'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
 import { getDateLocale } from '@/lib/utils'
+import { cookies } from 'next/headers'
+import { getSportFromCookie, sportIdToEnum, SPORT_COOKIE, type SportId } from '@/lib/sport'
+import type { SportType } from '@prisma/client'
 
 interface Props {
   params: Promise<{ locale: string; slug: string }>
@@ -24,8 +27,8 @@ interface Props {
 
 export const revalidate = CACHE_REVALIDATE
 
-// Slug to competition code mapping
-const SLUG_TO_CODE: Record<string, string> = {
+// Football Slug to competition code mapping
+const FOOTBALL_SLUG_TO_CODE: Record<string, string> = {
   // 코드 기반 slug (소문자)
   pl: 'PL',
   pd: 'PD',
@@ -46,20 +49,44 @@ const SLUG_TO_CODE: Record<string, string> = {
   'primeira-liga': 'PPL',
 }
 
+// Basketball Slug to code mapping
+const BASKETBALL_SLUG_TO_CODE: Record<string, string> = {
+  nba: 'NBA',
+}
+
+// Baseball Slug to code mapping
+const BASEBALL_SLUG_TO_CODE: Record<string, string> = {
+  mlb: 'MLB',
+}
+
 // 챔피언스리그 로고 URL (DB에 없을 경우 대체)
 const LEAGUE_LOGOS: Record<string, string> = {
   CL: 'https://crests.football-data.org/CL.png',
+  NBA: 'https://a.espncdn.com/i/teamlogos/leagues/500/nba.png',
+  MLB: 'https://a.espncdn.com/i/teamlogos/leagues/500/mlb.png',
+}
+
+// Get code from slug based on sport
+function getCodeFromSlug(slug: string, sport: SportId): string | null {
+  if (sport === 'basketball') {
+    return BASKETBALL_SLUG_TO_CODE[slug] || slug.toUpperCase()
+  }
+  if (sport === 'baseball') {
+    return BASEBALL_SLUG_TO_CODE[slug] || slug.toUpperCase()
+  }
+  return FOOTBALL_SLUG_TO_CODE[slug] || null
 }
 
 // 서버 공유 캐시 적용: 리그 데이터 조회
-const getCachedLeagueData = (slug: string) => unstable_cache(
+const getCachedLeagueData = (slug: string, sportType: SportType) => unstable_cache(
   async () => {
-    const code = SLUG_TO_CODE[slug]
+    const sportId = sportType.toLowerCase() as SportId
+    const code = getCodeFromSlug(slug, sportId)
     if (!code) return null
 
     try {
       const league = await prisma.league.findFirst({
-        where: { code },
+        where: { code, sportType },
         include: {
           teams: {
             include: {
@@ -95,7 +122,7 @@ const getCachedLeagueData = (slug: string) => unstable_cache(
       return null
     }
   },
-  [`league-page-data-${slug}`],
+  [`league-page-data-${sportType}-${slug}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )()
 
@@ -106,7 +133,12 @@ type MatchWithRelations = LeagueWithRelations['matches'][number]
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, locale } = await params
-  const league = await getCachedLeagueData(slug)
+  const cookieStore = await cookies()
+  const sportCookie = cookieStore.get(SPORT_COOKIE)?.value
+  const sport = getSportFromCookie(sportCookie)
+  const sportType = sportIdToEnum(sport)
+
+  const league = await getCachedLeagueData(slug, sportType)
 
   if (!league) {
     return { title: 'League Not Found' }
@@ -130,27 +162,59 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export async function generateStaticParams() {
-  return Object.keys(SLUG_TO_CODE).map((slug) => ({ slug }))
+  const allSlugs = [
+    ...Object.keys(FOOTBALL_SLUG_TO_CODE),
+    ...Object.keys(BASKETBALL_SLUG_TO_CODE),
+    ...Object.keys(BASEBALL_SLUG_TO_CODE),
+  ]
+  return allSlugs.map((slug) => ({ slug }))
 }
 
 export default async function LeaguePage({ params }: Props) {
   const { locale, slug } = await params
   setRequestLocale(locale)
 
+  const cookieStore = await cookies()
+  const sportCookie = cookieStore.get(SPORT_COOKIE)?.value
+  const sport = getSportFromCookie(sportCookie)
+  const sportType = sportIdToEnum(sport)
+
   const tMatch = await getTranslations({ locale, namespace: 'match' })
   const tLeague = await getTranslations({ locale, namespace: 'league' })
   const tHome = await getTranslations({ locale, namespace: 'home' })
   const tCommon = await getTranslations({ locale, namespace: 'common' })
-  const league = await getCachedLeagueData(slug)
+  const league = await getCachedLeagueData(slug, sportType)
 
   if (!league) {
     notFound()
   }
 
+  const isBasketball = sportType === 'BASKETBALL'
+  const isBaseball = sportType === 'BASEBALL'
+  const isFootball = sportType === 'FOOTBALL'
+
   // 순위표 데이터 정리
   const standings = league.teams
     .filter((t): t is TeamWithStats & { seasonStats: NonNullable<TeamWithStats['seasonStats']> } => !!t.seasonStats)
     .sort((a, b) => (a.seasonStats.rank || 999) - (b.seasonStats.rank || 999))
+
+  // 농구: 컨퍼런스별 그룹핑
+  const getConference = (team: typeof standings[number]) => {
+    const additional = team.seasonStats.additionalStats as { conference?: string } | null
+    return additional?.conference || 'Unknown'
+  }
+
+  const eastTeams = isBasketball
+    ? standings
+        .filter(t => getConference(t) === 'East')
+        .map((t, i) => ({ ...t, conferenceRank: i + 1 }))
+    : []
+
+  const westTeams = isBasketball
+    ? standings
+        .filter(t => getConference(t) === 'West')
+        .map((t, i) => ({ ...t, conferenceRank: i + 1 }))
+    : []
 
   const logoUrl = league.logoUrl || LEAGUE_LOGOS[league.code || '']
 
@@ -207,54 +271,202 @@ export default async function LeaguePage({ params }: Props) {
 
         {/* Standings */}
         <TabsContent value="standings">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                {tMatch('league_standings')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {standings.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
+          {standings.length === 0 ? (
+            <Card>
+              <CardContent className="py-8">
+                <p className="text-center text-muted-foreground">
                   {tMatch('no_standings_data')}
                 </p>
-              ) : (
+              </CardContent>
+            </Card>
+          ) : isBasketball ? (
+            /* 농구: 컨퍼런스별 탭 */
+            <Tabs defaultValue="east" className="space-y-4">
+              <TabsList className="grid w-full max-w-md grid-cols-2">
+                <TabsTrigger value="east">🏀 Eastern Conference</TabsTrigger>
+                <TabsTrigger value="west">🏀 Western Conference</TabsTrigger>
+              </TabsList>
+
+              {/* Eastern Conference */}
+              <TabsContent value="east">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <TrendingUp className="h-5 w-5" />
+                      Eastern Conference
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b text-left text-sm text-muted-foreground">
+                            <th className="pb-3 pr-4 text-center">{tLeague('rank')}</th>
+                            <th className="pb-3 pr-4">{tMatch('team')}</th>
+                            <th className="pb-3 pr-4 text-center">{tMatch('games')}</th>
+                            <th className="pb-3 pr-4 text-center">{tMatch('win')}</th>
+                            <th className="pb-3 pr-4 text-center">{tMatch('loss')}</th>
+                            <th className="pb-3 pr-4 text-center">PCT</th>
+                            <th className="pb-3 pr-4 text-center">{tMatch('recent_form')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {eastTeams.map((team) => {
+                            const stats = team.seasonStats
+                            const winPct = stats.gamesPlayed > 0
+                              ? (stats.wins / stats.gamesPlayed).toFixed(3).replace(/^0/, '')
+                              : '.000'
+                            const rank = team.conferenceRank
+                            const rankDisplay = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank
+
+                            return (
+                              <tr key={team.id} className="border-b last:border-0 hover:bg-muted/50">
+                                <td className="py-3 pr-4 text-center font-medium">{rankDisplay}</td>
+                                <td className="py-3 pr-4">
+                                  <div className="flex items-center gap-2">
+                                    {team.logoUrl ? (
+                                      <Image src={team.logoUrl} alt={team.name} width={28} height={28} className="rounded" />
+                                    ) : (
+                                      <div className="flex h-7 w-7 items-center justify-center rounded bg-muted">
+                                        <span className="text-xs font-bold">{team.tla || team.shortName}</span>
+                                      </div>
+                                    )}
+                                    <span className="font-medium">{team.name}</span>
+                                  </div>
+                                </td>
+                                <td className="py-3 pr-4 text-center">{stats.gamesPlayed}</td>
+                                <td className="py-3 pr-4 text-center text-green-600">{stats.wins}</td>
+                                <td className="py-3 pr-4 text-center text-red-600">{stats.losses}</td>
+                                <td className="py-3 pr-4 text-center font-medium">{winPct}</td>
+                                <td className="py-3 pr-4">
+                                  <div className="flex justify-center">
+                                    <FormBadge form={stats.form} />
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Western Conference */}
+              <TabsContent value="west">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <TrendingUp className="h-5 w-5" />
+                      Western Conference
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b text-left text-sm text-muted-foreground">
+                            <th className="pb-3 pr-4 text-center">{tLeague('rank')}</th>
+                            <th className="pb-3 pr-4">{tMatch('team')}</th>
+                            <th className="pb-3 pr-4 text-center">{tMatch('games')}</th>
+                            <th className="pb-3 pr-4 text-center">{tMatch('win')}</th>
+                            <th className="pb-3 pr-4 text-center">{tMatch('loss')}</th>
+                            <th className="pb-3 pr-4 text-center">PCT</th>
+                            <th className="pb-3 pr-4 text-center">{tMatch('recent_form')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {westTeams.map((team) => {
+                            const stats = team.seasonStats
+                            const winPct = stats.gamesPlayed > 0
+                              ? (stats.wins / stats.gamesPlayed).toFixed(3).replace(/^0/, '')
+                              : '.000'
+                            const rank = team.conferenceRank
+                            const rankDisplay = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank
+
+                            return (
+                              <tr key={team.id} className="border-b last:border-0 hover:bg-muted/50">
+                                <td className="py-3 pr-4 text-center font-medium">{rankDisplay}</td>
+                                <td className="py-3 pr-4">
+                                  <div className="flex items-center gap-2">
+                                    {team.logoUrl ? (
+                                      <Image src={team.logoUrl} alt={team.name} width={28} height={28} className="rounded" />
+                                    ) : (
+                                      <div className="flex h-7 w-7 items-center justify-center rounded bg-muted">
+                                        <span className="text-xs font-bold">{team.tla || team.shortName}</span>
+                                      </div>
+                                    )}
+                                    <span className="font-medium">{team.name}</span>
+                                  </div>
+                                </td>
+                                <td className="py-3 pr-4 text-center">{stats.gamesPlayed}</td>
+                                <td className="py-3 pr-4 text-center text-green-600">{stats.wins}</td>
+                                <td className="py-3 pr-4 text-center text-red-600">{stats.losses}</td>
+                                <td className="py-3 pr-4 text-center font-medium">{winPct}</td>
+                                <td className="py-3 pr-4">
+                                  <div className="flex justify-center">
+                                    <FormBadge form={stats.form} />
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            /* 축구/야구: 일반 순위표 */
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  {tMatch('league_standings')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b text-left text-sm text-muted-foreground">
-                        <th className="pb-3 pr-4">#</th>
+                        <th className="pb-3 pr-4 text-center">{tLeague('rank')}</th>
                         <th className="pb-3 pr-4">{tMatch('team')}</th>
                         <th className="pb-3 pr-4 text-center">{tMatch('games')}</th>
                         <th className="pb-3 pr-4 text-center">{tMatch('win')}</th>
-                        <th className="pb-3 pr-4 text-center">{tMatch('draw')}</th>
+                        {isFootball && <th className="pb-3 pr-4 text-center">{tMatch('draw')}</th>}
                         <th className="pb-3 pr-4 text-center">{tMatch('loss')}</th>
-                        <th className="pb-3 pr-4 text-center">{tMatch('goals_for_short')}</th>
-                        <th className="pb-3 pr-4 text-center">{tMatch('goals_against_short')}</th>
-                        <th className="pb-3 pr-4 text-center">{tMatch('goal_difference_short')}</th>
+                        {isFootball && (
+                          <>
+                            <th className="pb-3 pr-4 text-center">{tMatch('goals_for_short')}</th>
+                            <th className="pb-3 pr-4 text-center">{tMatch('goals_against_short')}</th>
+                            <th className="pb-3 pr-4 text-center">{tMatch('goal_difference_short')}</th>
+                          </>
+                        )}
+                        {isBaseball && <th className="pb-3 pr-4 text-center">PCT</th>}
                         <th className="pb-3 pr-4 text-center">{tMatch('recent_form')}</th>
-                        <th className="pb-3 text-center">{tMatch('points')}</th>
+                        {isFootball && <th className="pb-3 text-center">{tMatch('points')}</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {standings.map((team) => {
                         const stats = team.seasonStats
                         const gd = (stats.goalsFor || 0) - (stats.goalsAgainst || 0)
+                        const winPct = stats.gamesPlayed > 0
+                          ? (stats.wins / stats.gamesPlayed).toFixed(3).replace(/^0/, '')
+                          : '.000'
+                        const rankDisplay = stats.rank === 1 ? '🥇' : stats.rank === 2 ? '🥈' : stats.rank === 3 ? '🥉' : stats.rank
 
                         return (
                           <tr key={team.id} className="border-b last:border-0 hover:bg-muted/50">
-                            <td className="py-3 pr-4 font-medium">{stats.rank}</td>
+                            <td className="py-3 pr-4 text-center font-medium">{rankDisplay}</td>
                             <td className="py-3 pr-4">
                               <div className="flex items-center gap-2">
                                 {team.logoUrl ? (
-                                  <Image
-                                    src={team.logoUrl}
-                                    alt={team.name}
-                                    width={28}
-                                    height={28}
-                                    className="rounded"
-                                  />
+                                  <Image src={team.logoUrl} alt={team.name} width={28} height={28} className="rounded" />
                                 ) : (
                                   <div className="flex h-7 w-7 items-center justify-center rounded bg-muted">
                                     <span className="text-xs font-bold">{team.tla || team.shortName}</span>
@@ -265,29 +477,35 @@ export default async function LeaguePage({ params }: Props) {
                             </td>
                             <td className="py-3 pr-4 text-center">{stats.gamesPlayed}</td>
                             <td className="py-3 pr-4 text-center text-green-600">{stats.wins}</td>
-                            <td className="py-3 pr-4 text-center text-gray-500">{stats.draws}</td>
+                            {isFootball && <td className="py-3 pr-4 text-center text-gray-500">{stats.draws}</td>}
                             <td className="py-3 pr-4 text-center text-red-600">{stats.losses}</td>
-                            <td className="py-3 pr-4 text-center">{stats.goalsFor}</td>
-                            <td className="py-3 pr-4 text-center">{stats.goalsAgainst}</td>
-                            <td className="py-3 pr-4 text-center">
-                              <span className={gd > 0 ? 'text-green-600' : gd < 0 ? 'text-red-600' : ''}>
-                                {gd > 0 ? '+' : ''}
-                                {gd}
-                              </span>
-                            </td>
+                            {isFootball && (
+                              <>
+                                <td className="py-3 pr-4 text-center">{stats.goalsFor}</td>
+                                <td className="py-3 pr-4 text-center">{stats.goalsAgainst}</td>
+                                <td className="py-3 pr-4 text-center">
+                                  <span className={gd > 0 ? 'text-green-600' : gd < 0 ? 'text-red-600' : ''}>
+                                    {gd > 0 ? '+' : ''}{gd}
+                                  </span>
+                                </td>
+                              </>
+                            )}
+                            {isBaseball && <td className="py-3 pr-4 text-center font-medium">{winPct}</td>}
                             <td className="py-3 pr-4">
-                              <FormBadge form={stats.form} />
+                              <div className="flex justify-center">
+                                <FormBadge form={stats.form} />
+                              </div>
                             </td>
-                            <td className="py-3 text-center font-bold text-lg">{stats.points}</td>
+                            {isFootball && <td className="py-3 text-center font-bold text-lg">{stats.points}</td>}
                           </tr>
                         )
                       })}
                     </tbody>
                   </table>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Fixtures */}

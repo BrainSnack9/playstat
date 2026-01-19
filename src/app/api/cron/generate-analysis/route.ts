@@ -7,8 +7,9 @@ import {
   type MatchAnalysisInputData,
 } from '@/lib/ai/prompts'
 import { addHours } from 'date-fns'
-import { type PrismaClient, Prisma } from '@prisma/client'
+import { type PrismaClient, Prisma, SportType } from '@prisma/client'
 import { analyzeTeamTrend, getMatchCombinedTrend } from '@/lib/ai/trend-engine'
+import { getSportFromRequest, sportIdToEnum } from '@/lib/sport'
 
 import { revalidateTag } from 'next/cache'
 
@@ -42,6 +43,10 @@ export async function GET(request: Request) {
   const startTime = Date.now()
   const results: { matchId: string; success: boolean; error?: string }[] = []
 
+  // sport 파라미터로 스포츠 타입 필터 (기본값: 전체)
+  const sportType = getSportFromRequest(request)
+  const sportTypeEnum = sportIdToEnum(sportType) as SportType
+
   try {
     const now = new Date()
     const in48Hours = addHours(now, 48)
@@ -49,6 +54,7 @@ export async function GET(request: Request) {
     // 48시간 이내 경기 중 아직 분석이 없는 것들 또는 다국어 번역이 누락된 것들 조회
     const matchesNeedingAnalysis = await prisma.match.findMany({
       where: {
+        sportType: sportTypeEnum,
         kickoffAt: {
           gte: now,
           lte: in48Hours,

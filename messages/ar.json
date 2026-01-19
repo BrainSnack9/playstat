@@ -265,6 +265,7 @@
     "page_title": "الدوريات",
     "page_description": "استكشف دوريات كرة القدم في العالم مع تحليل مباريات مدعوم بالذكاء الاصطناعي",
     "round": "الجولة",
+    "rank": "المركز",
     "teams": "فرق",
     "seo_title": "موسم {season} لـ {name}",
     "seo_description": "تحقق من ترتيب موسم {season} لـ {name}، والمباريات، وتحليل الفريق."
@@ -293,6 +294,8 @@
     "keywords": "الكلمات المفتاحية",
     "no_keywords": "لم يتم العثور على كلمات مفتاحية ذات صلة.",
     "football_analysis_title": "تحليل مباريات كرة القدم لليوم {date}",
+    "basketball_analysis_title": "معاينة مباريات NBA لليوم {date}",
+    "baseball_analysis_title": "معاينة مباريات MLB لليوم {date}",
     "no_news": "تعذر تحميل آخر الأخبار.",
     "try_again": "يرجى المحاولة مرة أخرى لاحقاً."
   },
