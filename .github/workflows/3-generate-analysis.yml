@@ -11,20 +11,51 @@ env:
 jobs:
   generate-analysis:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
-      - name: Generate Analysis
+      - name: Generate Analysis (with retry for remaining matches)
         run: |
           echo "🤖 Generating AI analysis..."
-          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.API_BASE_URL }}/api/cron/generate-analysis" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --max-time 600)
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-          echo "Response: $body"
-          echo "HTTP Code: $http_code"
-          if [ "$http_code" -ge 400 ]; then
-            echo "❌ Failed"
-            exit 1
+          max_iterations=5
+          iteration=1
+
+          while [ $iteration -le $max_iterations ]; do
+            echo ""
+            echo "=== Iteration $iteration/$max_iterations ==="
+
+            response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.API_BASE_URL }}/api/cron/generate-analysis" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              --max-time 600)
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+
+            echo "Response: $body"
+            echo "HTTP Code: $http_code"
+
+            if [ "$http_code" -ge 400 ]; then
+              echo "❌ Failed with HTTP $http_code"
+              exit 1
+            fi
+
+            # Check if there are more matches to process
+            has_more=$(echo "$body" | jq -r '.hasMore // false')
+            remaining=$(echo "$body" | jq -r '.remaining // 0')
+            generated=$(echo "$body" | jq -r '.analysesGenerated // 0')
+
+            echo "✅ Generated: $generated, Remaining: $remaining"
+
+            if [ "$has_more" != "true" ] || [ "$remaining" -eq 0 ]; then
+              echo "🎉 All matches processed!"
+              break
+            fi
+
+            echo "⏳ More matches remaining, waiting 10 seconds before next batch..."
+            sleep 10
+            iteration=$((iteration + 1))
+          done
+
+          if [ $iteration -gt $max_iterations ]; then
+            echo "⚠️ Reached max iterations, some matches may still need processing"
           fi
+
           echo "✅ Completed"

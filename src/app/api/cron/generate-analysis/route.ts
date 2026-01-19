@@ -74,19 +74,26 @@ export async function GET(request: Request) {
     console.log(`[Cron] collect-team-data completed at ${teamDataLog.executedAt}, proceeding...`)
     const in48Hours = addHours(now, 48)
 
+    const whereCondition = {
+      kickoffAt: {
+        gte: now,
+        lte: in48Hours,
+      },
+      status: { in: ['SCHEDULED', 'TIMED'] },
+      OR: [
+        { matchAnalysis: { is: null } },
+        { matchAnalysis: { translations: { equals: Prisma.AnyNull } } }
+      ]
+    } as unknown as Prisma.MatchWhereInput
+
+    // 전체 개수 먼저 조회
+    const totalNeedingAnalysis = await prisma.match.count({ where: whereCondition })
+    console.log(`[Cron] Total matches needing analysis: ${totalNeedingAnalysis}`)
+
     // 48시간 이내 경기 중 아직 분석이 없는 것들 또는 다국어 번역이 누락된 것들 조회
+    const BATCH_SIZE = 10 // 5분 제한 내 안전하게 처리 가능한 수 (경기당 약 25-30초)
     const matchesNeedingAnalysis = await prisma.match.findMany({
-      where: {
-        kickoffAt: {
-          gte: now,
-          lte: in48Hours,
-        },
-        status: { in: ['SCHEDULED', 'TIMED'] },
-        OR: [
-          { matchAnalysis: { is: null } },
-          { matchAnalysis: { translations: { equals: Prisma.AnyNull } } }
-        ]
-      } as unknown as Prisma.MatchWhereInput,
+      where: whereCondition,
       include: {
         league: true,
         matchAnalysis: true,
@@ -103,7 +110,8 @@ export async function GET(request: Request) {
           },
         },
       },
-      take: 5,
+      orderBy: { kickoffAt: 'asc' },
+      take: BATCH_SIZE,
     })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -222,10 +230,15 @@ export async function GET(request: Request) {
       },
     })
 
+    const remaining = totalNeedingAnalysis - results.filter((r) => r.success).length
+
     return NextResponse.json({
       success: true,
       duration,
       analysesGenerated: results.filter((r) => r.success).length,
+      totalNeeded: totalNeedingAnalysis,
+      remaining,
+      hasMore: remaining > 0,
       results,
     })
   } catch (error) {
