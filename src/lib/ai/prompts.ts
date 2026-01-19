@@ -303,6 +303,13 @@ Generate an SEO-optimized daily football report based on the match data provided
 - DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line").
 - This content will be served to global audiences including Arabic cultures where gambling is strictly prohibited. Keep the tone purely professional, analytical, and informative.
 
+## DATE/TIME RULES (Important for Global Audience)
+- NEVER use day-of-week references like "This Tuesday", "Today", "Tonight", "This weekend", etc.
+- ALWAYS use explicit dates like "January 20" or "Jan 20" instead.
+- Reason: Users are in different timezones (US, Europe, Asia) and the day of week varies by location.
+- BAD examples: "This Tuesday's action...", "Tonight's fixtures...", "Today we have..."
+- GOOD examples: "January 20 action...", "The Jan 20 fixtures...", "On January 20..."
+
 ## Rules
 - Focus on match previews, team form, and key storylines
 - Use SEO-friendly language with relevant football keywords

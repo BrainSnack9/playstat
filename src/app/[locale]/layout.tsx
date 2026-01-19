@@ -69,7 +69,23 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
           <TimezoneDetector />
           <div className="flex min-h-screen flex-col">
             <Header />
-            <main className="flex-1">{children}</main>
+            {/* 메인 컨텐츠 + 사이드 광고 레이아웃 */}
+            <div className="flex-1 flex justify-center">
+              <div className="flex w-full max-w-screen-xl">
+                {/* 왼쪽 사이드바 광고 - 추후 활성화 */}
+                {/* <aside className="hidden xl:flex flex-col items-center gap-4 p-4 sticky top-20 h-fit">
+                  <AdPlaceholder slot="sidebar-left" />
+                </aside> */}
+
+                {/* 메인 콘텐츠 */}
+                <main className="flex-1 min-w-0">{children}</main>
+
+                {/* 오른쪽 사이드바 광고 - 추후 활성화 */}
+                {/* <aside className="hidden xl:flex flex-col items-center gap-4 p-4 sticky top-20 h-fit">
+                  <AdPlaceholder slot="sidebar-right" />
+                </aside> */}
+              </div>
+            </div>
             <Footer />
           </div>
         </NextIntlClientProvider>

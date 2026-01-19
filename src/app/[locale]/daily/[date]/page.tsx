@@ -17,10 +17,10 @@ import { Link } from '@/i18n/routing'
 import { format, parse, isValid, addDays } from 'date-fns'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
-import { getDayRangeInTimezone, getTimezoneFromCookies, getTimezoneOffsetAtDate, getUTCDayRange } from '@/lib/timezone'
-import { ensureDailyReportTranslations } from '@/lib/ai/translate'
+import { getDayRangeInTimezone, getTimezoneFromCookies, getTimezoneOffsetAtDate, getUTCDayRange, getTodayRangeInTimezone } from '@/lib/timezone'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
+import { LocalTime } from '@/components/local-time'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
 import { CACHE_REVALIDATE, DAILY_REPORT_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
@@ -309,9 +309,12 @@ export default async function DailyReportPage({ params }: Props) {
   const tDaily = await getTranslations({ locale, namespace: 'daily_report' })
   const tMatch = await getTranslations({ locale, namespace: 'match' })
 
-  // today는 실제 날짜로 리다이렉트 (UTC 기준)
+  // today는 사용자 타임존 기준 "오늘" 날짜로 리다이렉트
   if (dateStr === 'today') {
-    const today = new Date().toISOString().slice(0, 10)
+    const cookieStore = await cookies()
+    const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
+    const { start } = getTodayRangeInTimezone(timezone)
+    const today = format(start, 'yyyy-MM-dd')
     redirect(`/daily/${today}`)
   }
 
@@ -551,9 +554,7 @@ export default async function DailyReportPage({ params }: Props) {
                                   <Badge variant="secondary" className="text-xs">
                                     {match.league.name}
                                   </Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    {format(match.kickoffAt, 'HH:mm')}
-                                  </span>
+                                  <LocalTime utcTime={match.kickoffAt} formatStr="HH:mm" className="text-xs text-muted-foreground" />
                                 </div>
                                 <h3 className="font-semibold mb-1 text-start">{hot.title}</h3>
                                 <p className="text-sm text-muted-foreground mb-2 text-start line-clamp-2">
@@ -659,7 +660,7 @@ export default async function DailyReportPage({ params }: Props) {
                                   <div className="flex items-center gap-3 flex-1">
                                     {/* Time */}
                                     <div className={`text-sm font-bold w-12 text-center ${isLive ? 'text-red-500 animate-pulse' : ''}`}>
-                                      {format(new Date(match.kickoffAt), 'HH:mm')}
+                                      <LocalTime utcTime={match.kickoffAt} formatStr="HH:mm" />
                                     </div>
 
                                     {/* Teams */}

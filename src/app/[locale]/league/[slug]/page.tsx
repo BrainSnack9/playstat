@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Trophy, Calendar, TrendingUp, TrendingDown, ChevronLeft } from 'lucide-react'
 import { Link } from '@/i18n/routing'
-import { format } from 'date-fns'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
@@ -14,9 +13,9 @@ import { unstable_cache } from 'next/cache'
 import { generateMetadata as buildMetadata, generateLeagueSEO } from '@/lib/seo'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
+import { LocalTime, LocalDateTime } from '@/components/local-time'
 import { getTranslations } from 'next-intl/server'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
-import { getDateLocale } from '@/lib/utils'
 
 interface Props {
   params: Promise<{ locale: string; slug: string }>
@@ -140,7 +139,6 @@ export default async function LeaguePage({ params }: Props) {
   const tMatch = await getTranslations({ locale, namespace: 'match' })
   const tLeague = await getTranslations({ locale, namespace: 'league' })
   const tHome = await getTranslations({ locale, namespace: 'home' })
-  const tCommon = await getTranslations({ locale, namespace: 'common' })
   const league = await getCachedLeagueData(slug)
 
   if (!league) {
@@ -348,23 +346,9 @@ export default async function LeaguePage({ params }: Props) {
                                 {match.homeScore ?? 0} - {match.awayScore ?? 0}
                               </span>
                             ) : (
-                              <span className="text-lg font-medium">
-                                {format(new Date(match.kickoffAt), 'HH:mm')}
-                              </span>
+                              <LocalTime utcTime={match.kickoffAt} formatStr="HH:mm" className="text-lg font-medium" />
                             )}
-                            <span className="text-xs text-muted-foreground mt-1">
-                              {(() => {
-                                try {
-                                  const mediumFormat = tCommon('date_medium_format')
-                                  if (mediumFormat && mediumFormat !== 'date_medium_format') {
-                                    return format(new Date(match.kickoffAt), mediumFormat, { locale: getDateLocale(locale) })
-                                  }
-                                  return format(new Date(match.kickoffAt), 'MMM d')
-                                } catch {
-                                  return format(new Date(match.kickoffAt), 'MM-dd')
-                                }
-                              })()}
-                            </span>
+                            <LocalDateTime utcTime={match.kickoffAt} dateFormat="MM/dd" timeFormat="" className="text-xs text-muted-foreground mt-1" />
                             {match.matchAnalysis && (
                               <Badge variant="outline" className="mt-1 text-xs">
                                 {tMatch('ai_analysis')}

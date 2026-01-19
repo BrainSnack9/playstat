@@ -71,6 +71,22 @@
   .container {
     @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
   }
+
+  /* 이미지 드래그 방지 */
+  img {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
+    pointer-events: none;
+  }
+
+  /* 클릭 가능한 이미지(링크 안 이미지)는 pointer-events 허용 */
+  a img,
+  button img {
+    pointer-events: auto;
+  }
 }
 
 /* Custom styles for PlayStat */

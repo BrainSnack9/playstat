@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { openai, AI_MODELS, TOKEN_LIMITS } from '@/lib/openai'
 import type { PrismaClient } from '@prisma/client'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { getKSTDayRange } from '@/lib/timezone'
 
@@ -20,7 +20,7 @@ async function getPrisma(): Promise<PrismaClient> {
 
 /**
  * GET /api/cron/generate-daily-report
- * 매일 새벽에 당일 데일리 리포트 생성
+ * 매일 새벽에 "내일" 데일리 리포트 미리 생성
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -63,16 +63,22 @@ export async function GET(request: Request) {
 
     console.log(`[Cron] generate-analysis completed at ${analysisLog.executedAt}, proceeding...`)
 
-    // 한국 시간(KST) 기준으로 오늘 날짜 계산
-    const { start: todayStart, end: todayEnd, kstDate } = getKSTDayRange()
+    // 한국 시간(KST) 기준으로 "내일" 날짜 계산
+    // 크론은 새벽에 실행되므로 내일 리포트를 미리 생성
+    const { start, end, kstDate } = getKSTDayRange()
+    const tomorrowKstDate = addDays(kstDate, 1)
+    const tomorrowStart = addDays(start, 1)
+    const tomorrowEnd = addDays(end, 1)
 
-    const dateStr = format(kstDate, 'yyyy-MM-dd')
-    const dateKo = format(kstDate, 'yyyy년 M월 d일 (EEEE)', { locale: ko })
-    const dateEn = format(kstDate, 'EEEE, MMMM do, yyyy')
+    const dateStr = format(tomorrowKstDate, 'yyyy-MM-dd')
+    const dateKo = format(tomorrowKstDate, 'yyyy년 M월 d일 (EEEE)', { locale: ko })
+    const dateEn = format(tomorrowKstDate, 'EEEE, MMMM do, yyyy')
 
-    // 이미 오늘 리포트가 있는지 확인
+    console.log(`[Cron] Generating daily report for TOMORROW: ${dateStr}`)
+
+    // 이미 내일 리포트가 있는지 확인
     const existingReport = await prisma.dailyReport.findUnique({
-      where: { date: todayStart },
+      where: { date: tomorrowStart },
     })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -84,12 +90,12 @@ export async function GET(request: Request) {
       })
     }
 
-    // 오늘 경기 조회
-    const todayMatches = await prisma.match.findMany({
+    // 내일 경기 조회
+    const tomorrowMatches = await prisma.match.findMany({
       where: {
         kickoffAt: {
-          gte: todayStart,
-          lte: todayEnd,
+          gte: tomorrowStart,
+          lte: tomorrowEnd,
         },
         status: { in: ['SCHEDULED', 'TIMED'] },
       },
@@ -106,11 +112,11 @@ export async function GET(request: Request) {
       orderBy: { kickoffAt: 'asc' },
     })
 
-    if (todayMatches.length === 0) {
+    if (tomorrowMatches.length === 0) {
       // 경기가 없으면 간단한 리포트 생성
       await prisma.dailyReport.create({
         data: {
-          date: todayStart,
+          date: tomorrowStart,
           sportType: 'FOOTBALL',
           summary: `${dateKo} - 오늘은 주요 리그 경기가 예정되어 있지 않습니다.`,
           hotMatches: [],
@@ -126,7 +132,7 @@ export async function GET(request: Request) {
     }
 
     // AI 입력 데이터 구성
-    const matchData = todayMatches.map((match) => ({
+    const matchData = tomorrowMatches.map((match) => ({
       id: match.id,
       league: match.league.name,
       leagueCode: match.league.code,
@@ -192,13 +198,13 @@ export async function GET(request: Request) {
     }
 
     const report = await prisma.dailyReport.upsert({
-      where: { date: todayStart },
+      where: { date: tomorrowStart },
       update: {
         translations: { en: reportData },
         summary: JSON.stringify(reportData), // 하위 호환성
       },
       create: {
-        date: todayStart,
+        date: tomorrowStart,
         sportType: 'FOOTBALL',
         translations: { en: reportData },
         summary: JSON.stringify(reportData),
@@ -224,7 +230,7 @@ export async function GET(request: Request) {
         result: 'success',
         details: {
           reportId: report.id,
-          matchCount: todayMatches.length,
+          matchCount: tomorrowMatches.length,
           date: dateStr,
         },
         duration,
@@ -234,7 +240,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       reportId: report.id,
-      matchCount: todayMatches.length,
+      matchCount: tomorrowMatches.length,
       duration,
     })
   } catch (error) {

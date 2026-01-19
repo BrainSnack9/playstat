@@ -22,10 +22,10 @@ import { CACHE_REVALIDATE } from '@/lib/cache'
 import { generateMetadata as buildMetadata, generateMatchSEO, generateMatchJsonLd } from '@/lib/seo'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
+import { LocalTime, LocalFullDateTime } from '@/components/local-time'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
 import { ensureMatchAnalysisTranslations } from '@/lib/ai/translate'
 import { unstable_cache } from 'next/cache'
-import { getDateLocale } from '@/lib/utils'
 
 export const revalidate = CACHE_REVALIDATE
 
@@ -121,16 +121,9 @@ export default async function MatchPage({ params, searchParams }: Props) {
     ? { ...initialMatch, matchAnalysis: await ensureMatchAnalysisTranslations(initialMatch.matchAnalysis) }
     : initialMatch
 
-  let kickoffDate = format(new Date(match.kickoffAt), 'yyyy-MM-dd')
-  try {
-    const fullFormat = tCommon('date_full_format')
-    if (fullFormat && fullFormat !== 'date_full_format') {
-      kickoffDate = format(new Date(match.kickoffAt), fullFormat, { locale: getDateLocale(locale) })
-    }
-  } catch {
-    // Fallback set above
-  }
-  const kickoffTime = format(new Date(match.kickoffAt), 'HH:mm')
+  // 날짜/시간 표시는 클라이언트 컴포넌트에서 사용자 타임존으로 처리
+  // locale은 클라이언트에서 브라우저 언어 사용
+  void tCommon
 
   // Get status label
   const statusKey = MATCH_STATUS_KEYS[match.status] || 'upcoming'
@@ -243,7 +236,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
                   <span className="text-4xl font-bold">VS</span>
                   <div className="mt-2 flex items-center text-sm text-muted-foreground">
                     <Clock className="mr-1 h-4 w-4" />
-                    {kickoffTime}
+                    <LocalTime utcTime={match.kickoffAt} formatStr="HH:mm" />
                   </div>
                 </>
               ) : (
@@ -280,7 +273,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
           <div className="flex justify-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center">
               <Calendar className="mr-1 h-4 w-4" />
-              {kickoffDate}
+              <LocalFullDateTime utcTime={match.kickoffAt} locale={locale} />
             </div>
             {match.matchAnalysis && (
               <div className="flex items-center text-primary">

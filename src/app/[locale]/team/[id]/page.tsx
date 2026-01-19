@@ -16,14 +16,13 @@ import {
   Users,
 } from 'lucide-react'
 import { Link } from '@/i18n/routing'
-import { format } from 'date-fns'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
 import { generateMetadata as buildMetadata, generateTeamSEO, generateTeamJsonLd } from '@/lib/seo'
 import { FormBadge } from '@/components/form-badge'
-import { getDateLocale } from '@/lib/utils'
+import { LocalDateTime } from '@/components/local-time'
 
 interface Props {
   params: Promise<{ locale: string; id: string }>
@@ -140,7 +139,6 @@ export default async function TeamPage({ params }: Props) {
 
   const t = await getTranslations({ locale, namespace: 'team' })
   const tMatch = await getTranslations({ locale, namespace: 'match' })
-  const tCommon = await getTranslations({ locale, namespace: 'common' })
 
   const team = await getCachedTeamData(id)
 
@@ -594,17 +592,7 @@ export default async function TeamPage({ params }: Props) {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center">
                             <Clock className="mr-1 h-4 w-4" />
-                            {(() => {
-                              try {
-                                const mediumFormat = tCommon('date_medium_format')
-                                if (mediumFormat && mediumFormat !== 'date_medium_format') {
-                                  return format(new Date(match.kickoffAt), mediumFormat, { locale: getDateLocale(locale) })
-                                }
-                                return format(new Date(match.kickoffAt), 'MMM d')
-                              } catch {
-                                return format(new Date(match.kickoffAt), 'MM-dd')
-                              }
-                            })()}
+                            <LocalDateTime utcTime={match.kickoffAt} dateFormat="MM/dd" timeFormat="HH:mm" />
                           </div>
                           <Badge className="bg-blue-500">{tMatch('upcoming')}</Badge>
                         </div>

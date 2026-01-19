@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Metadata } from 'next'
 import { Suspense } from 'react'
+import { cookies } from 'next/headers'
 import { Link } from '@/i18n/routing'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -11,6 +12,7 @@ import { LatestNews, LatestNewsSkeleton } from '@/components/news/latest-news'
 import { ArrowRight, Trophy, Calendar, ChartBar } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
+import { getTimezoneFromCookies } from '@/lib/timezone'
 
 // 빌드 시 외부 API fetch 방지 (뉴스 RSS, DB 쿼리 등)
 export const dynamic = 'force-dynamic'
@@ -79,6 +81,10 @@ export default async function HomePage({ params }: Props) {
   const t = await getTranslations({ locale, namespace: 'home' })
   const common = await getTranslations({ locale, namespace: 'common' })
 
+  // 사용자 타임존 가져오기
+  const cookieStore = await cookies()
+  const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
+
   const featuredLeagues = await getFeaturedLeagues()
 
   return (
@@ -119,7 +125,7 @@ export default async function HomePage({ params }: Props) {
       </section>
 
       <Suspense fallback={null}>
-        <HotTrends locale={locale} />
+        <HotTrends locale={locale} timezone={timezone} />
       </Suspense>
 
       <Separator className="mb-12" />
@@ -172,7 +178,7 @@ export default async function HomePage({ params }: Props) {
           </Button>
         </div>
         <Suspense fallback={<div className="text-center py-8">{common('loading')}</div>}>
-          <TodayMatches locale={locale} />
+          <TodayMatches locale={locale} timezone={timezone} />
         </Suspense>
       </section>
 

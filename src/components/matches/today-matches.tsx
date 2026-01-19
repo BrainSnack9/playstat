@@ -3,15 +3,16 @@ import { Calendar } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { getTranslations } from 'next-intl/server'
 import { MatchCard } from '@/components/match-card'
-import { getKSTDayRange } from '@/lib/timezone'
+import { getTodayRangeInTimezone } from '@/lib/timezone'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { format } from 'date-fns'
 
 // 서버 공유 캐시 적용: 홈 화면 오늘 경기
-const getCachedTodayMatches = (dateStr: string) => unstable_cache(
+// 타임존별로 캐싱하여 각 지역 사용자에게 맞는 데이터 제공
+const getCachedTodayMatches = (dateStr: string, timezone: string) => unstable_cache(
   async () => {
-    const { start, end } = getKSTDayRange()
+    const { start, end } = getTodayRangeInTimezone(timezone)
 
     return await prisma.match.findMany({
       where: {
@@ -38,17 +39,18 @@ const getCachedTodayMatches = (dateStr: string) => unstable_cache(
       take: 6,
     })
   },
-  [`home-today-matches-${dateStr}`],
+  [`home-today-matches-${dateStr}-${timezone}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )()
 
 interface TodayMatchesProps {
   locale: string
+  timezone?: string
 }
 
-export async function TodayMatches({ locale }: TodayMatchesProps) {
+export async function TodayMatches({ locale, timezone = 'Asia/Seoul' }: TodayMatchesProps) {
   const dateStr = format(new Date(), 'yyyy-MM-dd')
-  const matches = await getCachedTodayMatches(dateStr)
+  const matches = await getCachedTodayMatches(dateStr, timezone)
   const home = await getTranslations('home')
 
   if (matches.length === 0) {
