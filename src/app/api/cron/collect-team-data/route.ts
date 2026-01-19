@@ -47,6 +47,8 @@ export async function GET(request: Request) {
     const in7Days = addDays(now, 7)
 
     // 7일 이내 예정된 경기의 팀 데이터 수집
+    // 타임아웃 방지를 위해 한 번에 최대 40개 경기만 처리
+    const BATCH_SIZE = 40
     const upcomingMatches = await prisma.match.findMany({
       where: {
         kickoffAt: {
@@ -65,6 +67,8 @@ export async function GET(request: Request) {
         },
         league: true,
       },
+      orderBy: { kickoffAt: 'asc' },
+      take: BATCH_SIZE,
     })
 
     // 리그별로 순위표를 한 번만 가져오도록 캐싱
@@ -179,17 +183,28 @@ export async function GET(request: Request) {
           }
         }
 
-        // 상대전적 수집
-        try {
-          await collectHeadToHead(
-            prisma,
-            match.homeTeam.id,
-            match.awayTeam.id,
-            match.externalId!
-          )
-          totalApiCalls++
-        } catch (error) {
-          matchResult.errors.push(`H2H: ${String(error)}`)
+        // 상대전적 수집 (이미 있으면 스킵)
+        const existingH2H = await prisma.headToHead.findFirst({
+          where: {
+            OR: [
+              { teamAId: match.homeTeam.id, teamBId: match.awayTeam.id },
+              { teamAId: match.awayTeam.id, teamBId: match.homeTeam.id },
+            ],
+          },
+        })
+
+        if (!existingH2H) {
+          try {
+            await collectHeadToHead(
+              prisma,
+              match.homeTeam.id,
+              match.awayTeam.id,
+              match.externalId!
+            )
+            totalApiCalls++
+          } catch (error) {
+            matchResult.errors.push(`H2H: ${String(error)}`)
+          }
         }
       } catch (error) {
         matchResult.errors.push(`Match processing: ${String(error)}`)
