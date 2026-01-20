@@ -822,6 +822,139 @@ export function getCurrentSoccerSeason(): number {
   return month >= 8 ? year : year - 1
 }
 
+/**
+ * 축구 경기 결과에서 팀별 순위 계산
+ * (Free Tier에서 /standings API 미지원으로 직접 계산)
+ */
+export interface SoccerTeamStanding {
+  teamId: number
+  teamName: string
+  teamAbbrev: string
+  wins: number
+  draws: number
+  losses: number
+  gamesPlayed: number
+  goalsFor: number
+  goalsAgainst: number
+  goalDifference: number
+  points: number
+  form: string
+  rank?: number
+}
+
+export function calculateSoccerStandings(games: BDLSoccerGame[]): SoccerTeamStanding[] {
+  const teamStats = new Map<number, SoccerTeamStanding>()
+  const teamRecentResults = new Map<number, string[]>()
+
+  // 완료된 경기만 필터 (FT = Full Time, FullTime 등)
+  const finishedGames = games
+    .filter(g => g.status === 'FT' || g.status === 'FullTime' || g.status === 'C')
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  for (const game of finishedGames) {
+    const homeTeam = game.home_team
+    const awayTeam = game.away_team
+    const homeScore = game.home_team_score || 0
+    const awayScore = game.away_team_score || 0
+
+    // 홈팀 통계 초기화
+    if (!teamStats.has(homeTeam.id)) {
+      teamStats.set(homeTeam.id, {
+        teamId: homeTeam.id,
+        teamName: homeTeam.name,
+        teamAbbrev: homeTeam.code || homeTeam.name.substring(0, 3).toUpperCase(),
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        gamesPlayed: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        goalDifference: 0,
+        points: 0,
+        form: '',
+      })
+      teamRecentResults.set(homeTeam.id, [])
+    }
+
+    // 원정팀 통계 초기화
+    if (!teamStats.has(awayTeam.id)) {
+      teamStats.set(awayTeam.id, {
+        teamId: awayTeam.id,
+        teamName: awayTeam.name,
+        teamAbbrev: awayTeam.code || awayTeam.name.substring(0, 3).toUpperCase(),
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        gamesPlayed: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        goalDifference: 0,
+        points: 0,
+        form: '',
+      })
+      teamRecentResults.set(awayTeam.id, [])
+    }
+
+    const homeStat = teamStats.get(homeTeam.id)!
+    const awayStat = teamStats.get(awayTeam.id)!
+    const homeRecent = teamRecentResults.get(homeTeam.id)!
+    const awayRecent = teamRecentResults.get(awayTeam.id)!
+
+    // 홈팀 통계 업데이트
+    homeStat.gamesPlayed++
+    homeStat.goalsFor += homeScore
+    homeStat.goalsAgainst += awayScore
+
+    // 원정팀 통계 업데이트
+    awayStat.gamesPlayed++
+    awayStat.goalsFor += awayScore
+    awayStat.goalsAgainst += homeScore
+
+    if (homeScore > awayScore) {
+      // 홈팀 승리
+      homeStat.wins++
+      homeStat.points += 3
+      awayStat.losses++
+      if (homeRecent.length < 5) homeRecent.push('W')
+      if (awayRecent.length < 5) awayRecent.push('L')
+    } else if (homeScore < awayScore) {
+      // 원정팀 승리
+      awayStat.wins++
+      awayStat.points += 3
+      homeStat.losses++
+      if (homeRecent.length < 5) homeRecent.push('L')
+      if (awayRecent.length < 5) awayRecent.push('W')
+    } else {
+      // 무승부
+      homeStat.draws++
+      awayStat.draws++
+      homeStat.points += 1
+      awayStat.points += 1
+      if (homeRecent.length < 5) homeRecent.push('D')
+      if (awayRecent.length < 5) awayRecent.push('D')
+    }
+  }
+
+  // 골득실 및 form 계산
+  const standings = Array.from(teamStats.values()).map(stat => {
+    stat.goalDifference = stat.goalsFor - stat.goalsAgainst
+    stat.form = teamRecentResults.get(stat.teamId)?.join('') || ''
+    return stat
+  })
+
+  // 승점 > 골득실 > 득점 순으로 정렬 후 순위 부여
+  standings.sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points
+    if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference
+    return b.goalsFor - a.goalsFor
+  })
+  standings.forEach((stat, idx) => {
+    stat.rank = idx + 1
+  })
+
+  return standings
+}
+
 // ===========================================
 // MLB (야구) API 함수
 // ===========================================
@@ -1124,6 +1257,7 @@ export const ballDontLieApi = {
   getSoccerTeamRecentGames,
   getSoccerAllTeamsRecentGames,
   getCurrentSoccerSeason,
+  calculateSoccerStandings,
 
   // MLB
   getBaseballTeams,

@@ -5,6 +5,7 @@ import type { PrismaClient, MatchStatus } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
 import {
   ballDontLieApi,
+  calculateSoccerStandings,
   type BDLSoccerGame,
   type BDLSoccerTeam,
   type SoccerLeague,
@@ -285,24 +286,29 @@ export async function GET(request: Request) {
           }
         }
 
-        // 4. 순위표 조회 및 저장
-        console.log(`[Football Cron] Fetching ${leagueInfo.name} standings...`)
-        const standings = await ballDontLieApi.getSoccerStandings(leagueInfo.league, currentSeason)
-        totalApiCalls++
-
         // DB 팀 정보 캐시 (N+1 쿼리 방지)
         const dbTeamsByExternalId = new Map<string, { id: string }>()
         dbTeams.forEach((t) => {
           if (t.externalId) dbTeamsByExternalId.set(t.externalId, { id: t.id })
         })
 
+        // 4. 순위 계산 및 저장 (시즌 전체 경기에서 직접 계산)
+        console.log(`[Football Cron] Calculating ${leagueInfo.name} standings from games...`)
+        const allSeasonGames = await ballDontLieApi.getSoccerGames(leagueInfo.league, {
+          season: currentSeason,
+        })
+        totalApiCalls++
+
+        const standings = calculateSoccerStandings(allSeasonGames)
+        console.log(`[Football Cron] Calculated standings for ${standings.length} ${leagueInfo.name} teams`)
+
         // TeamSeasonStats 저장
         for (const standing of standings) {
           try {
-            const team = dbTeamsByExternalId.get(String(standing.team.id))
+            const team = dbTeamsByExternalId.get(String(standing.teamId))
 
             if (!team) {
-              results.errors.push(`${leagueInfo.name} Standing: Team ${standing.team.id} not found`)
+              results.errors.push(`${leagueInfo.name} Standing: Team ${standing.teamId} not found`)
               continue
             }
 
@@ -312,62 +318,62 @@ export async function GET(request: Request) {
                 teamId: team.id,
                 sportType: 'FOOTBALL',
                 season: currentSeason,
-                gamesPlayed: standing.games_played,
+                gamesPlayed: standing.gamesPlayed,
                 wins: standing.wins,
                 draws: standing.draws,
                 losses: standing.losses,
-                goalsFor: standing.goals_for,
-                goalsAgainst: standing.goals_against,
-                goalDifference: standing.goal_difference,
+                goalsFor: standing.goalsFor,
+                goalsAgainst: standing.goalsAgainst,
+                goalDifference: standing.goalDifference,
                 points: standing.points,
-                rank: standing.position,
+                rank: standing.rank,
                 form: standing.form,
               },
               update: {
                 season: currentSeason,
-                gamesPlayed: standing.games_played,
+                gamesPlayed: standing.gamesPlayed,
                 wins: standing.wins,
                 draws: standing.draws,
                 losses: standing.losses,
-                goalsFor: standing.goals_for,
-                goalsAgainst: standing.goals_against,
-                goalDifference: standing.goal_difference,
+                goalsFor: standing.goalsFor,
+                goalsAgainst: standing.goalsAgainst,
+                goalDifference: standing.goalDifference,
                 points: standing.points,
-                rank: standing.position,
+                rank: standing.rank,
                 form: standing.form,
               },
             })
             results.standingsUpdated++
           } catch (error) {
-            results.errors.push(`${leagueInfo.name} Standing ${standing.team.id}: ${String(error)}`)
+            results.errors.push(`${leagueInfo.name} Standing ${standing.teamId}: ${String(error)}`)
           }
         }
 
-        // 5. 각 팀의 최근 경기 수집 및 저장 (최적화: 일괄 조회)
-        console.log(`[Football Cron] Collecting recent matches for ${leagueInfo.name} teams (batch)...`)
+        // 5. 각 팀의 최근 경기 수집 및 저장
+        console.log(`[Football Cron] Collecting recent matches for ${leagueInfo.name} teams...`)
         let recentMatchesUpdated = 0
 
-        // 한 번의 API 호출로 모든 팀의 최근 경기 조회 (기존: 20회 → 최적화: 1-2회)
+        // 최근 30일 경기에서 팀별로 그룹핑
         const allTeamsRecentGames = await ballDontLieApi.getSoccerAllTeamsRecentGames(
           leagueInfo.league,
           currentSeason,
           30
         )
-        totalApiCalls++ // 페이지네이션 포함해도 1-2회 정도
+        totalApiCalls++
 
         for (const standing of standings) {
           try {
-            const team = dbTeamsByExternalId.get(String(standing.team.id))
+            const team = dbTeamsByExternalId.get(String(standing.teamId))
             if (!team) continue
 
             // 이미 조회된 데이터에서 해당 팀 경기 추출
-            const recentGames = allTeamsRecentGames.get(standing.team.id) || []
+            const recentGames = allTeamsRecentGames.get(standing.teamId) || []
 
             if (recentGames.length === 0) continue
 
             // RecentMatches 형식으로 변환
             const matchesJson = recentGames.map((game) => {
-              const isHome = game.home_team.id === standing.team.id
+              const isHome = game.home_team.id === standing.teamId
               const teamScore = isHome ? game.home_team_score : game.away_team_score
               const opponentScore = isHome ? game.away_team_score : game.home_team_score
               const opponent = isHome ? game.away_team.name : game.home_team.name
@@ -409,7 +415,7 @@ export async function GET(request: Request) {
 
             recentMatchesUpdated++
           } catch (error) {
-            results.errors.push(`${leagueInfo.name} Recent matches ${standing.team.id}: ${String(error)}`)
+            results.errors.push(`${leagueInfo.name} Recent matches ${standing.teamId}: ${String(error)}`)
           }
         }
 
