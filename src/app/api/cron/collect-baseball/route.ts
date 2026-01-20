@@ -5,6 +5,7 @@ import type { PrismaClient, MatchStatus } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
 import {
   ballDontLieApi,
+  calculateBaseballStandings,
   type BDLBaseballGame,
   type BDLBaseballTeam,
 } from '@/lib/api/balldontlie'
@@ -232,10 +233,23 @@ export async function GET(request: Request) {
       }
     }
 
-    // 4. 순위표 조회 및 저장
-    console.log('[Baseball Cron] Fetching MLB standings...')
-    const standings = await ballDontLieApi.getBaseballStandings(currentSeason)
+    // 4. 순위 계산 및 저장 (시즌 전체 경기 기반)
+    // BallDontLie Free Tier에서 /standings API 미지원으로 직접 계산
+    console.log('[Baseball Cron] Calculating standings from season games...')
+
+    // 시즌 시작일 (4월 1일)부터 현재까지 완료된 경기 조회
+    const seasonStart = `${currentSeason}-04-01`
+    const today = format(new Date(), 'yyyy-MM-dd')
+
+    const seasonGames = await ballDontLieApi.getBaseballGames({
+      season: currentSeason,
+      start_date: seasonStart,
+      end_date: today,
+    })
     totalApiCalls++
+
+    const standings = calculateBaseballStandings(seasonGames)
+    console.log(`[Baseball Cron] Calculated standings for ${standings.length} teams`)
 
     // 리그 시즌 업데이트
     await prisma.league.update({
@@ -243,19 +257,21 @@ export async function GET(request: Request) {
       data: { season: currentSeason },
     })
 
+    // DB 팀 정보 캐시 (N+1 쿼리 방지)
+    const dbTeamsByExternalId = new Map<string, { id: string }>()
+    dbTeams.forEach((t) => {
+      if (t.externalId) dbTeamsByExternalId.set(t.externalId, { id: t.id })
+    })
+
     // TeamSeasonStats 저장
     for (const standing of standings) {
       try {
-        const team = await prisma.team.findFirst({
-          where: { externalId: String(standing.team.id), sportType: 'BASEBALL' },
-        })
+        const team = dbTeamsByExternalId.get(String(standing.teamId))
 
         if (!team) {
-          results.errors.push(`Standing: Team ${standing.team.id} not found`)
+          results.errors.push(`Standing: Team ${standing.teamId} not found`)
           continue
         }
-
-        const gamesPlayed = standing.wins + standing.losses
 
         await prisma.teamSeasonStats.upsert({
           where: { teamId: team.id },
@@ -263,34 +279,34 @@ export async function GET(request: Request) {
             teamId: team.id,
             sportType: 'BASEBALL',
             season: currentSeason,
-            gamesPlayed,
+            gamesPlayed: standing.gamesPlayed,
             wins: standing.wins,
             losses: standing.losses,
+            rank: standing.rank,
+            form: standing.form,
             additionalStats: {
-              win_percentage: standing.win_percentage,
-              games_back: standing.games_back,
-              home_record: standing.home_record,
-              away_record: standing.away_record,
-              streak: standing.streak,
+              league: standing.league,
+              division: standing.division,
+              win_percentage: standing.winPct,
             },
           },
           update: {
             season: currentSeason,
-            gamesPlayed,
+            gamesPlayed: standing.gamesPlayed,
             wins: standing.wins,
             losses: standing.losses,
+            rank: standing.rank,
+            form: standing.form,
             additionalStats: {
-              win_percentage: standing.win_percentage,
-              games_back: standing.games_back,
-              home_record: standing.home_record,
-              away_record: standing.away_record,
-              streak: standing.streak,
+              league: standing.league,
+              division: standing.division,
+              win_percentage: standing.winPct,
             },
           },
         })
         results.standingsUpdated++
       } catch (error) {
-        results.errors.push(`Standing ${standing.team.id}: ${String(error)}`)
+        results.errors.push(`Standing ${standing.teamId}: ${String(error)}`)
       }
     }
 

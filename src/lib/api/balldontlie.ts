@@ -981,9 +981,119 @@ export function getCurrentMLBSeason(): number {
   const month = now.getMonth() + 1 // 1-12
   const year = now.getFullYear()
 
-  // 11월~3월은 다음 시즌 준비 기간 (오프시즌)
+  // 11월~3월은 이전 시즌으로 간주 (오프시즌)
   // 4월~10월은 현재 연도가 시즌
-  return month >= 4 && month <= 10 ? year : year + 1
+  return month >= 4 && month <= 10 ? year : year - 1
+}
+
+/**
+ * MLB 경기 결과에서 팀별 순위 계산
+ * (Free Tier에서 /standings API 미지원으로 직접 계산)
+ */
+export interface BaseballTeamStanding {
+  teamId: number
+  teamName: string
+  teamAbbrev: string
+  league: string
+  division: string
+  wins: number
+  losses: number
+  gamesPlayed: number
+  winPct: number
+  form: string
+  rank?: number
+}
+
+export function calculateBaseballStandings(games: BDLBaseballGame[]): BaseballTeamStanding[] {
+  const teamStats = new Map<number, BaseballTeamStanding>()
+  const teamRecentResults = new Map<number, string[]>()
+
+  // 완료된 경기만 필터, 최신순 정렬
+  const finishedGames = games
+    .filter(g => g.status === 'STATUS_FINAL' || g.status === 'Final')
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  for (const game of finishedGames) {
+    const homeTeam = game.home_team
+    const awayTeam = game.away_team
+    const homeScore = game.home_team_score || 0
+    const awayScore = game.away_team_score || 0
+    const homeWon = homeScore > awayScore
+
+    // 홈팀 통계 초기화
+    if (!teamStats.has(homeTeam.id)) {
+      teamStats.set(homeTeam.id, {
+        teamId: homeTeam.id,
+        teamName: homeTeam.name,
+        teamAbbrev: homeTeam.abbreviation,
+        league: homeTeam.league || '',
+        division: homeTeam.division || '',
+        wins: 0,
+        losses: 0,
+        gamesPlayed: 0,
+        winPct: 0,
+        form: '',
+      })
+      teamRecentResults.set(homeTeam.id, [])
+    }
+
+    // 원정팀 통계 초기화
+    if (!teamStats.has(awayTeam.id)) {
+      teamStats.set(awayTeam.id, {
+        teamId: awayTeam.id,
+        teamName: awayTeam.name,
+        teamAbbrev: awayTeam.abbreviation,
+        league: awayTeam.league || '',
+        division: awayTeam.division || '',
+        wins: 0,
+        losses: 0,
+        gamesPlayed: 0,
+        winPct: 0,
+        form: '',
+      })
+      teamRecentResults.set(awayTeam.id, [])
+    }
+
+    const homeStat = teamStats.get(homeTeam.id)!
+    const awayStat = teamStats.get(awayTeam.id)!
+    const homeRecent = teamRecentResults.get(homeTeam.id)!
+    const awayRecent = teamRecentResults.get(awayTeam.id)!
+
+    // 홈팀 통계 업데이트
+    homeStat.gamesPlayed++
+    if (homeWon) {
+      homeStat.wins++
+      if (homeRecent.length < 5) homeRecent.push('W')
+    } else {
+      homeStat.losses++
+      if (homeRecent.length < 5) homeRecent.push('L')
+    }
+
+    // 원정팀 통계 업데이트
+    awayStat.gamesPlayed++
+    if (!homeWon) {
+      awayStat.wins++
+      if (awayRecent.length < 5) awayRecent.push('W')
+    } else {
+      awayStat.losses++
+      if (awayRecent.length < 5) awayRecent.push('L')
+    }
+  }
+
+  // 승률 계산 및 form 설정
+  const standings = Array.from(teamStats.values()).map(stat => {
+    stat.winPct = stat.gamesPlayed > 0 ? stat.wins / stat.gamesPlayed : 0
+    stat.form = teamRecentResults.get(stat.teamId)?.join('') || ''
+    return stat
+  })
+
+  // 승률 기준 정렬 후 순위 부여
+  standings.sort((a, b) => b.winPct - a.winPct)
+  standings.forEach((stat, idx) => {
+    stat.rank = idx + 1
+  })
+
+  return standings
 }
 
 // ===========================================
@@ -1019,4 +1129,5 @@ export const ballDontLieApi = {
   getBaseballTeamRecentGames,
   getBaseballAllTeamsRecentGames,
   getCurrentMLBSeason,
+  calculateBaseballStandings,
 }
