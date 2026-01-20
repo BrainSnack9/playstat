@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Link } from '@/i18n/routing'
+import { Link, usePathname } from '@/i18n/routing'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { spaceGrotesk } from '@/lib/fonts'
@@ -9,6 +9,8 @@ import { spaceGrotesk } from '@/lib/fonts'
 export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing' | 'neon' }) {
   const t = useTranslations('common')
   const footer = useTranslations('footer')
+  const sports = useTranslations('sports')
+  const pathname = usePathname()
   const currentYear = new Date().getFullYear()
   const isNeon = variant !== 'default'
   const legalBase =
@@ -17,6 +19,23 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
         ? 'http://localhost:3030'
         : window.location.origin
       : ''
+
+  // 서브도메인에서 스포츠 타입 감지
+  const getCurrentSport = (): string | null => {
+    if (typeof window === 'undefined') return null
+    const hostname = window.location.hostname
+    if (hostname.startsWith('football.')) return 'football'
+    if (hostname.startsWith('basketball.')) return 'basketball'
+    if (hostname.startsWith('baseball.')) return 'baseball'
+    if (hostname === 'localhost') {
+      if (pathname.includes('/football')) return 'football'
+      if (pathname.includes('/basketball')) return 'basketball'
+      if (pathname.includes('/baseball')) return 'baseball'
+    }
+    return null
+  }
+
+  const currentSport = getCurrentSport()
 
   return (
     <footer
@@ -38,7 +57,12 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
               height={24}
               className="rounded"
             />
-            <span className="font-semibold">PlayStat</span>
+            <span className="font-semibold">
+              PlayStat
+              {currentSport && (
+                <span className="text-primary"> - {sports(currentSport)}</span>
+              )}
+            </span>
           </Link>
 
           {/* Main Navigation */}
