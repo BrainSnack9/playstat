@@ -5,8 +5,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Users, Search } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { TeamCard } from '@/components/team-card'
-import Image from 'next/image'
 import { SPORT_COOKIE, getSportFromCookie, sportIdToEnum } from '@/lib/sport'
+import { LeagueLogo } from '@/components/ui/league-logo'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -145,12 +145,13 @@ export default async function TeamsPage({ params, searchParams }: Props) {
             <a
               key={league.id}
               href={`/teams?league=${league.code}`}
-              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+              className={`px-3 py-1.5 rounded-full text-sm transition-colors flex items-center gap-1.5 ${
                 leagueFilter === league.code
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted hover:bg-muted/80'
               }`}
             >
+              <LeagueLogo logoUrl={league.logoUrl} name={league.name} size="xs" />
               {league.name}
             </a>
           ))}
@@ -162,15 +163,7 @@ export default async function TeamsPage({ params, searchParams }: Props) {
           {Object.entries(teamsByLeague).map(([leagueName, { league, teams: leagueTeams }]) => (
             <section key={leagueName}>
               <h2 className="mb-4 text-xl font-bold flex items-center gap-2">
-                {league.logoUrl && (
-                  <Image
-                    src={league.logoUrl}
-                    alt={leagueName}
-                    width={24}
-                    height={24}
-                    className="rounded"
-                  />
-                )}
+                <LeagueLogo logoUrl={league.logoUrl} name={leagueName} size="sm" />
                 {leagueName}
                 <span className="text-sm font-normal text-muted-foreground">
                   ({t('teams_count', { count: leagueTeams.length })})

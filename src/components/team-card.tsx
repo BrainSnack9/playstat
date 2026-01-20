@@ -4,8 +4,8 @@ import { Trophy, Star } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/i18n/routing'
-import Image from 'next/image'
 import { useFavoriteTeams } from '@/stores/favorite-teams'
+import { TeamLogo } from '@/components/ui/team-logo'
 
 interface TeamCardProps {
   team: {
@@ -40,19 +40,15 @@ export function TeamCard({ team }: Omit<TeamCardProps, 'locale'>) {
         }`}
       >
         <CardContent className="flex items-center p-4">
-          {team.logoUrl ? (
-            <Image
-              src={team.logoUrl}
-              alt={team.name}
-              width={56}
-              height={56}
-              className="mr-4 rounded"
-            />
-          ) : (
-            <div className="mr-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-              <span className="text-lg font-bold text-primary">{team.tla || team.shortName}</span>
-            </div>
-          )}
+          <TeamLogo
+            logoUrl={team.logoUrl}
+            name={team.name}
+            tla={team.tla}
+            shortName={team.shortName}
+            size="xl"
+            className="mr-4"
+            fallbackClassName="mr-4 bg-primary/10"
+          />
           <div className="flex-1 min-w-0">
             <h3 className={`font-semibold truncate ${isFavorite ? 'text-yellow-500' : ''}`}>
               {team.name}

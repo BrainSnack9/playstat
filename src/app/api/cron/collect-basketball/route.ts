@@ -153,6 +153,18 @@ export async function GET(request: Request) {
       if (t.externalId) teamCache.set(Number(t.externalId), t.id)
     })
 
+    // 기존 경기 조회 (N+1 방지: 한 번에 조회)
+    const existingMatches = await prisma.match.findMany({
+      where: {
+        sportType: 'BASKETBALL',
+        externalId: { in: games.map((g) => String(g.id)) },
+      },
+      select: { id: true, externalId: true, status: true },
+    })
+    const existingMatchMap = new Map(
+      existingMatches.map((m) => [m.externalId, { id: m.id, status: m.status }])
+    )
+
     for (const game of games) {
       try {
         const homeTeamDbId = teamCache.get(game.home_team.id)
@@ -163,11 +175,14 @@ export async function GET(request: Request) {
           continue
         }
 
-        const existingMatch = await prisma.match.findFirst({
-          where: { externalId: String(game.id), sportType: 'BASKETBALL' },
-        })
-
+        const existingMatch = existingMatchMap.get(String(game.id))
         const matchStatus = mapBDLStatus(game.status)
+
+        // 이미 종료된 경기는 스킵 (점수 변경 없음)
+        if (existingMatch && existingMatch.status === 'FINISHED') {
+          continue
+        }
+
         const matchSlug = createMatchSlug(
           NBA_LEAGUE.slug,
           game.home_team.abbreviation,
@@ -178,6 +193,7 @@ export async function GET(request: Request) {
         const kickoffAt = parseGameTime(game.date, game.status)
 
         if (existingMatch) {
+          // 진행 중이거나 예정된 경기만 업데이트
           await prisma.match.update({
             where: { id: existingMatch.id },
             data: {
@@ -231,12 +247,16 @@ export async function GET(request: Request) {
       data: { season: currentSeason },
     })
 
+    // DB 팀 정보 캐시 (N+1 쿼리 방지)
+    const dbTeamsByExternalId = new Map<string, { id: string }>()
+    dbTeams.forEach((t) => {
+      if (t.externalId) dbTeamsByExternalId.set(t.externalId, { id: t.id })
+    })
+
     // TeamSeasonStats 저장
     for (const standing of standings) {
       try {
-        const team = await prisma.team.findFirst({
-          where: { externalId: String(standing.teamId), sportType: 'BASKETBALL' },
-        })
+        const team = dbTeamsByExternalId.get(String(standing.teamId))
 
         if (!team) {
           results.errors.push(`Standing: Team ${standing.teamId} not found`)
@@ -290,21 +310,21 @@ export async function GET(request: Request) {
       }
     }
 
-    // 5. 각 팀의 최근 경기 수집 및 저장
-    console.log('[Basketball Cron] Collecting recent matches for teams...')
+    // 5. 각 팀의 최근 경기 수집 및 저장 (최적화: 일괄 조회)
+    console.log('[Basketball Cron] Collecting recent matches for all teams (batch)...')
     let recentMatchesUpdated = 0
+
+    // 한 번의 API 호출로 모든 팀의 최근 경기 조회 (기존: 30회 → 최적화: 1-2회)
+    const allTeamsRecentGames = await ballDontLieApi.getAllTeamsRecentGames(currentSeason, 30)
+    totalApiCalls++ // 페이지네이션 포함해도 1-2회 정도
 
     for (const standing of standings) {
       try {
-        const team = await prisma.team.findFirst({
-          where: { externalId: String(standing.teamId), sportType: 'BASKETBALL' },
-        })
-
+        const team = dbTeamsByExternalId.get(String(standing.teamId))
         if (!team) continue
 
-        // BallDontLie API에서 팀의 최근 경기 가져오기 (완료된 경기 10개)
-        const recentGames = await ballDontLieApi.getTeamRecentGames(standing.teamId, 10)
-        totalApiCalls++
+        // 이미 조회된 데이터에서 해당 팀 경기 추출
+        const recentGames = allTeamsRecentGames.get(standing.teamId) || []
 
         if (recentGames.length === 0) continue
 

@@ -320,12 +320,26 @@
     "contact": "문의",
     "privacy": "개인정보처리방침",
     "terms": "이용약관",
-    "copyright": "© {year} PlayStat. All rights reserved."
+    "copyright": "© {year} PlayStat. All rights reserved.",
+    "main_hub": "통합 메인"
   },
   "sports": {
     "football": "축구",
     "basketball": "농구",
     "baseball": "야구"
+  },
+  "season": {
+    "football": "축구",
+    "basketball": "NBA",
+    "baseball": "MLB",
+    "offseason": "오프시즌",
+    "offseason_badge": "비시즌",
+    "offseason_message": "현재 {sport} 시즌이 종료되었습니다. 다음 시즌을 기대해주세요!",
+    "next_season_start": "다음 시즌 시작",
+    "preseason": "프리시즌",
+    "regular_season": "정규시즌",
+    "postseason": "포스트시즌",
+    "season_info": "시즌 정보"
   },
   "legal": {
     "privacy": {
@@ -351,7 +365,7 @@
       "section6_title": "6. 쿠키 및 광고",
       "section6_content": "서비스는 Google AdSense를 통해 광고를 제공하며, 이를 위해 쿠키를 사용할 수 있습니다. 사용자는 브라우저 설정을 통해 쿠키 사용을 거부할 수 있으나, 이 경우 서비스 이용에 제한이 있을 수 있습니다.",
       "contact_title": "7. 문의처",
-      "contact_content": "개인정보 관련 문의사항은 pcim123@gmail.com으로 연락해 주시기 바랍니다."
+      "contact_content": "개인정보 관련 문의사항은 contact@playstat.space으로 연락해 주시기 바랍니다."
     },
     "terms": {
       "title": "이용약관",
@@ -376,7 +390,7 @@
       "section7_title": "제7조 (약관의 개정)",
       "section7_content": "서비스는 필요한 경우 약관을 변경할 수 있으며, 변경된 약관은 서비스 내 공지를 통해 효력이 발생합니다.",
       "contact_title": "제8조 (문의처)",
-      "contact_content": "서비스 이용 관련 문의사항은 pcim123@gmail.com으로 연락해 주시기 바랍니다."
+      "contact_content": "서비스 이용 관련 문의사항은 contact@playstat.space으로 연락해 주시기 바랍니다."
     }
   },
   "about": {
@@ -400,5 +414,10 @@
     "offer4": "매일 업데이트되는 경기 프리뷰",
     "disclaimer_title": "참고해주세요",
     "disclaimer_content": "PlayStat은 경기 데이터를 정리해서 보여주는 서비스입니다. 경기 결과를 예측하거나 베팅을 권유하지 않아요. 여기 있는 정보는 경기를 더 재밌게 보기 위한 참고용입니다."
+  },
+  "leagues": {
+    "title": "리그",
+    "subtitle": "모든 리그 탐색",
+    "description": "AI 분석을 활용한 전 세계 축구 리그"
   }
 }

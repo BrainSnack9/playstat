@@ -9,7 +9,7 @@ import { HotTrends } from '@/components/matches/hot-trends'
 import { LatestNews, LatestNewsSkeleton } from '@/components/news/latest-news'
 import { ArrowRight, Calendar } from 'lucide-react'
 
-// Sport ID for baseball
+// Sport ID for football
 const SPORT_ID = 'football'
 
 export const dynamic = 'force-dynamic'

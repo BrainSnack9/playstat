@@ -353,7 +353,7 @@ export async function getGamesBySeason(
 }
 
 /**
- * 팀의 최근 경기 조회
+ * 팀의 최근 경기 조회 (단일 팀)
  * @param teamId - 팀 ID
  * @param count - 가져올 경기 수
  */
@@ -366,7 +366,7 @@ export async function getTeamRecentGames(
   const startDate = new Date(today)
   startDate.setDate(startDate.getDate() - 60) // 최근 60일
 
-  const response = await rateLimitedFetch<PaginatedResponse<BDLGame>>('/games', {
+  const response = await rateLimitedFetch<PaginatedResponse<BDLGame>>(NBA_BASE_URL, '/games', {
     start_date: startDate.toISOString().split('T')[0],
     end_date: today.toISOString().split('T')[0],
     'team_ids[]': teamId,
@@ -377,6 +377,72 @@ export async function getTeamRecentGames(
   return response.data
     .filter((game) => game.status === 'Final')
     .slice(0, count)
+}
+
+/**
+ * NBA 전체 팀 최근 경기 일괄 조회 (최적화)
+ * 한 번의 API 호출로 모든 팀의 최근 경기를 가져옴
+ * @returns 팀 ID를 키로 하는 Map
+ */
+export async function getAllTeamsRecentGames(
+  season: number,
+  recentDays: number = 30
+): Promise<Map<number, BDLGame[]>> {
+  const today = new Date()
+  const startDate = new Date(today)
+  startDate.setDate(startDate.getDate() - recentDays)
+
+  // 한 번의 API 호출로 최근 모든 경기 조회
+  const allGames: BDLGame[] = []
+  let cursor: number | undefined
+
+  do {
+    const queryParams: Record<string, string | number> = {
+      seasons: season,
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: today.toISOString().split('T')[0],
+      per_page: 100,
+    }
+    if (cursor) queryParams.cursor = cursor
+
+    const response = await rateLimitedFetch<PaginatedResponse<BDLGame>>(
+      NBA_BASE_URL,
+      '/games',
+      queryParams
+    )
+    allGames.push(...response.data)
+    cursor = response.meta.next_cursor
+  } while (cursor)
+
+  // 완료된 경기만 필터 후 날짜 역순 정렬
+  const finishedGames = allGames
+    .filter((game) => game.status === 'Final')
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  // 팀별로 그룹핑
+  const teamGamesMap = new Map<number, BDLGame[]>()
+
+  for (const game of finishedGames) {
+    // 홈팀
+    if (!teamGamesMap.has(game.home_team.id)) {
+      teamGamesMap.set(game.home_team.id, [])
+    }
+    const homeGames = teamGamesMap.get(game.home_team.id)!
+    if (homeGames.length < 10) {
+      homeGames.push(game)
+    }
+
+    // 원정팀 (visitor_team)
+    if (!teamGamesMap.has(game.visitor_team.id)) {
+      teamGamesMap.set(game.visitor_team.id, [])
+    }
+    const awayGames = teamGamesMap.get(game.visitor_team.id)!
+    if (awayGames.length < 10) {
+      awayGames.push(game)
+    }
+  }
+
+  return teamGamesMap
 }
 
 /**
@@ -393,7 +459,7 @@ export async function getHeadToHead(
   const twoYearsAgo = new Date(today)
   twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)
 
-  const response = await rateLimitedFetch<PaginatedResponse<BDLGame>>('/games', {
+  const response = await rateLimitedFetch<PaginatedResponse<BDLGame>>(NBA_BASE_URL, '/games', {
     start_date: twoYearsAgo.toISOString().split('T')[0],
     end_date: today.toISOString().split('T')[0],
     'team_ids[]': team1Id,
@@ -654,7 +720,7 @@ export async function getSoccerStandings(
 }
 
 /**
- * 축구 팀 최근 경기 조회
+ * 축구 팀 최근 경기 조회 (단일 팀)
  */
 export async function getSoccerTeamRecentGames(
   league: SoccerLeague,
@@ -671,6 +737,74 @@ export async function getSoccerTeamRecentGames(
 
   // 완료된 경기만 필터
   return response.data.filter((game) => game.status === 'FT').slice(0, count)
+}
+
+/**
+ * 축구 리그 전체 팀 최근 경기 일괄 조회 (최적화)
+ * 한 번의 API 호출로 해당 리그 모든 팀의 최근 경기를 가져옴
+ * @returns 팀 ID를 키로 하는 Map
+ */
+export async function getSoccerAllTeamsRecentGames(
+  league: SoccerLeague,
+  season: number,
+  recentDays: number = 30
+): Promise<Map<number, BDLSoccerGame[]>> {
+  const baseUrl = SOCCER_LEAGUE_BASE_URLS[league]
+  const today = new Date()
+  const startDate = new Date(today)
+  startDate.setDate(startDate.getDate() - recentDays)
+
+  // 한 번의 API 호출로 최근 모든 경기 조회
+  const allGames: BDLSoccerGame[] = []
+  let cursor: number | undefined
+
+  do {
+    const queryParams: Record<string, string | number> = {
+      season,
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: today.toISOString().split('T')[0],
+      per_page: 100,
+    }
+    if (cursor) queryParams.cursor = cursor
+
+    const response = await rateLimitedFetch<PaginatedResponse<BDLSoccerGame>>(
+      baseUrl,
+      '/games',
+      queryParams
+    )
+    allGames.push(...response.data)
+    cursor = response.meta.next_cursor
+  } while (cursor)
+
+  // 완료된 경기만 필터 후 날짜 역순 정렬
+  const finishedGames = allGames
+    .filter((game) => game.status === 'FT')
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  // 팀별로 그룹핑
+  const teamGamesMap = new Map<number, BDLSoccerGame[]>()
+
+  for (const game of finishedGames) {
+    // 홈팀
+    if (!teamGamesMap.has(game.home_team.id)) {
+      teamGamesMap.set(game.home_team.id, [])
+    }
+    const homeGames = teamGamesMap.get(game.home_team.id)!
+    if (homeGames.length < 10) {
+      homeGames.push(game)
+    }
+
+    // 원정팀
+    if (!teamGamesMap.has(game.away_team.id)) {
+      teamGamesMap.set(game.away_team.id, [])
+    }
+    const awayGames = teamGamesMap.get(game.away_team.id)!
+    if (awayGames.length < 10) {
+      awayGames.push(game)
+    }
+  }
+
+  return teamGamesMap
 }
 
 /**
@@ -747,7 +881,7 @@ export async function getBaseballStandings(season: number): Promise<BDLBaseballS
 }
 
 /**
- * MLB 팀 최근 경기 조회
+ * MLB 팀 최근 경기 조회 (단일 팀)
  */
 export async function getBaseballTeamRecentGames(
   teamId: number,
@@ -770,6 +904,72 @@ export async function getBaseballTeamRecentGames(
 
   // 완료된 경기만 필터
   return response.data.filter((game) => game.status === 'Final').slice(0, count)
+}
+
+/**
+ * MLB 전체 팀 최근 경기 일괄 조회 (최적화)
+ * 한 번의 API 호출로 모든 팀의 최근 경기를 가져옴
+ * @returns 팀 ID를 키로 하는 Map
+ */
+export async function getBaseballAllTeamsRecentGames(
+  season: number,
+  recentDays: number = 30
+): Promise<Map<number, BDLBaseballGame[]>> {
+  const today = new Date()
+  const startDate = new Date(today)
+  startDate.setDate(startDate.getDate() - recentDays)
+
+  // 한 번의 API 호출로 최근 모든 경기 조회
+  const allGames: BDLBaseballGame[] = []
+  let cursor: number | undefined
+
+  do {
+    const queryParams: Record<string, string | number> = {
+      season,
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: today.toISOString().split('T')[0],
+      per_page: 100,
+    }
+    if (cursor) queryParams.cursor = cursor
+
+    const response = await rateLimitedFetch<PaginatedResponse<BDLBaseballGame>>(
+      MLB_BASE_URL,
+      '/games',
+      queryParams
+    )
+    allGames.push(...response.data)
+    cursor = response.meta.next_cursor
+  } while (cursor)
+
+  // 완료된 경기만 필터 후 날짜 역순 정렬
+  const finishedGames = allGames
+    .filter((game) => game.status === 'Final')
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  // 팀별로 그룹핑
+  const teamGamesMap = new Map<number, BDLBaseballGame[]>()
+
+  for (const game of finishedGames) {
+    // 홈팀
+    if (!teamGamesMap.has(game.home_team.id)) {
+      teamGamesMap.set(game.home_team.id, [])
+    }
+    const homeGames = teamGamesMap.get(game.home_team.id)!
+    if (homeGames.length < 10) {
+      homeGames.push(game)
+    }
+
+    // 원정팀
+    if (!teamGamesMap.has(game.away_team.id)) {
+      teamGamesMap.set(game.away_team.id, [])
+    }
+    const awayGames = teamGamesMap.get(game.away_team.id)!
+    if (awayGames.length < 10) {
+      awayGames.push(game)
+    }
+  }
+
+  return teamGamesMap
 }
 
 /**
@@ -798,6 +998,7 @@ export const ballDontLieApi = {
   getGamesByDateRange,
   getGamesBySeason,
   getTeamRecentGames,
+  getAllTeamsRecentGames,
   getHeadToHead,
   getCurrentNBASeason,
   calculateTeamForm,
@@ -808,6 +1009,7 @@ export const ballDontLieApi = {
   getSoccerGames,
   getSoccerStandings,
   getSoccerTeamRecentGames,
+  getSoccerAllTeamsRecentGames,
   getCurrentSoccerSeason,
 
   // MLB
@@ -815,5 +1017,6 @@ export const ballDontLieApi = {
   getBaseballGames,
   getBaseballStandings,
   getBaseballTeamRecentGames,
+  getBaseballAllTeamsRecentGames,
   getCurrentMLBSeason,
 }

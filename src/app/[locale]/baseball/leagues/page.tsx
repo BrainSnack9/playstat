@@ -5,9 +5,9 @@ import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
-import Image from 'next/image'
 import { Link } from '@/i18n/routing'
 import { Trophy, Users, Calendar } from 'lucide-react'
+import { LeagueLogo } from '@/components/ui/league-logo'
 
 const SPORT_ID = 'baseball'
 
@@ -81,15 +81,7 @@ export default async function BaseballLeaguesPage({ params }: Props) {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    {league.logoUrl && (
-                      <Image
-                        src={league.logoUrl}
-                        alt={league.name}
-                        width={48}
-                        height={48}
-                        className="rounded-lg"
-                      />
-                    )}
+                    <LeagueLogo logoUrl={league.logoUrl} name={league.name} size="xl" className="rounded-lg" />
                     <div>
                       <CardTitle className="group-hover:text-primary">
                         {league.name}

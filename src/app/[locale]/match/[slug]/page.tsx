@@ -146,13 +146,169 @@ export default async function MatchPage({ params, searchParams }: Props) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const translations = (analysis.translations as any) || {}
     const langData = translations[locale] || translations['en'] || {}
-    
+
+    // Helper to extract text from nested objects (e.g., { home_team: "...", away_team: "..." })
+    const extractNestedText = (data: unknown): string | undefined => {
+      if (!data) return undefined
+      if (typeof data === 'string') {
+        // Check if string is JSON and try to parse it
+        const trimmed = data.trim()
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(trimmed)
+            // If parsed successfully, extract nested text recursively
+            return extractNestedText(parsed)
+          } catch {
+            // Not valid JSON, return as is
+            return data
+          }
+        }
+        return data
+      }
+      if (typeof data === 'object' && data !== null) {
+        const values = Object.values(data as Record<string, unknown>)
+        const stringParts: string[] = []
+        for (const val of values) {
+          if (typeof val === 'string') {
+            stringParts.push(val)
+          } else if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+            // Go one level deeper for nested team data
+            const nestedText = extractNestedText(val)
+            if (nestedText) stringParts.push(nestedText)
+          }
+        }
+        if (stringParts.length > 0) {
+          return stringParts.join('\n\n')
+        }
+      }
+      return undefined
+    }
+
+    // Extract keyPoints from various formats
+    const extractKeyPoints = (data: unknown): string[] | undefined => {
+      if (!data) return undefined
+      if (Array.isArray(data)) return data.filter((item): item is string => typeof item === 'string')
+      if (typeof data === 'string') {
+        // Check if string is JSON array
+        const trimmed = data.trim()
+        if (trimmed.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(trimmed)
+            if (Array.isArray(parsed)) {
+              return parsed.filter((item): item is string => typeof item === 'string')
+            }
+          } catch {
+            // Not valid JSON
+          }
+        }
+        return undefined
+      }
+      if (typeof data === 'object' && data !== null) {
+        // Handle object with numbered keys like { "1": "...", "2": "..." }
+        const values = Object.values(data as Record<string, unknown>)
+          .filter((v): v is string => typeof v === 'string')
+        if (values.length > 0) return values
+      }
+      return undefined
+    }
+
+    // Helper to parse JSON from summary if it contains full analysis
+    const tryParseJsonSummary = (summary: unknown): Record<string, unknown> | null => {
+      if (typeof summary !== 'string') return null
+      const trimmed = summary.trim()
+      if (!trimmed.startsWith('{')) return null
+      try {
+        return JSON.parse(trimmed)
+      } catch {
+        return null
+      }
+    }
+
+    // Check if summary contains JSON (malformed data)
+    const jsonFromSummary = tryParseJsonSummary(langData.summary) || tryParseJsonSummary(analysis.summary)
+
+    // Support both camelCase and snake_case field names
+    const getSummary = () => {
+      if (jsonFromSummary) {
+        // Extract summary from JSON object
+        return extractNestedText(
+          jsonFromSummary.summary ||
+          jsonFromSummary['3줄 요약'] ||
+          jsonFromSummary['3_line_summary']
+        )
+      }
+      return langData.summary ||
+        analysis.summary ||
+        undefined
+    }
+
+    const getRecentFlowAnalysis = () => {
+      if (jsonFromSummary) {
+        return extractNestedText(
+          jsonFromSummary.recentFlowAnalysis ||
+          jsonFromSummary.recent_5_matches_flow_analysis ||
+          jsonFromSummary['최근 5경기 흐름 분석']
+        )
+      }
+      return langData.recentFlowAnalysis ||
+        extractNestedText(langData.recent_5_matches_flow_analysis) ||
+        analysis.recentFlowAnalysis ||
+        extractNestedText((analysis as Record<string, unknown>).recent_5_matches_flow_analysis) ||
+        undefined
+    }
+
+    const getSeasonTrends = () => {
+      if (jsonFromSummary) {
+        return extractNestedText(
+          jsonFromSummary.seasonTrends ||
+          jsonFromSummary.season_overall_trends ||
+          jsonFromSummary['시즌 전체 성향 요약']
+        )
+      }
+      return langData.seasonTrends ||
+        extractNestedText(langData.season_overall_trends) ||
+        analysis.seasonTrends ||
+        extractNestedText((analysis as Record<string, unknown>).season_overall_trends) ||
+        undefined
+    }
+
+    const getTacticalAnalysis = () => {
+      if (jsonFromSummary) {
+        return extractNestedText(
+          jsonFromSummary.tacticalAnalysis ||
+          jsonFromSummary.tactical_perspective_based_on_home_away ||
+          jsonFromSummary['홈/원정 기반의 전술적 관점']
+        )
+      }
+      return langData.tacticalAnalysis ||
+        extractNestedText(langData.tactical_perspective_based_on_home_away) ||
+        analysis.tacticalAnalysis ||
+        extractNestedText((analysis as Record<string, unknown>).tactical_perspective_based_on_home_away) ||
+        undefined
+    }
+
+    const getKeyPoints = () => {
+      if (jsonFromSummary) {
+        return extractKeyPoints(
+          jsonFromSummary.keyPoints ||
+          jsonFromSummary.key_viewing_points ||
+          jsonFromSummary['주요 관전 포인트'] ||
+          jsonFromSummary['3_key_viewing_points']
+        )
+      }
+      return extractKeyPoints(langData.keyPoints) ||
+        extractKeyPoints(langData.key_viewing_points) ||
+        extractKeyPoints(analysis.keyPoints) ||
+        extractKeyPoints((analysis as Record<string, unknown>).key_viewing_points) ||
+        undefined
+    }
+
     parsedAnalysis = {
-      summary: langData.summary || analysis.summary || undefined,
-      recentFlowAnalysis: langData.recentFlowAnalysis || analysis.recentFlowAnalysis || undefined,
-      seasonTrends: langData.seasonTrends || analysis.seasonTrends || undefined,
-      tacticalAnalysis: langData.tacticalAnalysis || analysis.tacticalAnalysis || undefined,
-      keyPoints: (langData.keyPoints || analysis.keyPoints) as string[] | undefined,
+      summary: getSummary(),
+      recentFlowAnalysis: getRecentFlowAnalysis(),
+      seasonTrends: getSeasonTrends(),
+      tacticalAnalysis: getTacticalAnalysis(),
+      keyPoints: getKeyPoints(),
     }
   }
 
@@ -350,14 +506,20 @@ export default async function MatchPage({ params, searchParams }: Props) {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2">
-                    {parsedAnalysis.keyPoints.map((point, i) => (
-                      <li key={i} className="flex items-start">
-                        <span className="mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                          {i + 1}
-                        </span>
-                        {point}
-                      </li>
-                    ))}
+                    {parsedAnalysis.keyPoints.map((point, i) => {
+                      // **text** 마크다운을 <strong>으로 변환
+                      const formattedPoint = point.split(/\*\*([^*]+)\*\*/).map((part, j) =>
+                        j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+                      )
+                      return (
+                        <li key={i} className="flex items-start">
+                          <span className="mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                            {i + 1}
+                          </span>
+                          <span>{formattedPoint}</span>
+                        </li>
+                      )
+                    })}
                   </ul>
                 </CardContent>
               </Card>

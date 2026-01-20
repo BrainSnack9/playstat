@@ -321,7 +321,8 @@
     "contact": "お問い合わせ",
     "privacy": "プライバシーポリシー",
     "terms": "利用規約",
-    "copyright": "© {year} PlayStat. All rights reserved."
+    "copyright": "© {year} PlayStat. All rights reserved.",
+    "main_hub": "メインハブ"
   },
   "sports": {
     "football": "サッカー",
@@ -352,7 +353,7 @@
       "section6_title": "6. クッキーおよび広告",
       "section6_content": "当サービスはGoogle AdSenseを通じて広告を提供しており、この目的のためにクッキーを使用する場合があります。ユーザーはブラウザの設定でクッキーの使用を拒否できますが、その場合、サービスの一部の利用が制限される可能性があります。",
       "contact_title": "7. お問い合わせ",
-      "contact_content": "個人情報に関するお問い合わせは、pcim123@gmail.com までご連絡ください。"
+      "contact_content": "個人情報に関するお問い合わせは、contact@playstat.space までご連絡ください。"
     },
     "terms": {
       "title": "利用規約",
@@ -377,7 +378,7 @@
       "section7_title": "第7条（規約の変更）",
       "section7_content": "当サービスは必要に応じて規約を変更することができ、変更された規約はサービス内での通知を通じて効力を生じます。",
       "contact_title": "第8条（お問い合わせ）",
-      "contact_content": "サービスの利用に関するお問い合わせは、pcim123@gmail.com までご連絡ください。"
+      "contact_content": "サービスの利用に関するお問い合わせは、contact@playstat.space までご連絡ください。"
     }
   },
   "about": {
@@ -401,5 +402,10 @@
     "offer4": "毎日の試合のおすすめ",
     "disclaimer_title": "注意事項",
     "disclaimer_content": "PlayStatはサッカーファンのために試合データを整理しています。結果を予測したり、賭けを奨励したりすることはありません。ここにあるすべての情報は、サッカー観戦をより楽しむためのものです。"
+  },
+  "leagues": {
+    "title": "リーグ",
+    "subtitle": "すべてのリーグを探す",
+    "description": "AI分析を活用した世界のサッカーリーグ"
   }
 }

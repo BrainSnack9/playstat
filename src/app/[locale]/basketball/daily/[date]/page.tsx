@@ -16,7 +16,6 @@ import {
 import { Link } from '@/i18n/routing'
 import { format, parse, isValid, addDays } from 'date-fns'
 import { prisma } from '@/lib/prisma'
-import Image from 'next/image'
 import { getDayRangeInTimezone, getTimezoneFromCookies, getTimezoneOffsetAtDate } from '@/lib/timezone'
 import { ensureDailyReportTranslations } from '@/lib/ai/translate'
 import { FormBadge } from '@/components/form-badge'
@@ -26,6 +25,8 @@ import { CACHE_REVALIDATE, DAILY_REPORT_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
 import { getDateLocale } from '@/lib/utils'
 import { SPORT_COOKIE, getSportFromCookie, sportIdToEnum } from '@/lib/sport'
+import { LeagueLogo } from '@/components/ui/league-logo'
+import { TeamLogo } from '@/components/ui/team-logo'
 
 export const revalidate = DAILY_REPORT_REVALIDATE
 
@@ -649,15 +650,7 @@ export default async function DailyReportPage({ params }: Props) {
                 {Object.entries(matchesByLeague).map(([leagueName, leagueMatches]) => (
                   <div key={leagueName} className="mb-8">
                     <h3 className="font-semibold mb-4 flex items-center gap-2 text-start">
-                      {leagueMatches[0]?.league.logoUrl && (
-                        <Image
-                          src={leagueMatches[0].league.logoUrl}
-                          alt={leagueName}
-                          width={20}
-                          height={20}
-                          className="rounded"
-                        />
-                      )}
+                      <LeagueLogo logoUrl={leagueMatches[0]?.league.logoUrl} name={leagueName} size="sm" />
                       {leagueName}
                       <Badge variant="outline" className="text-xs">
                         {tDaily('matches_count', { count: leagueMatches.length })}
@@ -693,15 +686,14 @@ export default async function DailyReportPage({ params }: Props) {
                                     {/* Teams */}
                                     <div className="flex-1">
                                       <div className="flex items-center gap-2 mb-1">
-                                        {match.homeTeam.logoUrl && (
-                                          <Image
-                                            src={match.homeTeam.logoUrl}
-                                            alt={match.homeTeam.name}
-                                            width={20}
-                                            height={20}
-                                            className={`rounded ${isFinished && !homeWins ? 'grayscale opacity-70' : ''}`}
-                                          />
-                                        )}
+                                        <TeamLogo
+                                          logoUrl={match.homeTeam.logoUrl}
+                                          name={match.homeTeam.name}
+                                          tla={match.homeTeam.tla}
+                                          shortName={match.homeTeam.shortName}
+                                          size="xs"
+                                          grayscale={isFinished && !homeWins}
+                                        />
                                         <span className={`font-medium text-sm ${homeWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
                                           {match.homeTeam.name}
                                         </span>
@@ -719,15 +711,14 @@ export default async function DailyReportPage({ params }: Props) {
                                         )}
                                       </div>
                                       <div className="flex items-center gap-2">
-                                        {match.awayTeam.logoUrl && (
-                                          <Image
-                                            src={match.awayTeam.logoUrl}
-                                            alt={match.awayTeam.name}
-                                            width={20}
-                                            height={20}
-                                            className={`rounded ${isFinished && !awayWins ? 'grayscale opacity-70' : ''}`}
-                                          />
-                                        )}
+                                        <TeamLogo
+                                          logoUrl={match.awayTeam.logoUrl}
+                                          name={match.awayTeam.name}
+                                          tla={match.awayTeam.tla}
+                                          shortName={match.awayTeam.shortName}
+                                          size="xs"
+                                          grayscale={isFinished && !awayWins}
+                                        />
                                         <span className={`font-medium text-sm ${awayWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
                                           {match.awayTeam.name}
                                         </span>
@@ -767,7 +758,6 @@ export default async function DailyReportPage({ params }: Props) {
                                           variant="secondary"
                                           className="text-[10px] py-0 h-5 bg-primary/10 text-primary border-none"
                                         >
-                                          <Sparkles className="h-3 w-3 mr-1" />
                                           {tMatch('ai_analysis')}
                                         </Badge>
                                       )}

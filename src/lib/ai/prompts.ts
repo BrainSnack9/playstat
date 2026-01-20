@@ -427,7 +427,7 @@ export interface ParsedMatchAnalysis {
 }
 
 /**
- * AI 응답을 파싱하여 구조화된 데이터로 변환 (KO/EN 헤더 모두 지원)
+ * AI 응답을 파싱하여 구조화된 데이터로 변환 (KO/EN 헤더 모두 지원, JSON 응답도 지원)
  */
 export function parseMatchAnalysisResponse(response: string): ParsedMatchAnalysis {
   const result: ParsedMatchAnalysis = {
@@ -438,6 +438,96 @@ export function parseMatchAnalysisResponse(response: string): ParsedMatchAnalysi
     keyPoints: [],
   }
 
+  // JSON 형식인지 먼저 확인
+  const trimmed = response.trim()
+  if (trimmed.startsWith('{') || trimmed.startsWith('```json')) {
+    try {
+      // ```json ... ``` 코드블록 제거
+      const jsonStr = trimmed
+        .replace(/^```json\s*\n?/, '')
+        .replace(/\n?```\s*$/, '')
+        .trim()
+
+      const parsed = JSON.parse(jsonStr)
+
+      // Helper to extract string from nested objects
+      const extractString = (data: unknown): string => {
+        if (!data) return ''
+        if (typeof data === 'string') return data
+        if (typeof data === 'object' && data !== null) {
+          // Handle nested objects like { home_team: {...}, away_team: {...} }
+          const values = Object.values(data as Record<string, unknown>)
+          const stringParts: string[] = []
+          for (const val of values) {
+            if (typeof val === 'string') {
+              stringParts.push(val)
+            } else if (typeof val === 'object' && val !== null) {
+              // Go one level deeper for nested team data
+              const innerVals = Object.values(val as Record<string, unknown>)
+                .filter((v): v is string => typeof v === 'string')
+              stringParts.push(...innerVals)
+            }
+          }
+          return stringParts.join('\n\n')
+        }
+        return ''
+      }
+
+      // Helper to extract key points array
+      const extractKeyPoints = (data: unknown): string[] => {
+        if (!data) return []
+        if (Array.isArray(data)) return data.filter((item): item is string => typeof item === 'string')
+        if (typeof data === 'object' && data !== null) {
+          return Object.values(data as Record<string, unknown>)
+            .filter((v): v is string => typeof v === 'string')
+        }
+        return []
+      }
+
+      // Extract fields with various naming conventions
+      result.summary = extractString(
+        parsed.summary ||
+        parsed['3줄 요약'] ||
+        parsed['3_line_summary'] ||
+        parsed['three_line_summary']
+      )
+
+      result.recentFlowAnalysis = extractString(
+        parsed.recentFlowAnalysis ||
+        parsed['최근 5경기 흐름 분석'] ||
+        parsed['recent_5_matches_flow_analysis'] ||
+        parsed['recent_flow_analysis']
+      )
+
+      result.seasonTrends = extractString(
+        parsed.seasonTrends ||
+        parsed['시즌 전체 성향 요약'] ||
+        parsed['season_overall_trends'] ||
+        parsed['season_trends']
+      )
+
+      result.tacticalAnalysis = extractString(
+        parsed.tacticalAnalysis ||
+        parsed['홈/원정 기반의 전술적 관점'] ||
+        parsed['tactical_perspective_based_on_home_away'] ||
+        parsed['tactical_analysis']
+      )
+
+      result.keyPoints = extractKeyPoints(
+        parsed.keyPoints ||
+        parsed['주요 관전 포인트'] ||
+        parsed['key_viewing_points'] ||
+        parsed['3_key_viewing_points']
+      )
+
+      return result
+    } catch {
+      // JSON 파싱 실패시 마크다운 파싱으로 폴백
+      console.warn('Failed to parse JSON response, falling back to markdown parsing')
+    }
+  }
+
+  // 마크다운 형식 파싱 (기존 로직)
   // 섹션 분리 (숫자 헤더나 ### 헤더 기준)
   const sections = response.split(/###\s*(?:\d+\)|[A-Za-z\s]+)/).filter(Boolean)
 

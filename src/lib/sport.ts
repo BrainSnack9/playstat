@@ -94,3 +94,132 @@ export function getSportFromRequest(request: Request): SportId {
 export function getSportTypeFromRequest(request: Request): 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL' {
   return sportIdToEnum(getSportFromRequest(request))
 }
+
+// ===========================================
+// 시즌 정보
+// ===========================================
+
+export interface SeasonInfo {
+  sport: SportId
+  name: string
+  seasonYear: number | string // 예: 2025 또는 "2024-25"
+  startMonth: number // 1-12
+  endMonth: number // 1-12
+  isOffseason: boolean
+  currentPhase: 'preseason' | 'regular' | 'postseason' | 'offseason'
+  nextSeasonStart?: Date
+  seasonEnd?: Date
+}
+
+/**
+ * 각 스포츠의 시즌 일정 정보
+ * - Football (유럽축구): 8월~5월 (다음해)
+ * - Basketball (NBA): 10월~6월 (다음해)
+ * - Baseball (MLB): 4월~10월 (같은해)
+ */
+export function getSeasonInfo(sport: SportId, referenceDate?: Date): SeasonInfo {
+  const now = referenceDate || new Date()
+  const month = now.getMonth() + 1 // 1-12
+  const year = now.getFullYear()
+
+  switch (sport) {
+    case 'football': {
+      // 유럽 축구: 8월~5월 (다음해)
+      // 시즌 표기: 2024-25 형식
+      const isInSeason = month >= 8 || month <= 5
+      const seasonYear = month >= 8 ? `${year}-${(year + 1).toString().slice(2)}` : `${year - 1}-${year.toString().slice(2)}`
+
+      let currentPhase: SeasonInfo['currentPhase']
+      if (month >= 6 && month <= 7) {
+        currentPhase = 'offseason'
+      } else if (month === 8) {
+        currentPhase = 'preseason'
+      } else if (month >= 9 || month <= 4) {
+        currentPhase = 'regular'
+      } else {
+        currentPhase = 'postseason' // 5월
+      }
+
+      const nextSeasonStart = !isInSeason ? new Date(year, 7, 1) : undefined // 8월 1일
+      const seasonEnd = isInSeason && month <= 5 ? new Date(year, 4, 31) : undefined // 5월 31일
+
+      return {
+        sport,
+        name: 'Football',
+        seasonYear,
+        startMonth: 8,
+        endMonth: 5,
+        isOffseason: !isInSeason,
+        currentPhase,
+        nextSeasonStart,
+        seasonEnd,
+      }
+    }
+
+    case 'basketball': {
+      // NBA: 10월~6월 (다음해)
+      // 시즌 표기: 2024-25 형식
+      const isInSeason = month >= 10 || month <= 6
+      const seasonYear = month >= 10 ? `${year}-${(year + 1).toString().slice(2)}` : `${year - 1}-${year.toString().slice(2)}`
+
+      let currentPhase: SeasonInfo['currentPhase']
+      if (month >= 7 && month <= 9) {
+        currentPhase = 'offseason'
+      } else if (month === 10) {
+        currentPhase = 'preseason'
+      } else if (month >= 11 || month <= 3) {
+        currentPhase = 'regular'
+      } else {
+        currentPhase = 'postseason' // 4월~6월 플레이오프
+      }
+
+      const nextSeasonStart = !isInSeason ? new Date(year, 9, 1) : undefined // 10월 1일
+      const seasonEnd = isInSeason && month <= 6 ? new Date(year, 5, 30) : undefined // 6월 30일
+
+      return {
+        sport,
+        name: 'NBA',
+        seasonYear,
+        startMonth: 10,
+        endMonth: 6,
+        isOffseason: !isInSeason,
+        currentPhase,
+        nextSeasonStart,
+        seasonEnd,
+      }
+    }
+
+    case 'baseball': {
+      // MLB: 4월~10월 (같은해)
+      // 시즌 표기: 2025 형식
+      const isInSeason = month >= 4 && month <= 10
+      const seasonYear = isInSeason ? year : (month <= 3 ? year : year + 1)
+
+      let currentPhase: SeasonInfo['currentPhase']
+      if (month >= 11 || month <= 2) {
+        currentPhase = 'offseason'
+      } else if (month === 3) {
+        currentPhase = 'preseason' // 스프링 트레이닝
+      } else if (month >= 4 && month <= 9) {
+        currentPhase = 'regular'
+      } else {
+        currentPhase = 'postseason' // 10월 포스트시즌
+      }
+
+      const nextSeasonStart = !isInSeason ? new Date(month <= 3 ? year : year + 1, 3, 1) : undefined // 4월 1일
+      const seasonEnd = isInSeason ? new Date(year, 9, 31) : undefined // 10월 31일
+
+      return {
+        sport,
+        name: 'MLB',
+        seasonYear,
+        startMonth: 4,
+        endMonth: 10,
+        isOffseason: !isInSeason,
+        currentPhase,
+        nextSeasonStart,
+        seasonEnd,
+      }
+    }
+  }
+}

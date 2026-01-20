@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import { TodayMatches } from '@/components/matches/today-matches'
 import { HotTrends } from '@/components/matches/hot-trends'
 import { LatestNews, LatestNewsSkeleton } from '@/components/news/latest-news'
+import { SeasonStatus } from '@/components/season-status'
 import { ArrowRight, Calendar, ChartBar } from 'lucide-react'
 import Image from 'next/image'
 import { headers, cookies } from 'next/headers'
@@ -350,6 +351,11 @@ export default async function HomePage({ params }: Props) {
           )}
         </div>
       </section>
+
+      {/* Season Status - 오프시즌일 때만 표시 */}
+      <div className="mb-8">
+        <SeasonStatus sport={currentSport} locale={locale} />
+      </div>
 
       <Suspense fallback={null}>
         <HotTrends locale={locale} />

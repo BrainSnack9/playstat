@@ -64,8 +64,8 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
               isNeon ? 'text-white/60' : 'text-muted-foreground'
             )}
           >
-            <a href={`${legalBase}/`} className="hover:text-primary transition-colors">
-              통합 메인
+            <a href="https://playstat.space" className="hover:text-primary transition-colors">
+              {footer('main_hub')}
             </a>
             <span className={cn(isNeon ? 'text-white/30' : 'text-muted-foreground/50')}>|</span>
             <a href={`${legalBase}/privacy`} className="hover:text-primary transition-colors">
@@ -79,15 +79,7 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
 
           {/* Copyright */}
           <p className={cn('text-xs text-center', isNeon ? 'text-white/60' : 'text-muted-foreground')}>
-            © {currentYear} PlayStat. Data by{' '}
-            <a
-              href="https://www.football-data.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-primary underline"
-            >
-              Football-Data.org
-            </a>
+            © {currentYear} PlayStat. All rights reserved.
           </p>
         </div>
       </div>

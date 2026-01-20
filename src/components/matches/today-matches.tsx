@@ -9,6 +9,7 @@ import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { format } from 'date-fns'
 import { getSportFromCookie, sportIdToEnum, SPORT_COOKIE } from '@/lib/sport'
+import type { SportId } from '@/lib/sport'
 import { SportType } from '@prisma/client'
 
 // 서버 공유 캐시 적용: 홈 화면 오늘 경기
@@ -46,14 +47,19 @@ const getCachedTodayMatches = (dateStr: string, timezone: string, sportType: Spo
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )()
 
-interface TodayMatchesProps {
-  locale: string
+export interface TodayMatchesProps {
+  locale?: string
+  sport?: string
 }
 
-export async function TodayMatches({ locale }: TodayMatchesProps) {
+export async function TodayMatches({ locale, sport }: TodayMatchesProps) {
   const cookieStore = await cookies()
+  const resolvedLocale = locale || cookieStore.get('NEXT_LOCALE')?.value || 'ko'
   const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
-  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value)) as SportType
+  // sport prop이 있으면 사용, 없으면 쿠키에서 가져옴
+  const sportType = sport
+    ? sportIdToEnum(sport as SportId) as SportType
+    : sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value)) as SportType
   const dateStr = format(new Date(), 'yyyy-MM-dd')
   const matches = await getCachedTodayMatches(dateStr, timezone, sportType)
   const home = await getTranslations('home')
@@ -80,7 +86,7 @@ export async function TodayMatches({ locale }: TodayMatchesProps) {
             slug: (match as any).slug || match.id
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any} 
-          locale={locale} 
+          locale={resolvedLocale} 
         />
       ))}
     </div>

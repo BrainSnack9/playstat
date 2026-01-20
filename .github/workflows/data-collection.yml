@@ -97,25 +97,6 @@ jobs:
             -H "Content-Type: application/json" \
             --fail --silent --show-error
 
-  football-update-live-matches:
-    name: Football - Update Live Matches
-    runs-on: ubuntu-latest
-    needs: [football-generate-daily-report]
-    if: |
-      github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.sport == 'football' || github.event.inputs.sport == 'all') ||
-      github.event.schedule == '0 1 * * *'
-    steps:
-      - name: Wait for rate limit
-        run: sleep 15
-
-      - name: Update Football Live Matches
-        run: |
-          curl -X GET "${{ secrets.SITE_URL }}/api/cron/update-live-matches?sport=football" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json" \
-            --fail --silent --show-error
-
   # =====================================================
   # BASKETBALL JOBS
   # =====================================================
@@ -187,25 +168,6 @@ jobs:
       - name: Generate Basketball Daily Report
         run: |
           curl -X GET "${{ secrets.SITE_URL }}/api/cron/generate-daily-report?sport=basketball" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json" \
-            --fail --silent --show-error
-
-  basketball-update-live-matches:
-    name: Basketball - Update Live Matches
-    runs-on: ubuntu-latest
-    needs: [basketball-generate-daily-report]
-    if: |
-      github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.sport == 'basketball' || github.event.inputs.sport == 'all') ||
-      github.event.schedule == '0 2 * * *'
-    steps:
-      - name: Wait for rate limit
-        run: sleep 15
-
-      - name: Update Basketball Live Matches
-        run: |
-          curl -X GET "${{ secrets.SITE_URL }}/api/cron/update-live-matches?sport=basketball" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
             --fail --silent --show-error
@@ -285,25 +247,6 @@ jobs:
             -H "Content-Type: application/json" \
             --fail --silent --show-error
 
-  baseball-update-live-matches:
-    name: Baseball - Update Live Matches
-    runs-on: ubuntu-latest
-    needs: [baseball-generate-daily-report]
-    if: |
-      github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.sport == 'baseball' || github.event.inputs.sport == 'all') ||
-      github.event.schedule == '0 3 * * *'
-    steps:
-      - name: Wait for rate limit
-        run: sleep 15
-
-      - name: Update Baseball Live Matches
-        run: |
-          curl -X GET "${{ secrets.SITE_URL }}/api/cron/update-live-matches?sport=baseball" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json" \
-            --fail --silent --show-error
-
   # =====================================================
   # SUMMARY
   # =====================================================
@@ -315,17 +258,14 @@ jobs:
       - football-collect-team-data
       - football-generate-analysis
       - football-generate-daily-report
-      - football-update-live-matches
       - basketball-collect-matches
       - basketball-collect-team-data
       - basketball-generate-analysis
       - basketball-generate-daily-report
-      - basketball-update-live-matches
       - baseball-collect-matches
       - baseball-collect-team-data
       - baseball-generate-analysis
       - baseball-generate-daily-report
-      - baseball-update-live-matches
     if: always()
     steps:
       - name: Summary
@@ -337,20 +277,19 @@ jobs:
           echo "- Collect Team Data: ${{ needs.football-collect-team-data.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Generate Analysis: ${{ needs.football-generate-analysis.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Generate Daily Report: ${{ needs.football-generate-daily-report.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Update Live Matches: ${{ needs.football-update-live-matches.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🏀 Basketball" >> $GITHUB_STEP_SUMMARY
           echo "- Collect Matches: ${{ needs.basketball-collect-matches.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Collect Team Data: ${{ needs.basketball-collect-team-data.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Generate Analysis: ${{ needs.basketball-generate-analysis.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Generate Daily Report: ${{ needs.basketball-generate-daily-report.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Update Live Matches: ${{ needs.basketball-update-live-matches.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## ⚾ Baseball" >> $GITHUB_STEP_SUMMARY
           echo "- Collect Matches: ${{ needs.baseball-collect-matches.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Collect Team Data: ${{ needs.baseball-collect-team-data.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Generate Analysis: ${{ needs.baseball-generate-analysis.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Generate Daily Report: ${{ needs.baseball-generate-daily-report.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Update Live Matches: ${{ needs.baseball-update-live-matches.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> 💡 Live match updates are now handled by a separate workflow (update-live-matches.yml) running every 10 minutes." >> $GITHUB_STEP_SUMMARY

@@ -3,11 +3,11 @@ import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { cookies } from 'next/headers'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Trophy, Globe, TrendingUp } from 'lucide-react'
+import { Globe, TrendingUp } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 import { prisma } from '@/lib/prisma'
-import Image from 'next/image'
 import { SPORT_COOKIE, getSportFromCookie, sportIdToEnum } from '@/lib/sport'
+import { LeagueLogo } from '@/components/ui/league-logo'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -97,17 +97,7 @@ function LeagueCard({ league, translations }: LeagueCardProps) {
       <Card className="transition-all hover:shadow-md hover:border-primary/50">
         <CardContent className="flex items-center p-4">
           <div className="mr-4 flex h-14 w-14 items-center justify-center rounded-lg bg-white overflow-hidden p-2">
-            {logoUrl ? (
-              <Image
-                src={logoUrl}
-                alt={league.name}
-                width={40}
-                height={40}
-                className="object-contain"
-              />
-            ) : (
-              <Trophy className="h-7 w-7 text-primary" />
-            )}
+            <LeagueLogo logoUrl={logoUrl} name={league.name} size="lg" />
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-lg">{league.name}</h3>
