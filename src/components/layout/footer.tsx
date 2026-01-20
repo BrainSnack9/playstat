@@ -57,10 +57,10 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
               height={24}
               className="rounded"
             />
-            <span className="font-semibold">
+            <span className="font-semibold flex items-center gap-2">
               PlayStat
               {currentSport && (
-                <span className="text-primary"> - {sports(currentSport)}</span>
+                <span className="text-primary text-sm">[{sports(currentSport)}]</span>
               )}
             </span>
           </Link>
