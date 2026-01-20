@@ -110,9 +110,10 @@ export async function GET(request: Request) {
     const nextWeek = format(addDays(new Date(), 7), 'yyyy-MM-dd')
     const currentSeason = ballDontLieApi.getCurrentSoccerSeason()
 
-    // 특정 리그만 처리 (쿼리 파라미터로 지정 가능)
+    // 쿼리 파라미터
     const url = new URL(request.url)
     const leagueParam = url.searchParams.get('league')
+    const skipStandings = url.searchParams.get('skipStandings') === 'true'
 
     // 처리할 리그 목록 결정
     const leaguesToProcess = leagueParam
@@ -124,6 +125,8 @@ export async function GET(request: Request) {
         error: `Invalid league: ${leagueParam}. Valid leagues: ${SUPPORTED_LEAGUES.map(l => l.league).join(', ')}`
       }, { status: 400 })
     }
+
+    console.log(`[Football Cron] Processing ${leaguesToProcess.length} leagues, skipStandings=${skipStandings}`)
 
     // 각 리그별로 데이터 수집
     for (const leagueInfo of leaguesToProcess) {
@@ -309,7 +312,13 @@ export async function GET(request: Request) {
           if (t.externalId) dbTeamsByExternalId.set(t.externalId, { id: t.id })
         })
 
-        // 4. 순위 계산 및 저장 (시즌 전체 경기에서 직접 계산)
+        // 4. 순위 계산 및 저장 (skipStandings=true면 스킵)
+        if (skipStandings) {
+          console.log(`[Football Cron] Skipping standings for ${leagueInfo.name} (skipStandings=true)`)
+          results.leaguesProcessed.push(leagueInfo.name)
+          continue // 다음 리그로
+        }
+
         console.log(`[Football Cron] Calculating ${leagueInfo.name} standings from games...`)
         const allSeasonGames = await ballDontLieApi.getSoccerGames(leagueInfo.league, {
           season: currentSeason,
