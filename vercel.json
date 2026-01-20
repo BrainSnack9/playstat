@@ -2,68 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [],
   "redirects": [],
-  "rewrites": [
-    {
-      "source": "/matches/:path*",
-      "has": [{ "type": "host", "value": "football.playstat.space" }],
-      "destination": "/ko/football/matches/:path*"
-    },
-    {
-      "source": "/teams/:path*",
-      "has": [{ "type": "host", "value": "football.playstat.space" }],
-      "destination": "/ko/football/teams/:path*"
-    },
-    {
-      "source": "/leagues/:path*",
-      "has": [{ "type": "host", "value": "football.playstat.space" }],
-      "destination": "/ko/football/leagues/:path*"
-    },
-    {
-      "source": "/daily/:path*",
-      "has": [{ "type": "host", "value": "football.playstat.space" }],
-      "destination": "/ko/football/daily/:path*"
-    },
-    {
-      "source": "/matches/:path*",
-      "has": [{ "type": "host", "value": "basketball.playstat.space" }],
-      "destination": "/ko/basketball/matches/:path*"
-    },
-    {
-      "source": "/teams/:path*",
-      "has": [{ "type": "host", "value": "basketball.playstat.space" }],
-      "destination": "/ko/basketball/teams/:path*"
-    },
-    {
-      "source": "/leagues/:path*",
-      "has": [{ "type": "host", "value": "basketball.playstat.space" }],
-      "destination": "/ko/basketball/leagues/:path*"
-    },
-    {
-      "source": "/daily/:path*",
-      "has": [{ "type": "host", "value": "basketball.playstat.space" }],
-      "destination": "/ko/basketball/daily/:path*"
-    },
-    {
-      "source": "/matches/:path*",
-      "has": [{ "type": "host", "value": "baseball.playstat.space" }],
-      "destination": "/ko/baseball/matches/:path*"
-    },
-    {
-      "source": "/teams/:path*",
-      "has": [{ "type": "host", "value": "baseball.playstat.space" }],
-      "destination": "/ko/baseball/teams/:path*"
-    },
-    {
-      "source": "/leagues/:path*",
-      "has": [{ "type": "host", "value": "baseball.playstat.space" }],
-      "destination": "/ko/baseball/leagues/:path*"
-    },
-    {
-      "source": "/daily/:path*",
-      "has": [{ "type": "host", "value": "baseball.playstat.space" }],
-      "destination": "/ko/baseball/daily/:path*"
-    }
-  ],
+  "rewrites": [],
   "headers": [
     {
       "source": "/api/(.*)",
