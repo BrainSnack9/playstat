@@ -110,8 +110,23 @@ export async function GET(request: Request) {
     const nextWeek = format(addDays(new Date(), 7), 'yyyy-MM-dd')
     const currentSeason = ballDontLieApi.getCurrentSoccerSeason()
 
+    // 특정 리그만 처리 (쿼리 파라미터로 지정 가능)
+    const url = new URL(request.url)
+    const leagueParam = url.searchParams.get('league')
+
+    // 처리할 리그 목록 결정
+    const leaguesToProcess = leagueParam
+      ? SUPPORTED_LEAGUES.filter(l => l.league === leagueParam)
+      : SUPPORTED_LEAGUES
+
+    if (leagueParam && leaguesToProcess.length === 0) {
+      return NextResponse.json({
+        error: `Invalid league: ${leagueParam}. Valid leagues: ${SUPPORTED_LEAGUES.map(l => l.league).join(', ')}`
+      }, { status: 400 })
+    }
+
     // 각 리그별로 데이터 수집
-    for (const leagueInfo of SUPPORTED_LEAGUES) {
+    for (const leagueInfo of leaguesToProcess) {
       try {
         console.log(`[Football Cron] Processing ${leagueInfo.name}...`)
 
@@ -453,7 +468,6 @@ export async function GET(request: Request) {
     })
 
     // chain=true면 후속 작업 호출
-    const url = new URL(request.url)
     const shouldChain = url.searchParams.get('chain') === 'true'
     const chainResults: { job: string; success: boolean; error?: string }[] = []
 
