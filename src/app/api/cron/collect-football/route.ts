@@ -145,12 +145,17 @@ export async function GET(request: Request) {
           where: { sportType: 'FOOTBALL', leagueId: dbLeague.id },
         })
 
-        if (existingTeamCount < 20) {
-          console.log(`[Football Cron] Fetching ${leagueInfo.name} teams...`)
-          const teams = await ballDontLieApi.getSoccerTeams(leagueInfo.league)
-          totalApiCalls++
+        // API에서 팀 정보 가져오기 (순위 계산에 필요)
+        console.log(`[Football Cron] Fetching ${leagueInfo.name} teams...`)
+        const apiTeams = await ballDontLieApi.getSoccerTeams(leagueInfo.league, currentSeason)
+        totalApiCalls++
 
-          for (const team of teams) {
+        // 팀 ID → 팀 정보 맵 생성 (순위 계산용)
+        const apiTeamMap = new Map<number, typeof apiTeams[0]>()
+        apiTeams.forEach((t) => apiTeamMap.set(t.id, t))
+
+        if (existingTeamCount < 20) {
+          for (const team of apiTeams) {
             try {
               const existingTeam = await prisma.team.findFirst({
                 where: { externalId: String(team.id), sportType: 'FOOTBALL' },
@@ -161,9 +166,8 @@ export async function GET(request: Request) {
                   where: { id: existingTeam.id },
                   data: {
                     name: team.name,
-                    shortName: team.code,
-                    tla: team.code,
-                    logoUrl: team.logo,
+                    shortName: team.abbr,
+                    tla: team.abbr,
                   },
                 })
                 results.teamsUpdated++
@@ -172,9 +176,8 @@ export async function GET(request: Request) {
                   data: {
                     leagueId: dbLeague.id,
                     name: team.name,
-                    shortName: team.code,
-                    tla: team.code,
-                    logoUrl: team.logo,
+                    shortName: team.abbr,
+                    tla: team.abbr,
                     externalId: String(team.id),
                     sportType: 'FOOTBALL',
                   },
@@ -220,11 +223,11 @@ export async function GET(request: Request) {
 
         for (const game of games) {
           try {
-            const homeTeamDbId = teamCache.get(game.home_team.id)
-            const awayTeamDbId = teamCache.get(game.away_team.id)
+            const homeTeamDbId = teamCache.get(game.home_team_id)
+            const awayTeamDbId = teamCache.get(game.away_team_id)
 
             if (!homeTeamDbId || !awayTeamDbId) {
-              results.errors.push(`${leagueInfo.name} Game ${game.id}: Team not found in DB`)
+              results.errors.push(`${leagueInfo.name} Game ${game.id}: Team not found in DB (home: ${game.home_team_id}, away: ${game.away_team_id})`)
               continue
             }
 
@@ -236,14 +239,20 @@ export async function GET(request: Request) {
               continue
             }
 
+            // 팀 약어 조회
+            const homeTeam = apiTeamMap.get(game.home_team_id)
+            const awayTeam = apiTeamMap.get(game.away_team_id)
+            const homeAbbr = homeTeam?.abbr || `T${game.home_team_id}`
+            const awayAbbr = awayTeam?.abbr || `T${game.away_team_id}`
+
             const matchSlug = createMatchSlug(
               leagueInfo.slug,
-              game.home_team.code,
-              game.away_team.code,
-              game.date
+              homeAbbr,
+              awayAbbr,
+              game.kickoff
             )
 
-            const kickoffAt = new Date(game.date)
+            const kickoffAt = new Date(game.kickoff)
 
             if (existingMatch) {
               // 진행 중이거나 예정된 경기만 업데이트
@@ -252,10 +261,8 @@ export async function GET(request: Request) {
                 data: {
                   kickoffAt,
                   status: matchStatus,
-                  homeScore: game.home_team_score || null,
-                  awayScore: game.away_team_score || null,
-                  halfTimeHome: game.home_team_halftime_score || null,
-                  halfTimeAway: game.away_team_halftime_score || null,
+                  homeScore: game.home_score,
+                  awayScore: game.away_score,
                 },
               })
               results.matchesUpdated++
@@ -268,13 +275,11 @@ export async function GET(request: Request) {
                   sportType: 'FOOTBALL',
                   kickoffAt,
                   status: matchStatus,
-                  homeScore: game.home_team_score || null,
-                  awayScore: game.away_team_score || null,
-                  halfTimeHome: game.home_team_halftime_score || null,
-                  halfTimeAway: game.away_team_halftime_score || null,
+                  homeScore: game.home_score,
+                  awayScore: game.away_score,
                   slug: matchSlug,
                   externalId: String(game.id),
-                  venue: game.venue,
+                  venue: game.ground,
                   matchday: game.week,
                   round: `Week ${game.week}`,
                 },
@@ -299,7 +304,7 @@ export async function GET(request: Request) {
         })
         totalApiCalls++
 
-        const standings = calculateSoccerStandings(allSeasonGames)
+        const standings = calculateSoccerStandings(allSeasonGames, apiTeamMap)
         console.log(`[Football Cron] Calculated standings for ${standings.length} ${leagueInfo.name} teams`)
 
         // TeamSeasonStats 저장
@@ -373,17 +378,19 @@ export async function GET(request: Request) {
 
             // RecentMatches 형식으로 변환
             const matchesJson = recentGames.map((game) => {
-              const isHome = game.home_team.id === standing.teamId
-              const teamScore = isHome ? game.home_team_score : game.away_team_score
-              const opponentScore = isHome ? game.away_team_score : game.home_team_score
-              const opponent = isHome ? game.away_team.name : game.home_team.name
+              const isHome = game.home_team_id === standing.teamId
+              const teamScore = isHome ? game.home_score : game.away_score
+              const opponentScore = isHome ? game.away_score : game.home_score
+              const opponentId = isHome ? game.away_team_id : game.home_team_id
+              const opponentTeam = apiTeamMap.get(opponentId)
+              const opponent = opponentTeam?.name || `Team ${opponentId}`
 
               let result = 'D' // Draw
               if ((teamScore || 0) > (opponentScore || 0)) result = 'W'
               else if ((teamScore || 0) < (opponentScore || 0)) result = 'L'
 
               return {
-                date: game.date,
+                date: game.kickoff,
                 opponent,
                 result,
                 score: `${teamScore}-${opponentScore}`,

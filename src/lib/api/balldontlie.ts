@@ -147,45 +147,33 @@ export interface BDLGame {
 
 // ===========================================
 // Football/Soccer (축구) 타입 정의
+// (BallDontLie Soccer API 실제 응답 형식)
 // ===========================================
 
 export interface BDLSoccerTeam {
   id: number
   name: string
-  code: string
-  logo: string
-  country: string
-  founded?: number
-  venue?: string
-}
-
-export interface BDLSoccerPlayer {
-  id: number
-  name: string
-  first_name: string
-  last_name: string
-  position: string
-  jersey_number: number | null
-  date_of_birth: string | null
-  nationality: string | null
-  height: string | null
-  weight: string | null
-  team: BDLSoccerTeam
+  short_name: string
+  abbr: string
+  city: string
+  stadium: string
 }
 
 export interface BDLSoccerGame {
   id: number
-  date: string
+  kickoff: string // ISO 날짜 문자열
+  provisional_kickoff: string
   season: number
   week: number
-  status: string
-  venue: string | null
-  home_team: BDLSoccerTeam
-  away_team: BDLSoccerTeam
-  home_team_score: number | null
-  away_team_score: number | null
-  home_team_halftime_score: number | null
-  away_team_halftime_score: number | null
+  status: string // 'FullTime', 'C' (Completed), 'NS' (Not Started), 'HT', '1H', '2H', etc.
+  ground: string | null
+  home_team_id: number
+  away_team_id: number
+  home_score: number | null
+  away_score: number | null
+  clock: number | null
+  clock_display: string | null
+  extra_time: boolean
 }
 
 export interface BDLSoccerStanding {
@@ -658,10 +646,12 @@ const SOCCER_LEAGUE_BASE_URLS: Record<SoccerLeague, string> = {
 
 /**
  * 축구 리그 팀 목록 조회
+ * @param league - 리그 (epl, laliga, etc.)
+ * @param season - 시즌 연도 (필수)
  */
-export async function getSoccerTeams(league: SoccerLeague): Promise<BDLSoccerTeam[]> {
+export async function getSoccerTeams(league: SoccerLeague, season: number): Promise<BDLSoccerTeam[]> {
   const baseUrl = SOCCER_LEAGUE_BASE_URLS[league]
-  const response = await rateLimitedFetch<PaginatedResponse<BDLSoccerTeam>>(baseUrl, '/teams')
+  const response = await rateLimitedFetch<PaginatedResponse<BDLSoccerTeam>>(baseUrl, '/teams', { season })
   return response.data
 }
 
@@ -778,27 +768,27 @@ export async function getSoccerAllTeamsRecentGames(
 
   // 완료된 경기만 필터 후 날짜 역순 정렬
   const finishedGames = allGames
-    .filter((game) => game.status === 'FT')
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .filter((game) => game.status === 'FullTime' || game.status === 'C' || game.status === 'FT')
+    .sort((a, b) => new Date(b.kickoff).getTime() - new Date(a.kickoff).getTime())
 
   // 팀별로 그룹핑
   const teamGamesMap = new Map<number, BDLSoccerGame[]>()
 
   for (const game of finishedGames) {
     // 홈팀
-    if (!teamGamesMap.has(game.home_team.id)) {
-      teamGamesMap.set(game.home_team.id, [])
+    if (!teamGamesMap.has(game.home_team_id)) {
+      teamGamesMap.set(game.home_team_id, [])
     }
-    const homeGames = teamGamesMap.get(game.home_team.id)!
+    const homeGames = teamGamesMap.get(game.home_team_id)!
     if (homeGames.length < 10) {
       homeGames.push(game)
     }
 
     // 원정팀
-    if (!teamGamesMap.has(game.away_team.id)) {
-      teamGamesMap.set(game.away_team.id, [])
+    if (!teamGamesMap.has(game.away_team_id)) {
+      teamGamesMap.set(game.away_team_id, [])
     }
-    const awayGames = teamGamesMap.get(game.away_team.id)!
+    const awayGames = teamGamesMap.get(game.away_team_id)!
     if (awayGames.length < 10) {
       awayGames.push(game)
     }
@@ -825,6 +815,8 @@ export function getCurrentSoccerSeason(): number {
 /**
  * 축구 경기 결과에서 팀별 순위 계산
  * (Free Tier에서 /standings API 미지원으로 직접 계산)
+ * @param games - 경기 목록
+ * @param teams - 팀 정보 맵 (팀 ID → 팀 정보)
  */
 export interface SoccerTeamStanding {
   teamId: number
@@ -842,27 +834,32 @@ export interface SoccerTeamStanding {
   rank?: number
 }
 
-export function calculateSoccerStandings(games: BDLSoccerGame[]): SoccerTeamStanding[] {
+export function calculateSoccerStandings(
+  games: BDLSoccerGame[],
+  teams: Map<number, BDLSoccerTeam>
+): SoccerTeamStanding[] {
   const teamStats = new Map<number, SoccerTeamStanding>()
   const teamRecentResults = new Map<number, string[]>()
 
-  // 완료된 경기만 필터 (FT = Full Time, FullTime 등)
+  // 완료된 경기만 필터 (FullTime, C = Completed)
   const finishedGames = games
-    .filter(g => g.status === 'FT' || g.status === 'FullTime' || g.status === 'C')
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .filter(g => g.status === 'FullTime' || g.status === 'C' || g.status === 'FT')
+    .sort((a, b) => new Date(b.kickoff).getTime() - new Date(a.kickoff).getTime())
 
   for (const game of finishedGames) {
-    const homeTeam = game.home_team
-    const awayTeam = game.away_team
-    const homeScore = game.home_team_score || 0
-    const awayScore = game.away_team_score || 0
+    const homeTeamId = game.home_team_id
+    const awayTeamId = game.away_team_id
+    const homeTeam = teams.get(homeTeamId)
+    const awayTeam = teams.get(awayTeamId)
+    const homeScore = game.home_score || 0
+    const awayScore = game.away_score || 0
 
     // 홈팀 통계 초기화
-    if (!teamStats.has(homeTeam.id)) {
-      teamStats.set(homeTeam.id, {
-        teamId: homeTeam.id,
-        teamName: homeTeam.name,
-        teamAbbrev: homeTeam.code || homeTeam.name.substring(0, 3).toUpperCase(),
+    if (!teamStats.has(homeTeamId)) {
+      teamStats.set(homeTeamId, {
+        teamId: homeTeamId,
+        teamName: homeTeam?.name || `Team ${homeTeamId}`,
+        teamAbbrev: homeTeam?.abbr || `T${homeTeamId}`,
         wins: 0,
         draws: 0,
         losses: 0,
@@ -873,15 +870,15 @@ export function calculateSoccerStandings(games: BDLSoccerGame[]): SoccerTeamStan
         points: 0,
         form: '',
       })
-      teamRecentResults.set(homeTeam.id, [])
+      teamRecentResults.set(homeTeamId, [])
     }
 
     // 원정팀 통계 초기화
-    if (!teamStats.has(awayTeam.id)) {
-      teamStats.set(awayTeam.id, {
-        teamId: awayTeam.id,
-        teamName: awayTeam.name,
-        teamAbbrev: awayTeam.code || awayTeam.name.substring(0, 3).toUpperCase(),
+    if (!teamStats.has(awayTeamId)) {
+      teamStats.set(awayTeamId, {
+        teamId: awayTeamId,
+        teamName: awayTeam?.name || `Team ${awayTeamId}`,
+        teamAbbrev: awayTeam?.abbr || `T${awayTeamId}`,
         wins: 0,
         draws: 0,
         losses: 0,
@@ -892,13 +889,13 @@ export function calculateSoccerStandings(games: BDLSoccerGame[]): SoccerTeamStan
         points: 0,
         form: '',
       })
-      teamRecentResults.set(awayTeam.id, [])
+      teamRecentResults.set(awayTeamId, [])
     }
 
-    const homeStat = teamStats.get(homeTeam.id)!
-    const awayStat = teamStats.get(awayTeam.id)!
-    const homeRecent = teamRecentResults.get(homeTeam.id)!
-    const awayRecent = teamRecentResults.get(awayTeam.id)!
+    const homeStat = teamStats.get(homeTeamId)!
+    const awayStat = teamStats.get(awayTeamId)!
+    const homeRecent = teamRecentResults.get(homeTeamId)!
+    const awayRecent = teamRecentResults.get(awayTeamId)!
 
     // 홈팀 통계 업데이트
     homeStat.gamesPlayed++
