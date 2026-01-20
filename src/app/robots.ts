@@ -1,8 +1,11 @@
 import { MetadataRoute } from 'next'
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://playstat.space'
+import { headers } from 'next/headers'
+import { resolveBaseUrl } from '@/lib/seo'
 
 export default function robots(): MetadataRoute.Robots {
+  const host = headers().get('host')
+  const baseUrl = resolveBaseUrl(host)
+
   return {
     rules: [
       {
@@ -20,7 +23,7 @@ export default function robots(): MetadataRoute.Robots {
         allow: '/',
       },
     ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
-    host: SITE_URL,
+    sitemap: `${baseUrl}/sitemap.xml`,
+    host: baseUrl,
   }
 }
