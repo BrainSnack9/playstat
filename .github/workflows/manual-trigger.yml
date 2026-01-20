@@ -1,0 +1,80 @@
+name: Manual Data Collection Trigger
+
+on:
+  workflow_dispatch:
+    inputs:
+      sport:
+        description: 'Select sport to collect data'
+        required: true
+        type: choice
+        options:
+          - football
+          - basketball
+          - baseball
+          - all
+      chain:
+        description: 'Chain subsequent jobs (analysis, daily report)'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  trigger-collection:
+    name: Trigger ${{ github.event.inputs.sport }} Collection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set Sport URLs
+        id: urls
+        run: |
+          CHAIN_PARAM="${{ github.event.inputs.chain == 'true' && '?chain=true' || '' }}"
+
+          if [ "${{ github.event.inputs.sport }}" == "all" ]; then
+            echo "sports=football,basketball,baseball" >> $GITHUB_OUTPUT
+          else
+            echo "sports=${{ github.event.inputs.sport }}" >> $GITHUB_OUTPUT
+          fi
+
+          echo "chain_param=$CHAIN_PARAM" >> $GITHUB_OUTPUT
+
+      - name: Trigger Collection
+        run: |
+          IFS=',' read -ra SPORTS <<< "${{ steps.urls.outputs.sports }}"
+
+          for sport in "${SPORTS[@]}"; do
+            echo "🔄 Collecting $sport data..."
+
+            response=$(curl -X GET \
+              "${{ secrets.SITE_URL }}/api/cron/collect-${sport}${{ steps.urls.outputs.chain_param }}" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              -H "Content-Type: application/json" \
+              --write-out "\n%{http_code}" \
+              --silent)
+
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+
+            if [ "$http_code" -eq 200 ]; then
+              echo "✅ $sport collection successful"
+              echo "$body" | jq '.' || echo "$body"
+            else
+              echo "❌ $sport collection failed (HTTP $http_code)"
+              echo "$body"
+              exit 1
+            fi
+
+            # Rate limiting: 각 요청 사이 15초 대기
+            if [ "$sport" != "${SPORTS[-1]}" ]; then
+              echo "⏳ Waiting 15 seconds for rate limiting..."
+              sleep 15
+            fi
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Data Collection Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Sport(s)**: ${{ github.event.inputs.sport }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Chain**: ${{ github.event.inputs.chain }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY

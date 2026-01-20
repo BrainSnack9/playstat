@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull:*)",
+      "Bash(npx tsx:*)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)",
+      "Bash(grep:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run tsx:*)",
+      "Read(//c/**)",
+      "Bash(timeout 180 tail:*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Project\\playstat\\src\\app\\[locale]\\baseball\\daily"
+    ]
+  }
+}

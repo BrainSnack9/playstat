@@ -58,30 +58,6 @@ export function getUTCDayRange(date?: Date | string): { start: Date; end: Date; 
   return { start: utcDateStart, end: utcEnd, utcDate: utcDateStart }
 }
 
-/**
- * 특정 날짜(또는 현재)를 KST 기준 날짜로 변환하여 시작/끝 시간을 UTC로 반환
- */
-export function getKSTDayRange(date?: Date | string): { start: Date; end: Date; kstDate: Date } {
-  const baseDate = date ? new Date(date) : new Date()
-  
-  // 입력된 날짜를 KST로 변환
-  const kstTime = new Date(baseDate.getTime() + KST_OFFSET_MS)
-
-  // KST 기준 00:00:00 (UTC 시간으로는 -9시간)
-  const kstDateStart = new Date(Date.UTC(
-    kstTime.getUTCFullYear(),
-    kstTime.getUTCMonth(),
-    kstTime.getUTCDate(),
-    0, 0, 0, 0
-  ))
-  const utcStart = new Date(kstDateStart.getTime() - KST_OFFSET_MS)
-
-  // KST 기준 23:59:59.999
-  const utcEnd = new Date(utcStart.getTime() + 24 * 60 * 60 * 1000 - 1)
-
-  return { start: utcStart, end: utcEnd, kstDate: kstTime }
-}
-
 // 사용자 타임존 기준 오늘의 시작/끝 (UTC로 반환)
 export function getTodayRangeInTimezone(timezone: string): { start: Date; end: Date } {
   const now = new Date()
@@ -112,22 +88,17 @@ export function getDayRangeInTimezone(dateStr: string, timezone: string): { star
     return getTodayRangeInTimezone(timezone)
   }
 
-  const utcBase = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
-  const offsetMinutes = getTimezoneOffsetAtDate(timezone, utcBase)
-  const startUTC = new Date(utcBase.getTime() - offsetMinutes * 60 * 1000)
+  // 해당 타임존에서의 자정(00:00:00)을 UTC로 변환
+  // 예: 2026-01-20 00:00 KST → 2026-01-19 15:00 UTC
+  const localDateString = `${dateStr}T00:00:00`
+  const localDate = new Date(localDateString)
+
+  // 타임존 오프셋 계산
+  const offsetMinutes = getTimezoneOffsetAtDate(timezone, localDate)
+
+  // UTC로 변환: 타임존 시간 - 오프셋 = UTC 시간
+  const startUTC = new Date(localDate.getTime() - offsetMinutes * 60 * 1000)
   const endUTC = new Date(startUTC.getTime() + 24 * 60 * 60 * 1000 - 1)
 
   return { start: startUTC, end: endUTC }
 }
-
-// 자주 사용하는 타임존 목록
-export const COMMON_TIMEZONES = [
-  { value: 'Asia/Seoul', label: '한국 (KST, UTC+9)' },
-  { value: 'Asia/Tokyo', label: '일본 (JST, UTC+9)' },
-  { value: 'Asia/Shanghai', label: '중국 (CST, UTC+8)' },
-  { value: 'Europe/London', label: '영국 (GMT/BST)' },
-  { value: 'Europe/Paris', label: '프랑스 (CET/CEST)' },
-  { value: 'Europe/Berlin', label: '독일 (CET/CEST)' },
-  { value: 'America/New_York', label: '미국 동부 (EST/EDT)' },
-  { value: 'America/Los_Angeles', label: '미국 서부 (PST/PDT)' },
-]

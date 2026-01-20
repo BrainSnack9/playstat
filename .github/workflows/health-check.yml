@@ -1,0 +1,52 @@
+name: API Health Check
+
+on:
+  schedule:
+    # 매시간 헬스체크
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    name: Check API Health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Site Health
+        id: site-check
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.SITE_URL }}")
+          echo "status_code=$response" >> $GITHUB_OUTPUT
+
+          if [ "$response" -eq 200 ]; then
+            echo "✅ Site is healthy (HTTP $response)"
+          else
+            echo "❌ Site health check failed (HTTP $response)"
+            exit 1
+          fi
+
+      - name: Check Football API
+        continue-on-error: true
+        run: |
+          # BallDontLie API 상태 확인 (인증 없이 접근 가능한 엔드포인트)
+          response=$(curl -s -o /dev/null -w "%{http_code}" "https://api.balldontlie.io/epl/v1/teams?per_page=1")
+          echo "Football API Status: HTTP $response"
+
+      - name: Check Basketball API
+        continue-on-error: true
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" "https://api.balldontlie.io/v1/teams?per_page=1")
+          echo "Basketball API Status: HTTP $response"
+
+      - name: Check Baseball API
+        continue-on-error: true
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" "https://api.balldontlie.io/mlb/v1/teams?per_page=1")
+          echo "Baseball API Status: HTTP $response"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Health Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Site Status**: ${{ steps.site-check.outputs.status_code }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY

@@ -126,7 +126,7 @@ export async function GET(request: Request) {
 
         // AI 입력 데이터 구성
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const inputData = buildAnalysisInput(match as any, h2h)
+        const inputData = buildAnalysisInput(match as any, h2h, sportTypeEnum)
 
         // 영어 분석 생성 (English First)
         console.log(`[Cron] Generating English analysis for match ${match.id}...`)
@@ -293,7 +293,8 @@ function buildAnalysisInput(
       } | null
     }
   },
-  h2h: { matchesJson: unknown } | null
+  h2h: { matchesJson: unknown } | null,
+  sportType: SportType
 ): MatchAnalysisInputData {
   const homeStats = match.homeTeam.seasonStats!
   const awayStats = match.awayTeam.seasonStats!
@@ -332,12 +333,15 @@ function buildAnalysisInput(
   const combinedTrend = getMatchCombinedTrend(homeTrends, awayTrends)
 
   // AI 분석용 영문 텍스트 생성
+  const isBasketball = sportType === 'BASKETBALL'
+  const scoreUnit = isBasketball ? 'points' : 'goals'
+
   const getTrendDescEn = (t: { trendType: string; value: number }) => {
     switch (t.trendType) {
       case 'winning_streak': return `${t.value} match winning streak`
       case 'losing_streak': return `${t.value} match losing streak`
-      case 'scoring_machine': return `${t.value} goals in last 5 matches (Explosive offense)`
-      case 'defense_leak': return `${t.value} goals conceded in last 5 matches (Defensive leak)`
+      case 'scoring_machine': return `${t.value} ${scoreUnit} in last 5 matches (Explosive offense)`
+      case 'defense_leak': return `${t.value} ${scoreUnit} conceded in last 5 matches (Defensive leak)`
       default: return ''
     }
   }
@@ -352,7 +356,7 @@ function buildAnalysisInput(
 
   return {
     match: {
-      sport_type: 'football',
+      sport_type: isBasketball ? 'basketball' : 'football',
       league: match.league.name,
       kickoff_at: match.kickoffAt.toISOString(),
       home_team: match.homeTeam.name,

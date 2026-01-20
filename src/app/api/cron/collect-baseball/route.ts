@@ -5,9 +5,8 @@ import type { PrismaClient, MatchStatus } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
 import {
   ballDontLieApi,
-  calculateStandings,
-  type BDLGame,
-  type BDLTeam,
+  type BDLBaseballGame,
+  type BDLBaseballTeam,
 } from '@/lib/api/balldontlie'
 
 // Vercel Cron 인증
@@ -19,18 +18,18 @@ async function getPrisma(): Promise<PrismaClient> {
   return prisma
 }
 
-// NBA 리그 정보
-const NBA_LEAGUE = {
-  name: 'NBA',
+// MLB 리그 정보
+const MLB_LEAGUE = {
+  name: 'MLB',
   country: 'USA',
-  slug: 'nba',
-  code: 'NBA',
-  logoUrl: 'https://a.espncdn.com/i/teamlogos/leagues/500/nba.png',
+  slug: 'mlb',
+  code: 'MLB',
+  logoUrl: 'https://a.espncdn.com/i/teamlogos/leagues/500/mlb.png',
 }
 
 /**
- * GET /api/cron/collect-basketball
- * 크론: NBA 경기 데이터 수집
+ * GET /api/cron/collect-baseball
+ * 크론: MLB 경기 데이터 수집
  *
  * BallDontLie Free Tier 제한:
  * - 분당 5회 요청
@@ -50,7 +49,7 @@ export async function GET(request: Request) {
   const prisma = await getPrisma()
   const startTime = Date.now()
   const results = {
-    sport: 'basketball' as const,
+    sport: 'baseball' as const,
     teamsAdded: 0,
     teamsUpdated: 0,
     matchesAdded: 0,
@@ -61,55 +60,55 @@ export async function GET(request: Request) {
   let totalApiCalls = 0
 
   try {
-    // 1. NBA 리그 확인/생성
-    let nbaLeague = await prisma.league.findFirst({
-      where: { code: NBA_LEAGUE.code, sportType: 'BASKETBALL' },
+    // 1. MLB 리그 확인/생성
+    let mlbLeague = await prisma.league.findFirst({
+      where: { code: MLB_LEAGUE.code, sportType: 'BASEBALL' },
     })
 
-    if (!nbaLeague) {
-      nbaLeague = await prisma.league.create({
+    if (!mlbLeague) {
+      mlbLeague = await prisma.league.create({
         data: {
-          name: NBA_LEAGUE.name,
-          country: NBA_LEAGUE.country,
-          sportType: 'BASKETBALL',
-          code: NBA_LEAGUE.code,
-          logoUrl: NBA_LEAGUE.logoUrl,
+          name: MLB_LEAGUE.name,
+          country: MLB_LEAGUE.country,
+          sportType: 'BASEBALL',
+          code: MLB_LEAGUE.code,
+          logoUrl: MLB_LEAGUE.logoUrl,
           isActive: true,
         },
       })
-      console.log('[Basketball Cron] Created NBA league')
-    } else if (!nbaLeague.logoUrl) {
+      console.log('[Baseball Cron] Created MLB league')
+    } else if (!mlbLeague.logoUrl) {
       // 기존 리그에 로고 URL 업데이트
-      nbaLeague = await prisma.league.update({
-        where: { id: nbaLeague.id },
-        data: { logoUrl: NBA_LEAGUE.logoUrl },
+      mlbLeague = await prisma.league.update({
+        where: { id: mlbLeague.id },
+        data: { logoUrl: MLB_LEAGUE.logoUrl },
       })
     }
 
-    // 2. NBA 팀 정보 수집 (팀이 없거나 30개 미만이면 수집)
+    // 2. MLB 팀 정보 수집 (팀이 없거나 30개 미만이면 수집)
     const existingTeamCount = await prisma.team.count({
-      where: { sportType: 'BASKETBALL', leagueId: nbaLeague.id },
+      where: { sportType: 'BASEBALL', leagueId: mlbLeague.id },
     })
 
     if (existingTeamCount < 30) {
-      console.log('[Basketball Cron] Fetching NBA teams...')
-      const teams = await ballDontLieApi.getTeams()
+      console.log('[Baseball Cron] Fetching MLB teams...')
+      const teams = await ballDontLieApi.getBaseballTeams()
       totalApiCalls++
 
       for (const team of teams) {
         try {
           const existingTeam = await prisma.team.findFirst({
-            where: { externalId: String(team.id), sportType: 'BASKETBALL' },
+            where: { externalId: String(team.id), sportType: 'BASEBALL' },
           })
 
-          const logoUrl = getNBATeamLogoUrl(team.abbreviation)
+          const logoUrl = getMLBTeamLogoUrl(team.abbreviation)
 
           if (existingTeam) {
             await prisma.team.update({
               where: { id: existingTeam.id },
               data: {
-                name: team.full_name,
-                shortName: team.name,
+                name: team.name,
+                shortName: team.abbreviation,
                 tla: team.abbreviation,
                 logoUrl,
               },
@@ -118,13 +117,13 @@ export async function GET(request: Request) {
           } else {
             await prisma.team.create({
               data: {
-                leagueId: nbaLeague.id,
-                name: team.full_name,
-                shortName: team.name,
+                leagueId: mlbLeague.id,
+                name: team.name,
+                shortName: team.abbreviation,
                 tla: team.abbreviation,
                 logoUrl,
                 externalId: String(team.id),
-                sportType: 'BASKETBALL',
+                sportType: 'BASEBALL',
               },
             })
             results.teamsAdded++
@@ -138,15 +137,20 @@ export async function GET(request: Request) {
     // 3. 경기 데이터 수집 (어제 ~ 7일 후)
     const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd')
     const nextWeek = format(addDays(new Date(), 7), 'yyyy-MM-dd')
+    const currentSeason = ballDontLieApi.getCurrentMLBSeason()
 
-    console.log(`[Basketball Cron] Fetching games from ${yesterday} to ${nextWeek}...`)
-    const games = await ballDontLieApi.getGamesByDateRange(yesterday, nextWeek)
-    totalApiCalls++ // getGamesByDateRange 내부에서 페이지네이션 시 추가 호출 가능
+    console.log(`[Baseball Cron] Fetching games from ${yesterday} to ${nextWeek}...`)
+    const games = await ballDontLieApi.getBaseballGames({
+      season: currentSeason,
+      start_date: yesterday,
+      end_date: nextWeek,
+    })
+    totalApiCalls++
 
     // 팀 매핑 캐시
     const teamCache = new Map<number, string>()
     const dbTeams = await prisma.team.findMany({
-      where: { sportType: 'BASKETBALL', leagueId: nbaLeague.id },
+      where: { sportType: 'BASEBALL', leagueId: mlbLeague.id },
       select: { id: true, externalId: true },
     })
     dbTeams.forEach((t) => {
@@ -156,7 +160,7 @@ export async function GET(request: Request) {
     for (const game of games) {
       try {
         const homeTeamDbId = teamCache.get(game.home_team.id)
-        const awayTeamDbId = teamCache.get(game.visitor_team.id)
+        const awayTeamDbId = teamCache.get(game.away_team.id)
 
         if (!homeTeamDbId || !awayTeamDbId) {
           results.errors.push(`Game ${game.id}: Team not found in DB`)
@@ -164,18 +168,18 @@ export async function GET(request: Request) {
         }
 
         const existingMatch = await prisma.match.findFirst({
-          where: { externalId: String(game.id), sportType: 'BASKETBALL' },
+          where: { externalId: String(game.id), sportType: 'BASEBALL' },
         })
 
-        const matchStatus = mapBDLStatus(game.status)
+        const matchStatus = mapBaseballStatus(game.status)
         const matchSlug = createMatchSlug(
-          NBA_LEAGUE.slug,
+          MLB_LEAGUE.slug,
           game.home_team.abbreviation,
-          game.visitor_team.abbreviation,
+          game.away_team.abbreviation,
           game.date
         )
 
-        const kickoffAt = parseGameTime(game.date, game.status)
+        const kickoffAt = new Date(game.date)
 
         if (existingMatch) {
           await prisma.match.update({
@@ -184,24 +188,25 @@ export async function GET(request: Request) {
               kickoffAt,
               status: matchStatus,
               homeScore: game.home_team_score || null,
-              awayScore: game.visitor_team_score || null,
+              awayScore: game.away_team_score || null,
             },
           })
           results.matchesUpdated++
         } else {
           await prisma.match.create({
             data: {
-              leagueId: nbaLeague.id,
+              leagueId: mlbLeague.id,
               homeTeamId: homeTeamDbId,
               awayTeamId: awayTeamDbId,
-              sportType: 'BASKETBALL',
+              sportType: 'BASEBALL',
               kickoffAt,
               status: matchStatus,
               homeScore: game.home_team_score || null,
-              awayScore: game.visitor_team_score || null,
+              awayScore: game.away_team_score || null,
               slug: matchSlug,
               externalId: String(game.id),
-              round: game.postseason ? 'Playoffs' : 'Regular Season',
+              venue: game.venue,
+              round: 'Regular Season',
             },
           })
           results.matchesAdded++
@@ -211,23 +216,14 @@ export async function GET(request: Request) {
       }
     }
 
-    // 4. 순위 계산 및 저장 (시즌 전체 경기 기반)
-    console.log('[Basketball Cron] Calculating standings from season games...')
-    const currentSeason = ballDontLieApi.getCurrentNBASeason()
-
-    // 시즌 시작일 (10월 1일)부터 현재까지 완료된 경기 조회
-    const seasonStart = `${currentSeason}-10-01`
-    const today = format(new Date(), 'yyyy-MM-dd')
-
-    const seasonGames = await ballDontLieApi.getGamesByDateRange(seasonStart, today)
+    // 4. 순위표 조회 및 저장
+    console.log('[Baseball Cron] Fetching MLB standings...')
+    const standings = await ballDontLieApi.getBaseballStandings(currentSeason)
     totalApiCalls++
-
-    const standings = calculateStandings(seasonGames)
-    console.log(`[Basketball Cron] Calculated standings for ${standings.length} teams`)
 
     // 리그 시즌 업데이트
     await prisma.league.update({
-      where: { id: nbaLeague.id },
+      where: { id: mlbLeague.id },
       data: { season: currentSeason },
     })
 
@@ -235,86 +231,78 @@ export async function GET(request: Request) {
     for (const standing of standings) {
       try {
         const team = await prisma.team.findFirst({
-          where: { externalId: String(standing.teamId), sportType: 'BASKETBALL' },
+          where: { externalId: String(standing.team.id), sportType: 'BASEBALL' },
         })
 
         if (!team) {
-          results.errors.push(`Standing: Team ${standing.teamId} not found`)
+          results.errors.push(`Standing: Team ${standing.team.id} not found`)
           continue
         }
+
+        const gamesPlayed = standing.wins + standing.losses
 
         await prisma.teamSeasonStats.upsert({
           where: { teamId: team.id },
           create: {
             teamId: team.id,
-            sportType: 'BASKETBALL',
+            sportType: 'BASEBALL',
             season: currentSeason,
-            gamesPlayed: standing.gamesPlayed,
+            gamesPlayed,
             wins: standing.wins,
             losses: standing.losses,
-            rank: standing.rank,
-            form: standing.form,
-            homeGames: standing.homeWins + standing.homeLosses,
-            homeWins: standing.homeWins,
-            homeLosses: standing.homeLosses,
-            awayGames: standing.awayWins + standing.awayLosses,
-            awayWins: standing.awayWins,
-            awayLosses: standing.awayLosses,
             additionalStats: {
-              conference: standing.conference,
-              division: standing.division,
+              win_percentage: standing.win_percentage,
+              games_back: standing.games_back,
+              home_record: standing.home_record,
+              away_record: standing.away_record,
+              streak: standing.streak,
             },
           },
           update: {
             season: currentSeason,
-            gamesPlayed: standing.gamesPlayed,
+            gamesPlayed,
             wins: standing.wins,
             losses: standing.losses,
-            rank: standing.rank,
-            form: standing.form,
-            homeGames: standing.homeWins + standing.homeLosses,
-            homeWins: standing.homeWins,
-            homeLosses: standing.homeLosses,
-            awayGames: standing.awayWins + standing.awayLosses,
-            awayWins: standing.awayWins,
-            awayLosses: standing.awayLosses,
             additionalStats: {
-              conference: standing.conference,
-              division: standing.division,
+              win_percentage: standing.win_percentage,
+              games_back: standing.games_back,
+              home_record: standing.home_record,
+              away_record: standing.away_record,
+              streak: standing.streak,
             },
           },
         })
         results.standingsUpdated++
       } catch (error) {
-        results.errors.push(`Standing ${standing.teamId}: ${String(error)}`)
+        results.errors.push(`Standing ${standing.team.id}: ${String(error)}`)
       }
     }
 
     // 5. 각 팀의 최근 경기 수집 및 저장
-    console.log('[Basketball Cron] Collecting recent matches for teams...')
+    console.log('[Baseball Cron] Collecting recent matches for teams...')
     let recentMatchesUpdated = 0
 
     for (const standing of standings) {
       try {
         const team = await prisma.team.findFirst({
-          where: { externalId: String(standing.teamId), sportType: 'BASKETBALL' },
+          where: { externalId: String(standing.team.id), sportType: 'BASEBALL' },
         })
 
         if (!team) continue
 
         // BallDontLie API에서 팀의 최근 경기 가져오기 (완료된 경기 10개)
-        const recentGames = await ballDontLieApi.getTeamRecentGames(standing.teamId, 10)
+        const recentGames = await ballDontLieApi.getBaseballTeamRecentGames(standing.team.id, 10)
         totalApiCalls++
 
         if (recentGames.length === 0) continue
 
         // RecentMatches 형식으로 변환
         const matchesJson = recentGames.map((game) => {
-          const isHome = game.home_team.id === standing.teamId
-          const teamScore = isHome ? game.home_team_score : game.visitor_team_score
-          const opponentScore = isHome ? game.visitor_team_score : game.home_team_score
-          const opponent = isHome ? game.visitor_team.full_name : game.home_team.full_name
-          const result = teamScore > opponentScore ? 'W' : 'L'
+          const isHome = game.home_team.id === standing.team.id
+          const teamScore = isHome ? game.home_team_score : game.away_team_score
+          const opponentScore = isHome ? game.away_team_score : game.home_team_score
+          const opponent = isHome ? game.away_team.name : game.home_team.name
+          const result = (teamScore || 0) > (opponentScore || 0) ? 'W' : 'L'
 
           return {
             date: game.date,
@@ -336,7 +324,7 @@ export async function GET(request: Request) {
           where: { teamId: team.id },
           create: {
             teamId: team.id,
-            sportType: 'BASKETBALL',
+            sportType: 'BASEBALL',
             matchesJson,
             recentForm,
           },
@@ -349,15 +337,15 @@ export async function GET(request: Request) {
 
         recentMatchesUpdated++
       } catch (error) {
-        results.errors.push(`Recent matches ${standing.teamId}: ${String(error)}`)
+        results.errors.push(`Recent matches ${standing.team.id}: ${String(error)}`)
       }
     }
 
-    console.log(`[Basketball Cron] Updated recent matches for ${recentMatchesUpdated} teams`)
+    console.log(`[Baseball Cron] Updated recent matches for ${recentMatchesUpdated} teams`)
 
     // 캐시 무효화
     if (results.matchesAdded > 0 || results.matchesUpdated > 0 || results.standingsUpdated > 0 || recentMatchesUpdated > 0) {
-      console.log('[Basketball Cron] Revalidating cache tags...')
+      console.log('[Baseball Cron] Revalidating cache tags...')
       revalidateTag('matches')
       revalidateTag('match-detail')
     }
@@ -366,7 +354,7 @@ export async function GET(request: Request) {
     const duration = Date.now() - startTime
     await prisma.schedulerLog.create({
       data: {
-        jobName: 'collect-basketball',
+        jobName: 'collect-baseball',
         result: results.errors.length === 0 ? 'success' : 'partial',
         details: results,
         duration,
@@ -382,7 +370,7 @@ export async function GET(request: Request) {
     if (shouldChain && CRON_SECRET) {
       const baseUrl = url.origin
       const cronJobs = [
-        '/api/cron/generate-analysis?sport=basketball',
+        '/api/cron/generate-analysis?sport=baseball',
       ]
 
       for (const job of cronJobs) {
@@ -409,11 +397,11 @@ export async function GET(request: Request) {
       chainResults: shouldChain ? chainResults : undefined,
     })
   } catch (error) {
-    console.error('Cron collect-basketball error:', error)
+    console.error('Cron collect-baseball error:', error)
 
     await prisma.schedulerLog.create({
       data: {
-        jobName: 'collect-basketball',
+        jobName: 'collect-baseball',
         result: 'failed',
         details: { error: String(error) },
         duration: Date.now() - startTime,
@@ -428,63 +416,60 @@ export async function GET(request: Request) {
 }
 
 /**
- * NBA 팀 로고 URL 생성 (ESPN CDN 사용)
- * BallDontLie abbreviation을 ESPN abbreviation으로 매핑
+ * MLB 팀 로고 URL 생성 (ESPN CDN 사용)
  */
-function getNBATeamLogoUrl(abbreviation: string): string {
-  // BallDontLie와 ESPN abbreviation 차이 매핑
+function getMLBTeamLogoUrl(abbreviation: string): string {
+  // ESPN abbreviation 매핑
   const abbrevMap: Record<string, string> = {
-    'PHX': 'phx',  // Phoenix Suns
-    'NOP': 'no',   // New Orleans Pelicans
-    'NYK': 'ny',   // New York Knicks
-    'SAS': 'sa',   // San Antonio Spurs
-    'GSW': 'gs',   // Golden State Warriors
-    'UTA': 'utah', // Utah Jazz
-    'WAS': 'wsh',  // Washington Wizards
-    'BKN': 'bkn',  // Brooklyn Nets
+    'ARI': 'ari',  // Arizona Diamondbacks
+    'ATL': 'atl',  // Atlanta Braves
+    'BAL': 'bal',  // Baltimore Orioles
+    'BOS': 'bos',  // Boston Red Sox
+    'CHC': 'chc',  // Chicago Cubs
+    'CWS': 'chw',  // Chicago White Sox
+    'CIN': 'cin',  // Cincinnati Reds
+    'CLE': 'cle',  // Cleveland Guardians
+    'COL': 'col',  // Colorado Rockies
+    'DET': 'det',  // Detroit Tigers
+    'HOU': 'hou',  // Houston Astros
+    'KC': 'kc',    // Kansas City Royals
+    'LAA': 'laa',  // Los Angeles Angels
+    'LAD': 'lad',  // Los Angeles Dodgers
+    'MIA': 'mia',  // Miami Marlins
+    'MIL': 'mil',  // Milwaukee Brewers
+    'MIN': 'min',  // Minnesota Twins
+    'NYM': 'nym',  // New York Mets
+    'NYY': 'nyy',  // New York Yankees
+    'OAK': 'oak',  // Oakland Athletics
+    'PHI': 'phi',  // Philadelphia Phillies
+    'PIT': 'pit',  // Pittsburgh Pirates
+    'SD': 'sd',    // San Diego Padres
+    'SF': 'sf',    // San Francisco Giants
+    'SEA': 'sea',  // Seattle Mariners
+    'STL': 'stl',  // St. Louis Cardinals
+    'TB': 'tb',    // Tampa Bay Rays
+    'TEX': 'tex',  // Texas Rangers
+    'TOR': 'tor',  // Toronto Blue Jays
+    'WSH': 'wsh',  // Washington Nationals
   }
 
   const espnAbbrev = abbrevMap[abbreviation] || abbreviation.toLowerCase()
-  return `https://a.espncdn.com/i/teamlogos/nba/500/${espnAbbrev}.png`
+  return `https://a.espncdn.com/i/teamlogos/mlb/500/${espnAbbrev}.png`
 }
 
 /**
- * BallDontLie 상태를 Prisma MatchStatus로 매핑
+ * BallDontLie 야구 상태를 Prisma MatchStatus로 매핑
  */
-function mapBDLStatus(bdlStatus: string): MatchStatus {
+function mapBaseballStatus(status: string): MatchStatus {
   const statusMap: Record<string, MatchStatus> = {
     'Final': 'FINISHED',
-    '1st Qtr': 'LIVE',
-    '2nd Qtr': 'LIVE',
-    '3rd Qtr': 'LIVE',
-    '4th Qtr': 'LIVE',
-    'Halftime': 'LIVE',
-    'OT': 'LIVE',
     'In Progress': 'LIVE',
-    '': 'SCHEDULED',
+    'Scheduled': 'SCHEDULED',
+    'Postponed': 'POSTPONED',
+    'Cancelled': 'CANCELLED',
   }
 
-  // ISO 형식인 경우 (예: "2026-01-21T00:00:00Z") → 시간 확정
-  if (bdlStatus.includes('T') && bdlStatus.includes('Z')) {
-    return 'TIMED'
-  }
-
-  return statusMap[bdlStatus] || 'SCHEDULED'
-}
-
-/**
- * BallDontLie status에서 경기 시간 파싱
- * status가 ISO 형식 (2026-01-21T00:00:00Z)이면 그대로 사용
- * 그 외 (Final, 1st Qtr 등)면 date만 사용
- */
-function parseGameTime(dateStr: string, status: string): Date {
-  // status가 ISO 날짜 형식인 경우 (예: "2026-01-21T00:00:00Z")
-  if (status.includes('T') && status.includes('Z')) {
-    return new Date(status)
-  }
-
-  // 그 외 경우 (Final, 1st Qtr 등) date만 사용
-  return new Date(dateStr)
+  return statusMap[status] || 'SCHEDULED'
 }
 
 /**

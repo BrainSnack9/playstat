@@ -6,18 +6,22 @@ import { Link } from '@/i18n/routing'
 import { TrendingUp, Flame, Zap } from 'lucide-react'
 import { analyzeTeamTrend, getMatchCombinedTrend } from '@/lib/ai/trend-engine'
 import Image from 'next/image'
-import { getKSTDayRange } from '@/lib/timezone'
+import { getDayRangeInTimezone, getTimezoneFromCookies } from '@/lib/timezone'
+import { cookies } from 'next/headers'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { format } from 'date-fns'
+import { getSportFromCookie, sportIdToEnum, SPORT_COOKIE } from '@/lib/sport'
+import { SportType } from '@prisma/client'
 
 // 서버 공유 캐시 적용: 홈 화면 트렌드 경기
-const getCachedTrendingMatches = (dateStr: string) => unstable_cache(
+const getCachedTrendingMatches = (dateStr: string, timezone: string, sportType: SportType) => unstable_cache(
   async () => {
-    const { start, end } = getKSTDayRange()
+    const { start, end } = getDayRangeInTimezone(dateStr, timezone)
 
     const matches = await prisma.match.findMany({
       where: {
+        sportType,
         kickoffAt: {
           gte: start,
           lte: end,
@@ -65,7 +69,7 @@ const getCachedTrendingMatches = (dateStr: string) => unstable_cache(
     .filter((m) => m.homeTrends.length > 0 || m.awayTrends.length > 0 || m.combined)
     .slice(0, 3)
   },
-  [`home-trending-matches-${dateStr}`],
+  [`home-trending-matches-${dateStr}-${timezone}-${sportType}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )()
 
@@ -77,8 +81,11 @@ export async function HotTrends({ locale }: HotTrendsProps) {
   const t = await getTranslations({ locale, namespace: 'home' })
   const tt = await getTranslations({ locale, namespace: 'trends' })
 
+  const cookieStore = await cookies()
+  const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
+  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value)) as SportType
   const dateStr = format(new Date(), 'yyyy-MM-dd')
-  const trendingMatches = await getCachedTrendingMatches(dateStr)
+  const trendingMatches = await getCachedTrendingMatches(dateStr, timezone, sportType)
 
   if (trendingMatches.length === 0) return null
 

@@ -1,16 +1,29 @@
 /**
  * BallDontLie API 클라이언트
- * NBA 데이터 수집용
+ * 다중 스포츠 데이터 수집용
+ *
+ * 지원 스포츠:
+ * - NBA (농구)
+ * - EPL, La Liga, Serie A, Bundesliga, Ligue 1, MLS (축구)
+ * - MLB (야구)
  *
  * Free Tier 제한:
  * - 분당 5회 요청
- * - 팀, 선수, 경기 정보만 접근 가능
- * - 개별 선수 통계, 박스스코어는 유료
+ * - 기본 데이터만 접근 가능
+ * - 고급 통계는 유료 (ALL-STAR: 60/min, GOAT: 600/min)
  *
- * @see https://docs.balldontlie.io/
+ * @see https://www.balldontlie.io/docs/
  */
 
-const API_BASE_URL = 'https://api.balldontlie.io/v1'
+// API Base URLs
+const NBA_BASE_URL = 'https://api.balldontlie.io/v1'
+const EPL_BASE_URL = 'https://api.balldontlie.io/epl/v1'
+const LALIGA_BASE_URL = 'https://api.balldontlie.io/laliga/v1'
+const SERIEA_BASE_URL = 'https://api.balldontlie.io/seriea/v1'
+const BUNDESLIGA_BASE_URL = 'https://api.balldontlie.io/bundesliga/v1'
+const LIGUE1_BASE_URL = 'https://api.balldontlie.io/ligue1/v1'
+const MLS_BASE_URL = 'https://api.balldontlie.io/mls/v1'
+const MLB_BASE_URL = 'https://api.balldontlie.io/mlb/v1'
 
 // Rate Limit: 분당 5회 → 요청 사이 최소 13초 딜레이
 const REQUEST_DELAY_MS = 13000
@@ -20,10 +33,14 @@ let lastRequestTime = 0
 
 /**
  * Rate Limit을 준수하며 API 요청
+ * @param baseUrl - API Base URL (NBA, EPL, MLB 등)
+ * @param endpoint - API 엔드포인트
+ * @param params - 쿼리 파라미터
  */
 async function rateLimitedFetch<T>(
+  baseUrl: string,
   endpoint: string,
-  params: Record<string, string | number> = {}
+  params: Record<string, string | number | string[]> = {}
 ): Promise<T> {
   const apiKey = process.env.BALLDONTLIE_API_KEY
   if (!apiKey) {
@@ -39,14 +56,19 @@ async function rateLimitedFetch<T>(
     await new Promise((resolve) => setTimeout(resolve, waitTime))
   }
 
-  // 쿼리 파라미터 구성
-  const queryString = new URLSearchParams(
-    Object.entries(params).map(([k, v]) => [k, String(v)])
-  ).toString()
+  // 쿼리 파라미터 구성 (배열 지원)
+  const searchParams = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((v) => searchParams.append(key, String(v)))
+    } else {
+      searchParams.append(key, String(value))
+    }
+  })
 
-  const url = `${API_BASE_URL}${endpoint}${queryString ? `?${queryString}` : ''}`
+  const url = `${baseUrl}${endpoint}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
 
-  console.log(`[BallDontLie] Fetching: ${endpoint}`)
+  console.log(`[BallDontLie] Fetching: ${baseUrl}${endpoint}`)
 
   const response = await fetch(url, {
     headers: {
@@ -68,7 +90,19 @@ async function rateLimitedFetch<T>(
 }
 
 // ===========================================
-// 타입 정의
+// 공통 타입 정의
+// ===========================================
+
+interface PaginatedResponse<T> {
+  data: T[]
+  meta: {
+    next_cursor?: number
+    per_page: number
+  }
+}
+
+// ===========================================
+// NBA (농구) 타입 정의
 // ===========================================
 
 export interface BDLTeam {
@@ -111,23 +145,121 @@ export interface BDLGame {
   visitor_team: BDLTeam
 }
 
-interface PaginatedResponse<T> {
-  data: T[]
-  meta: {
-    next_cursor?: number
-    per_page: number
-  }
+// ===========================================
+// Football/Soccer (축구) 타입 정의
+// ===========================================
+
+export interface BDLSoccerTeam {
+  id: number
+  name: string
+  code: string
+  logo: string
+  country: string
+  founded?: number
+  venue?: string
+}
+
+export interface BDLSoccerPlayer {
+  id: number
+  name: string
+  first_name: string
+  last_name: string
+  position: string
+  jersey_number: number | null
+  date_of_birth: string | null
+  nationality: string | null
+  height: string | null
+  weight: string | null
+  team: BDLSoccerTeam
+}
+
+export interface BDLSoccerGame {
+  id: number
+  date: string
+  season: number
+  week: number
+  status: string
+  venue: string | null
+  home_team: BDLSoccerTeam
+  away_team: BDLSoccerTeam
+  home_team_score: number | null
+  away_team_score: number | null
+  home_team_halftime_score: number | null
+  away_team_halftime_score: number | null
+}
+
+export interface BDLSoccerStanding {
+  position: number
+  team: BDLSoccerTeam
+  season: number
+  points: number
+  games_played: number
+  wins: number
+  draws: number
+  losses: number
+  goals_for: number
+  goals_against: number
+  goal_difference: number
+  form: string | null
 }
 
 // ===========================================
-// API 함수
+// MLB (야구) 타입 정의
+// ===========================================
+
+export interface BDLBaseballTeam {
+  id: number
+  name: string
+  abbreviation: string
+  location: string
+  league: string // AL or NL
+  division: string
+  logo: string
+}
+
+export interface BDLBaseballPlayer {
+  id: number
+  first_name: string
+  last_name: string
+  position: string
+  jersey_number: number | null
+  team: BDLBaseballTeam
+}
+
+export interface BDLBaseballGame {
+  id: number
+  date: string
+  season: number
+  status: string
+  inning: number | null
+  home_team: BDLBaseballTeam
+  away_team: BDLBaseballTeam
+  home_team_score: number | null
+  away_team_score: number | null
+  venue: string | null
+}
+
+export interface BDLBaseballStanding {
+  team: BDLBaseballTeam
+  season: number
+  wins: number
+  losses: number
+  win_percentage: number
+  games_back: number
+  home_record: string
+  away_record: string
+  streak: string
+}
+
+// ===========================================
+// NBA API 함수
 // ===========================================
 
 /**
  * NBA 팀 목록 조회
  */
 export async function getTeams(): Promise<BDLTeam[]> {
-  const response = await rateLimitedFetch<PaginatedResponse<BDLTeam>>('/teams')
+  const response = await rateLimitedFetch<PaginatedResponse<BDLTeam>>(NBA_BASE_URL, '/teams')
   return response.data
 }
 
@@ -135,7 +267,7 @@ export async function getTeams(): Promise<BDLTeam[]> {
  * 특정 팀 조회
  */
 export async function getTeam(teamId: number): Promise<BDLTeam> {
-  const response = await rateLimitedFetch<{ data: BDLTeam }>(`/teams/${teamId}`)
+  const response = await rateLimitedFetch<{ data: BDLTeam }>(NBA_BASE_URL, `/teams/${teamId}`)
   return response.data
 }
 
@@ -148,7 +280,7 @@ export async function getGamesByDates(dates: string[]): Promise<BDLGame[]> {
 
   // 날짜를 하나씩 조회 (rate limit 고려)
   for (const date of dates) {
-    const response = await rateLimitedFetch<PaginatedResponse<BDLGame>>('/games', {
+    const response = await rateLimitedFetch<PaginatedResponse<BDLGame>>(NBA_BASE_URL, '/games', {
       'dates[]': date,
     })
     allGames.push(...response.data)
@@ -179,7 +311,7 @@ export async function getGamesByDateRange(
       params.cursor = cursor
     }
 
-    const response = await rateLimitedFetch<PaginatedResponse<BDLGame>>('/games', params)
+    const response = await rateLimitedFetch<PaginatedResponse<BDLGame>>(NBA_BASE_URL, '/games', params)
     allGames.push(...response.data)
     cursor = response.meta.next_cursor
   } while (cursor)
@@ -212,7 +344,7 @@ export async function getGamesBySeason(
       // 단, 여러 팀은 별도 요청 필요
     }
 
-    const response = await rateLimitedFetch<PaginatedResponse<BDLGame>>('/games', params)
+    const response = await rateLimitedFetch<PaginatedResponse<BDLGame>>(NBA_BASE_URL, '/games', params)
     allGames.push(...response.data)
     cursor = response.meta.next_cursor
   } while (cursor)
@@ -444,10 +576,222 @@ export function calculateStandings(games: BDLGame[]): TeamStanding[] {
 }
 
 // ===========================================
+// Football/Soccer API 함수
+// ===========================================
+
+export type SoccerLeague = 'epl' | 'laliga' | 'seriea' | 'bundesliga' | 'ligue1' | 'mls'
+
+const SOCCER_LEAGUE_BASE_URLS: Record<SoccerLeague, string> = {
+  epl: EPL_BASE_URL,
+  laliga: LALIGA_BASE_URL,
+  seriea: SERIEA_BASE_URL,
+  bundesliga: BUNDESLIGA_BASE_URL,
+  ligue1: LIGUE1_BASE_URL,
+  mls: MLS_BASE_URL,
+}
+
+/**
+ * 축구 리그 팀 목록 조회
+ */
+export async function getSoccerTeams(league: SoccerLeague): Promise<BDLSoccerTeam[]> {
+  const baseUrl = SOCCER_LEAGUE_BASE_URLS[league]
+  const response = await rateLimitedFetch<PaginatedResponse<BDLSoccerTeam>>(baseUrl, '/teams')
+  return response.data
+}
+
+/**
+ * 축구 경기 조회 (날짜 범위)
+ */
+export async function getSoccerGames(
+  league: SoccerLeague,
+  params: {
+    season: number
+    start_date?: string
+    end_date?: string
+    week?: number
+  }
+): Promise<BDLSoccerGame[]> {
+  const baseUrl = SOCCER_LEAGUE_BASE_URLS[league]
+  const allGames: BDLSoccerGame[] = []
+  let cursor: number | undefined
+
+  do {
+    const queryParams: Record<string, string | number> = {
+      season: params.season,
+      per_page: 100,
+    }
+    if (params.start_date) queryParams.start_date = params.start_date
+    if (params.end_date) queryParams.end_date = params.end_date
+    if (params.week) queryParams.week = params.week
+    if (cursor) queryParams.cursor = cursor
+
+    const response = await rateLimitedFetch<PaginatedResponse<BDLSoccerGame>>(
+      baseUrl,
+      '/games',
+      queryParams
+    )
+    allGames.push(...response.data)
+    cursor = response.meta.next_cursor
+  } while (cursor)
+
+  return allGames
+}
+
+/**
+ * 축구 순위표 조회
+ */
+export async function getSoccerStandings(
+  league: SoccerLeague,
+  season: number
+): Promise<BDLSoccerStanding[]> {
+  const baseUrl = SOCCER_LEAGUE_BASE_URLS[league]
+  const response = await rateLimitedFetch<PaginatedResponse<BDLSoccerStanding>>(
+    baseUrl,
+    '/standings',
+    { season }
+  )
+  return response.data
+}
+
+/**
+ * 축구 팀 최근 경기 조회
+ */
+export async function getSoccerTeamRecentGames(
+  league: SoccerLeague,
+  teamId: number,
+  season: number,
+  count: number = 10
+): Promise<BDLSoccerGame[]> {
+  const baseUrl = SOCCER_LEAGUE_BASE_URLS[league]
+  const response = await rateLimitedFetch<PaginatedResponse<BDLSoccerGame>>(baseUrl, '/games', {
+    season,
+    'team_ids[]': teamId,
+    per_page: count,
+  })
+
+  // 완료된 경기만 필터
+  return response.data.filter((game) => game.status === 'FT').slice(0, count)
+}
+
+/**
+ * 현재 축구 시즌 계산 (예: 2024-25 시즌은 2024)
+ */
+export function getCurrentSoccerSeason(): number {
+  const now = new Date()
+  const month = now.getMonth() + 1 // 1-12
+  const year = now.getFullYear()
+
+  // 7월 이전이면 전년도 시즌 (예: 2025년 6월 = 2024-25 시즌)
+  return month < 7 ? year - 1 : year
+}
+
+// ===========================================
+// MLB (야구) API 함수
+// ===========================================
+
+/**
+ * MLB 팀 목록 조회
+ */
+export async function getBaseballTeams(): Promise<BDLBaseballTeam[]> {
+  const response = await rateLimitedFetch<PaginatedResponse<BDLBaseballTeam>>(
+    MLB_BASE_URL,
+    '/teams'
+  )
+  return response.data
+}
+
+/**
+ * MLB 경기 조회 (날짜 범위)
+ */
+export async function getBaseballGames(params: {
+  season: number
+  start_date?: string
+  end_date?: string
+  team_ids?: number[]
+}): Promise<BDLBaseballGame[]> {
+  const allGames: BDLBaseballGame[] = []
+  let cursor: number | undefined
+
+  do {
+    const queryParams: Record<string, string | number | string[]> = {
+      season: params.season,
+      per_page: 100,
+    }
+    if (params.start_date) queryParams.start_date = params.start_date
+    if (params.end_date) queryParams.end_date = params.end_date
+    if (params.team_ids) queryParams['team_ids[]'] = params.team_ids.map(String)
+    if (cursor) queryParams.cursor = cursor
+
+    const response = await rateLimitedFetch<PaginatedResponse<BDLBaseballGame>>(
+      MLB_BASE_URL,
+      '/games',
+      queryParams
+    )
+    allGames.push(...response.data)
+    cursor = response.meta.next_cursor
+  } while (cursor)
+
+  return allGames
+}
+
+/**
+ * MLB 순위표 조회
+ */
+export async function getBaseballStandings(season: number): Promise<BDLBaseballStanding[]> {
+  const response = await rateLimitedFetch<PaginatedResponse<BDLBaseballStanding>>(
+    MLB_BASE_URL,
+    '/standings',
+    { season }
+  )
+  return response.data
+}
+
+/**
+ * MLB 팀 최근 경기 조회
+ */
+export async function getBaseballTeamRecentGames(
+  teamId: number,
+  count: number = 10
+): Promise<BDLBaseballGame[]> {
+  const today = new Date()
+  const twoMonthsAgo = new Date(today)
+  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
+
+  const response = await rateLimitedFetch<PaginatedResponse<BDLBaseballGame>>(
+    MLB_BASE_URL,
+    '/games',
+    {
+      start_date: twoMonthsAgo.toISOString().split('T')[0],
+      end_date: today.toISOString().split('T')[0],
+      'team_ids[]': teamId,
+      per_page: count,
+    }
+  )
+
+  // 완료된 경기만 필터
+  return response.data.filter((game) => game.status === 'Final').slice(0, count)
+}
+
+/**
+ * 현재 MLB 시즌 계산
+ * MLB 시즌: 4월~10월 (예: 2025년 시즌)
+ */
+export function getCurrentMLBSeason(): number {
+  const now = new Date()
+  const month = now.getMonth() + 1 // 1-12
+  const year = now.getFullYear()
+
+  // 11월~3월은 다음 시즌 준비 기간 (오프시즌)
+  // 4월~10월은 현재 연도가 시즌
+  return month >= 4 && month <= 10 ? year : year + 1
+}
+
+// ===========================================
 // 통합 export
 // ===========================================
 
 export const ballDontLieApi = {
+  // NBA
   getTeams,
   getTeam,
   getGamesByDates,
@@ -458,4 +802,18 @@ export const ballDontLieApi = {
   getCurrentNBASeason,
   calculateTeamForm,
   calculateStandings,
+
+  // Football/Soccer
+  getSoccerTeams,
+  getSoccerGames,
+  getSoccerStandings,
+  getSoccerTeamRecentGames,
+  getCurrentSoccerSeason,
+
+  // MLB
+  getBaseballTeams,
+  getBaseballGames,
+  getBaseballStandings,
+  getBaseballTeamRecentGames,
+  getCurrentMLBSeason,
 }

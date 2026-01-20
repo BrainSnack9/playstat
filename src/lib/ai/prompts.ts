@@ -75,7 +75,7 @@ export const MATCH_ANALYSIS_PROMPT = `You are a professional sports analysis rep
 Below is all the data needed for match analysis in JSON format.
 Write a pre-match preview analysis based on this data.
 
-**IMPORTANT: Write your entire response in Korean (한국어).**
+**IMPORTANT: Write your entire response in Korean (한국어). Return your analysis as a JSON object.**
 
 ## CRITICAL RULES (Absolute Zero Tolerance)
 - NEVER mention odds, probability, betting, picks, or predicted scores.
@@ -89,7 +89,7 @@ Write a pre-match preview analysis based on this data.
 - Clearly summarize the last 5 matches trend.
 - Explain the style differences between the two teams.
 
-## Output Format (Must use these 5 sections, in Korean)
+## Output Format (Return as JSON with these 5 sections, in Korean)
 
 ### 1) 3줄 요약
 - Summarize the key points of this match in 3 lines (in Korean)
@@ -124,6 +124,8 @@ export const MATCH_ANALYSIS_PROMPT_EN = `You are a professional sports analysis 
 Below is all the data needed for match analysis in JSON format.
 Write a pre-match preview analysis based on this data.
 
+**IMPORTANT: Return your analysis as a JSON object.**
+
 ## CRITICAL RULES (Absolute Zero Tolerance)
 - NEVER mention odds, probability, betting, picks, or predicted scores.
 - DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line").
@@ -136,7 +138,7 @@ Write a pre-match preview analysis based on this data.
 - Clearly summarize the last 5 matches trend.
 - Explain the style differences between the two teams.
 
-## Output Format (Must use these 5 sections)
+## Output Format (Return as JSON with these 5 sections)
 
 ### 1) 3-Line Summary
 - Summarize the key points of this match in 3 lines

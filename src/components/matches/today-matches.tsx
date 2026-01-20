@@ -3,18 +3,22 @@ import { Calendar } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { getTranslations } from 'next-intl/server'
 import { MatchCard } from '@/components/match-card'
-import { getKSTDayRange } from '@/lib/timezone'
+import { getDayRangeInTimezone, getTimezoneFromCookies } from '@/lib/timezone'
+import { cookies } from 'next/headers'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { format } from 'date-fns'
+import { getSportFromCookie, sportIdToEnum, SPORT_COOKIE } from '@/lib/sport'
+import { SportType } from '@prisma/client'
 
 // 서버 공유 캐시 적용: 홈 화면 오늘 경기
-const getCachedTodayMatches = (dateStr: string) => unstable_cache(
+const getCachedTodayMatches = (dateStr: string, timezone: string, sportType: SportType) => unstable_cache(
   async () => {
-    const { start, end } = getKSTDayRange()
+    const { start, end } = getDayRangeInTimezone(dateStr, timezone)
 
     return await prisma.match.findMany({
       where: {
+        sportType,
         kickoffAt: {
           gte: start,
           lte: end,
@@ -38,7 +42,7 @@ const getCachedTodayMatches = (dateStr: string) => unstable_cache(
       take: 6,
     })
   },
-  [`home-today-matches-${dateStr}`],
+  [`home-today-matches-${dateStr}-${timezone}-${sportType}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )()
 
@@ -47,8 +51,11 @@ interface TodayMatchesProps {
 }
 
 export async function TodayMatches({ locale }: TodayMatchesProps) {
+  const cookieStore = await cookies()
+  const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
+  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value)) as SportType
   const dateStr = format(new Date(), 'yyyy-MM-dd')
-  const matches = await getCachedTodayMatches(dateStr)
+  const matches = await getCachedTodayMatches(dateStr, timezone, sportType)
   const home = await getTranslations('home')
 
   if (matches.length === 0) {

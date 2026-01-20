@@ -8,12 +8,11 @@ import { Separator } from '@/components/ui/separator'
 import { TodayMatches } from '@/components/matches/today-matches'
 import { HotTrends } from '@/components/matches/hot-trends'
 import { LatestNews, LatestNewsSkeleton } from '@/components/news/latest-news'
-import { ArrowRight, Trophy, Calendar, ChartBar } from 'lucide-react'
-import { prisma } from '@/lib/prisma'
+import { ArrowRight, Calendar, ChartBar } from 'lucide-react'
 import Image from 'next/image'
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 import { defaultLocale } from '@/i18n/config'
-import { isApexHost } from '@/lib/sport'
+import { isApexHost, getSportFromCookie, SPORT_COOKIE, type SportId } from '@/lib/sport'
 import { orbitron, spaceGrotesk } from '@/lib/fonts'
 import { LanguageSwitcher } from '@/components/layout/language-switcher'
 
@@ -40,43 +39,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: t('description'),
       siteName: seo('site_name'),
     },
-  }
-}
-
-// 주요 리그 코드 (football-data.org 기준)
-const FEATURED_LEAGUE_CODES = ['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL']
-
-interface FeaturedLeague {
-  id: string
-  name: string
-  code: string | null
-  country: string
-  logoUrl: string | null
-}
-
-async function getFeaturedLeagues(): Promise<FeaturedLeague[]> {
-  try {
-    const leagues = await prisma.league.findMany({
-      where: {
-        code: { in: FEATURED_LEAGUE_CODES },
-      },
-      select: {
-        id: true,
-        name: true,
-        code: true,
-        country: true,
-        logoUrl: true,
-      },
-      orderBy: { name: 'asc' },
-    })
-
-    // 정렬 순서 맞추기
-    return FEATURED_LEAGUE_CODES.map((code) =>
-      leagues.find((l: FeaturedLeague) => l.code === code)
-    ).filter((league): league is FeaturedLeague => league !== undefined)
-  } catch (error) {
-    console.error('Failed to fetch featured leagues:', error)
-    return []
   }
 }
 
@@ -312,7 +274,27 @@ export default async function HomePage({ params }: Props) {
     )
   }
 
-  const featuredLeagues = await getFeaturedLeagues()
+  // 현재 스포츠 타입 확인
+  const cookieStore = await cookies()
+  const currentSport = getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value)
+
+  // 다른 스포츠 목록 생성
+  const allSports: Array<{ id: SportId; label: string; color: string }> = [
+    { id: 'football', label: 'FOOTBALL', color: 'from-lime-400 to-lime-500' },
+    { id: 'basketball', label: 'BASKETBALL', color: 'from-orange-400 to-orange-500' },
+    { id: 'baseball', label: 'BASEBALL', color: 'from-emerald-400 to-emerald-500' },
+  ]
+  const otherSports = allSports.filter(sport => sport.id !== currentSport)
+
+  // URL 생성
+  const localePrefix = locale === defaultLocale ? '' : `/${locale}`
+  const isLocal = host?.includes('localhost')
+  const getSportUrl = (sportId: SportId) => {
+    if (isLocal) {
+      return `http://${sportId}.localhost:3030${localePrefix}`
+    }
+    return `https://${sportId}.playstat.space${localePrefix}`
+  }
 
   return (
     <div className="container px-4 py-6 md:px-6 md:py-12">
@@ -348,6 +330,24 @@ export default async function HomePage({ params }: Props) {
               </Link>
             </Button>
           </div>
+
+          {/* Sport Switch Buttons */}
+          {otherSports.length > 0 && (
+            <div className="mt-10 pt-6 border-t border-border/40">
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                {otherSports.map((sport) => (
+                  <a
+                    key={sport.id}
+                    href={getSportUrl(sport.id)}
+                    className="group inline-flex items-center gap-2 rounded-lg border border-border bg-background/50 px-5 py-2.5 text-sm font-semibold text-foreground backdrop-blur-sm transition-all hover:bg-accent hover:border-primary/50 hover:shadow-sm"
+                  >
+                    {sport.label}
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -356,43 +356,6 @@ export default async function HomePage({ params }: Props) {
       </Suspense>
 
       <Separator className="mb-12" />
-
-      {/* Featured Leagues */}
-      <section className="mb-12">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="section-title">{t('featured_leagues')}</h2>
-          <Button asChild variant="ghost">
-            <Link href="/leagues">
-              {common('view_all')} <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-          {featuredLeagues.map((league) => (
-            <Link key={league.id} href={`/league/${league.code?.toLowerCase()}`}>
-              <Card className="transition-shadow hover:shadow-md h-full">
-                <CardContent className="flex flex-col items-center justify-center p-4 text-center h-full">
-                  {league.logoUrl ? (
-                    <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-lg bg-white p-1">
-                      <Image
-                        src={league.logoUrl}
-                        alt={league.name}
-                        width={40}
-                        height={40}
-                        className="object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <Trophy className="mb-2 h-12 w-12 text-primary" />
-                  )}
-                  <h3 className="font-semibold text-sm">{league.name}</h3>
-                  <p className="text-xs text-muted-foreground">{league.country}</p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      </section>
 
       {/* Today's Matches */}
       <section className="mb-12">
