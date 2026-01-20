@@ -333,7 +333,7 @@ export async function getGamesBySeason(
 
   do {
     const params: Record<string, string | number> = {
-      seasons: season,
+      season: season,
       per_page: 100,
     }
     if (cursor) {
@@ -398,7 +398,7 @@ export async function getAllTeamsRecentGames(
 
   do {
     const queryParams: Record<string, string | number> = {
-      seasons: season,
+      season: season,
       start_date: startDate.toISOString().split('T')[0],
       end_date: today.toISOString().split('T')[0],
       per_page: 100,
