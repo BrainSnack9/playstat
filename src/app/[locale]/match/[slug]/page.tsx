@@ -145,7 +145,12 @@ export default async function MatchPage({ params, searchParams }: Props) {
   if (analysis) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const translations = (analysis.translations as any) || {}
+    // Try to get data for current locale, fallback to English, then fallback to root analysis fields
     const langData = translations[locale] || translations['en'] || {}
+
+    // Check if translations have any content, otherwise use direct fields as fallback
+    const hasTranslationData = langData.summary || langData.recentFlowAnalysis ||
+      langData.seasonTrends || langData.tacticalAnalysis || langData.keyPoints
 
     // Helper to extract text from nested objects (e.g., { home_team: "...", away_team: "..." })
     const extractNestedText = (data: unknown): string | undefined => {
@@ -237,8 +242,12 @@ export default async function MatchPage({ params, searchParams }: Props) {
           jsonFromSummary['3_line_summary']
         )
       }
-      return langData.summary ||
-        analysis.summary ||
+      // Use translation data if available, otherwise fallback to direct fields
+      if (hasTranslationData && langData.summary) {
+        return langData.summary
+      }
+      return analysis.summary ||
+        analysis.summaryEn ||
         undefined
     }
 
@@ -250,9 +259,12 @@ export default async function MatchPage({ params, searchParams }: Props) {
           jsonFromSummary['최근 5경기 흐름 분석']
         )
       }
-      return langData.recentFlowAnalysis ||
-        extractNestedText(langData.recent_5_matches_flow_analysis) ||
+      if (hasTranslationData && langData.recentFlowAnalysis) {
+        return langData.recentFlowAnalysis
+      }
+      return extractNestedText(langData.recent_5_matches_flow_analysis) ||
         analysis.recentFlowAnalysis ||
+        analysis.recentFlowAnalysisEn ||
         extractNestedText((analysis as Record<string, unknown>).recent_5_matches_flow_analysis) ||
         undefined
     }
@@ -265,9 +277,12 @@ export default async function MatchPage({ params, searchParams }: Props) {
           jsonFromSummary['시즌 전체 성향 요약']
         )
       }
-      return langData.seasonTrends ||
-        extractNestedText(langData.season_overall_trends) ||
+      if (hasTranslationData && langData.seasonTrends) {
+        return langData.seasonTrends
+      }
+      return extractNestedText(langData.season_overall_trends) ||
         analysis.seasonTrends ||
+        analysis.seasonTrendsEn ||
         extractNestedText((analysis as Record<string, unknown>).season_overall_trends) ||
         undefined
     }
@@ -280,9 +295,12 @@ export default async function MatchPage({ params, searchParams }: Props) {
           jsonFromSummary['홈/원정 기반의 전술적 관점']
         )
       }
-      return langData.tacticalAnalysis ||
-        extractNestedText(langData.tactical_perspective_based_on_home_away) ||
+      if (hasTranslationData && langData.tacticalAnalysis) {
+        return langData.tacticalAnalysis
+      }
+      return extractNestedText(langData.tactical_perspective_based_on_home_away) ||
         analysis.tacticalAnalysis ||
+        analysis.tacticalAnalysisEn ||
         extractNestedText((analysis as Record<string, unknown>).tactical_perspective_based_on_home_away) ||
         undefined
     }
@@ -296,19 +314,33 @@ export default async function MatchPage({ params, searchParams }: Props) {
           jsonFromSummary['3_key_viewing_points']
         )
       }
-      return extractKeyPoints(langData.keyPoints) ||
-        extractKeyPoints(langData.key_viewing_points) ||
+      if (hasTranslationData && langData.keyPoints) {
+        return extractKeyPoints(langData.keyPoints)
+      }
+      return extractKeyPoints(langData.key_viewing_points) ||
         extractKeyPoints(analysis.keyPoints) ||
+        extractKeyPoints(analysis.keyPointsEn) ||
         extractKeyPoints((analysis as Record<string, unknown>).key_viewing_points) ||
         undefined
     }
 
-    parsedAnalysis = {
+    const rawParsed = {
       summary: getSummary(),
       recentFlowAnalysis: getRecentFlowAnalysis(),
       seasonTrends: getSeasonTrends(),
       tacticalAnalysis: getTacticalAnalysis(),
       keyPoints: getKeyPoints(),
+    }
+
+    // Only set parsedAnalysis if at least one field has content
+    const hasContent = rawParsed.summary ||
+      rawParsed.recentFlowAnalysis ||
+      rawParsed.seasonTrends ||
+      rawParsed.tacticalAnalysis ||
+      (rawParsed.keyPoints && rawParsed.keyPoints.length > 0)
+
+    if (hasContent) {
+      parsedAnalysis = rawParsed
     }
   }
 
