@@ -366,24 +366,39 @@ export async function GET(request: Request) {
           }
         }
 
-        // 5. 각 팀의 최근 경기 수집 및 저장
+        // 5. 각 팀의 최근 경기 수집 및 저장 (이미 가져온 allSeasonGames 재사용)
         console.log(`[Football Cron] Collecting recent matches for ${leagueInfo.name} teams...`)
         let recentMatchesUpdated = 0
 
-        // 최근 30일 경기에서 팀별로 그룹핑
-        const allTeamsRecentGames = await ballDontLieApi.getSoccerAllTeamsRecentGames(
-          leagueInfo.league,
-          currentSeason,
-          30
-        )
-        totalApiCalls++
+        // 완료된 경기만 필터하고 팀별로 그룹핑
+        const finishedGames = allSeasonGames
+          .filter(g => g.status === 'FullTime' || g.status === 'C' || g.status === 'FT')
+          .sort((a, b) => new Date(b.kickoff).getTime() - new Date(a.kickoff).getTime())
+
+        // 팀별 최근 경기 맵 생성
+        const allTeamsRecentGames = new Map<number, typeof allSeasonGames>()
+        for (const game of finishedGames) {
+          // 홈팀
+          if (!allTeamsRecentGames.has(game.home_team_id)) {
+            allTeamsRecentGames.set(game.home_team_id, [])
+          }
+          const homeGames = allTeamsRecentGames.get(game.home_team_id)!
+          if (homeGames.length < 10) homeGames.push(game)
+
+          // 원정팀
+          if (!allTeamsRecentGames.has(game.away_team_id)) {
+            allTeamsRecentGames.set(game.away_team_id, [])
+          }
+          const awayGames = allTeamsRecentGames.get(game.away_team_id)!
+          if (awayGames.length < 10) awayGames.push(game)
+        }
 
         for (const standing of standings) {
           try {
             const team = dbTeamsByExternalId.get(String(standing.teamId))
             if (!team) continue
 
-            // 이미 조회된 데이터에서 해당 팀 경기 추출
+            // 이미 처리된 데이터에서 해당 팀 경기 추출
             const recentGames = allTeamsRecentGames.get(standing.teamId) || []
 
             if (recentGames.length === 0) continue
