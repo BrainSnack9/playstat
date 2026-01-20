@@ -155,12 +155,7 @@ export async function GET(request: Request) {
           })
         }
 
-        // 2. 팀 정보 수집 (팀이 없거나 20개 미만이면 수집)
-        const existingTeamCount = await prisma.team.count({
-          where: { sportType: 'FOOTBALL', leagueId: dbLeague.id },
-        })
-
-        // API에서 팀 정보 가져오기 (순위 계산에 필요)
+        // 2. 팀 정보 수집 (항상 API에서 가져와서 동기화)
         console.log(`[Football Cron] Fetching ${leagueInfo.name} teams...`)
         const apiTeams = await ballDontLieApi.getSoccerTeams(leagueInfo.league, currentSeason)
         totalApiCalls++
@@ -169,39 +164,41 @@ export async function GET(request: Request) {
         const apiTeamMap = new Map<number, typeof apiTeams[0]>()
         apiTeams.forEach((t) => apiTeamMap.set(t.id, t))
 
-        if (existingTeamCount < 20) {
-          for (const team of apiTeams) {
-            try {
-              const existingTeam = await prisma.team.findFirst({
-                where: { externalId: String(team.id), sportType: 'FOOTBALL' },
-              })
+        // 모든 API 팀을 DB에 upsert
+        for (const team of apiTeams) {
+          try {
+            const existingTeam = await prisma.team.findFirst({
+              where: { externalId: String(team.id), sportType: 'FOOTBALL' },
+            })
 
-              if (existingTeam) {
-                await prisma.team.update({
-                  where: { id: existingTeam.id },
-                  data: {
-                    name: team.name,
-                    shortName: team.abbr,
-                    tla: team.abbr,
-                  },
-                })
-                results.teamsUpdated++
-              } else {
-                await prisma.team.create({
-                  data: {
-                    leagueId: dbLeague.id,
-                    name: team.name,
-                    shortName: team.abbr,
-                    tla: team.abbr,
-                    externalId: String(team.id),
-                    sportType: 'FOOTBALL',
-                  },
-                })
-                results.teamsAdded++
-              }
-            } catch (error) {
-              results.errors.push(`${leagueInfo.name} Team ${team.id}: ${String(error)}`)
+            if (existingTeam) {
+              // 기존 팀 업데이트 (리그 ID도 업데이트해서 올바른 리그에 연결)
+              await prisma.team.update({
+                where: { id: existingTeam.id },
+                data: {
+                  leagueId: dbLeague.id,
+                  name: team.name,
+                  shortName: team.abbr,
+                  tla: team.abbr,
+                },
+              })
+              results.teamsUpdated++
+            } else {
+              // 새 팀 생성
+              await prisma.team.create({
+                data: {
+                  leagueId: dbLeague.id,
+                  name: team.name,
+                  shortName: team.abbr,
+                  tla: team.abbr,
+                  externalId: String(team.id),
+                  sportType: 'FOOTBALL',
+                },
+              })
+              results.teamsAdded++
             }
+          } catch (error) {
+            results.errors.push(`${leagueInfo.name} Team ${team.id}: ${String(error)}`)
           }
         }
 
