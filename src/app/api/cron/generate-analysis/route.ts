@@ -149,6 +149,23 @@ export async function GET(request: Request) {
 
         const parsedEnglish = parseMatchAnalysisResponse(englishContent)
 
+        // 파싱 결과가 비어있으면 저장하지 않음
+        const hasContent = parsedEnglish.summary ||
+          parsedEnglish.recentFlowAnalysis ||
+          parsedEnglish.seasonTrends ||
+          parsedEnglish.tacticalAnalysis ||
+          parsedEnglish.keyPoints.length > 0
+
+        if (!hasContent) {
+          console.error(`[Cron] Parsed analysis is empty for match ${match.id}. Raw response:`, englishContent.substring(0, 500))
+          results.push({
+            matchId: match.id,
+            success: false,
+            error: 'Parsed analysis is empty - AI response format may have changed',
+          })
+          continue
+        }
+
         // DB에 저장 (영어를 원본으로)
         const newAnalysis = await prisma.matchAnalysis.create({
           data: {
