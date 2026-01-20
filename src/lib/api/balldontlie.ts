@@ -809,14 +809,17 @@ export async function getSoccerAllTeamsRecentGames(
 
 /**
  * 현재 축구 시즌 계산 (예: 2024-25 시즌은 2024)
+ * BallDontLie Soccer API는 시즌 시작 연도를 사용
+ * 8월~12월: 현재 연도, 1월~7월: 전년도
  */
 export function getCurrentSoccerSeason(): number {
   const now = new Date()
   const month = now.getMonth() + 1 // 1-12
   const year = now.getFullYear()
 
-  // 7월 이전이면 전년도 시즌 (예: 2025년 6월 = 2024-25 시즌)
-  return month < 7 ? year - 1 : year
+  // 8월 이후면 현재 연도가 시즌 시작 (예: 2024년 8월 = 2024-25 시즌 = season 2024)
+  // 1월~7월이면 전년도가 시즌 시작 (예: 2025년 1월 = 2024-25 시즌 = season 2024)
+  return month >= 8 ? year : year - 1
 }
 
 // ===========================================
