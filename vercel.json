@@ -6,32 +6,47 @@
     {
       "source": "/",
       "has": [{ "type": "host", "value": "football.playstat.space" }],
-      "destination": "/football"
+      "destination": "/ko/football"
     },
     {
       "source": "/:path((?!football|basketball|baseball|ko|en|es|ja|de|api|_next|_vercel).*)",
       "has": [{ "type": "host", "value": "football.playstat.space" }],
-      "destination": "/football/:path"
+      "destination": "/ko/football/:path"
+    },
+    {
+      "source": "/:locale(ko|en|es|ja|de)/:path*",
+      "has": [{ "type": "host", "value": "football.playstat.space" }],
+      "destination": "/:locale/football/:path*"
     },
     {
       "source": "/",
       "has": [{ "type": "host", "value": "basketball.playstat.space" }],
-      "destination": "/basketball"
+      "destination": "/ko/basketball"
     },
     {
       "source": "/:path((?!football|basketball|baseball|ko|en|es|ja|de|api|_next|_vercel).*)",
       "has": [{ "type": "host", "value": "basketball.playstat.space" }],
-      "destination": "/basketball/:path"
+      "destination": "/ko/basketball/:path"
+    },
+    {
+      "source": "/:locale(ko|en|es|ja|de)/:path*",
+      "has": [{ "type": "host", "value": "basketball.playstat.space" }],
+      "destination": "/:locale/basketball/:path*"
     },
     {
       "source": "/",
       "has": [{ "type": "host", "value": "baseball.playstat.space" }],
-      "destination": "/baseball"
+      "destination": "/ko/baseball"
     },
     {
       "source": "/:path((?!football|basketball|baseball|ko|en|es|ja|de|api|_next|_vercel).*)",
       "has": [{ "type": "host", "value": "baseball.playstat.space" }],
-      "destination": "/baseball/:path"
+      "destination": "/ko/baseball/:path"
+    },
+    {
+      "source": "/:locale(ko|en|es|ja|de)/:path*",
+      "has": [{ "type": "host", "value": "baseball.playstat.space" }],
+      "destination": "/:locale/baseball/:path*"
     }
   ],
   "headers": [
