@@ -318,25 +318,19 @@ export async function GET(request: Request) {
     const allTeamsRecentGames = await ballDontLieApi.getBaseballAllTeamsRecentGames(currentSeason, 30)
     totalApiCalls++ // 페이지네이션 포함해도 1-2회 정도
 
-    // DB 팀 정보 캐시 (N+1 쿼리 방지)
-    const dbTeamsByExternalId = new Map<string, { id: string }>()
-    dbTeams.forEach((t) => {
-      if (t.externalId) dbTeamsByExternalId.set(t.externalId, { id: t.id })
-    })
-
     for (const standing of standings) {
       try {
-        const team = dbTeamsByExternalId.get(String(standing.team.id))
+        const team = dbTeamsByExternalId.get(String(standing.teamId))
         if (!team) continue
 
         // 이미 조회된 데이터에서 해당 팀 경기 추출
-        const recentGames = allTeamsRecentGames.get(standing.team.id) || []
+        const recentGames = allTeamsRecentGames.get(standing.teamId) || []
 
         if (recentGames.length === 0) continue
 
         // RecentMatches 형식으로 변환
         const matchesJson = recentGames.map((game) => {
-          const isHome = game.home_team.id === standing.team.id
+          const isHome = game.home_team.id === standing.teamId
           const teamScore = isHome ? game.home_team_score : game.away_team_score
           const opponentScore = isHome ? game.away_team_score : game.home_team_score
           const opponent = isHome ? game.away_team.name : game.home_team.name
@@ -375,7 +369,7 @@ export async function GET(request: Request) {
 
         recentMatchesUpdated++
       } catch (error) {
-        results.errors.push(`Recent matches ${standing.team.id}: ${String(error)}`)
+        results.errors.push(`Recent matches ${standing.teamId}: ${String(error)}`)
       }
     }
 
