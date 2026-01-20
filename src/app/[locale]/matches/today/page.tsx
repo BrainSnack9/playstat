@@ -17,7 +17,7 @@ interface Props {
   params: Promise<{ locale: string }>
 }
 
-export const revalidate = CACHE_REVALIDATE
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params
