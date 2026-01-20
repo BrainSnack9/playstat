@@ -3,7 +3,6 @@
 import { useTranslations } from 'next-intl'
 import { Link, usePathname } from '@/i18n/routing'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -50,37 +49,11 @@ const mainNav = [
   },
 ]
 
-const sportConfig: Record<string, { emoji: string; color: string }> = {
-  football: { emoji: '⚽', color: 'bg-green-500/10 text-green-500 border-green-500/30' },
-  basketball: { emoji: '🏀', color: 'bg-orange-500/10 text-orange-500 border-orange-500/30' },
-  baseball: { emoji: '⚾', color: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
-}
-
 export function Header({ variant = 'default' }: { variant?: 'default' | 'landing' | 'neon' }) {
   const t = useTranslations('common')
-  const sports = useTranslations('sports')
   const pathname = usePathname()
   const showNav = variant !== 'landing'
   const isNeon = variant === 'neon'
-
-  // 서브도메인에서 스포츠 타입 감지 (football.playstat.space, basketball.playstat.space 등)
-  const getCurrentSport = (): string | null => {
-    if (typeof window === 'undefined') return null
-    const hostname = window.location.hostname
-    if (hostname.startsWith('football.')) return 'football'
-    if (hostname.startsWith('basketball.')) return 'basketball'
-    if (hostname.startsWith('baseball.')) return 'baseball'
-    // localhost에서는 경로로 판단
-    if (hostname === 'localhost') {
-      if (pathname.includes('/football')) return 'football'
-      if (pathname.includes('/basketball')) return 'basketball'
-      if (pathname.includes('/baseball')) return 'baseball'
-    }
-    return null
-  }
-
-  const currentSport = getCurrentSport()
-  const sportInfo = currentSport ? sportConfig[currentSport] : null
 
   return (
     <header
@@ -92,24 +65,17 @@ export function Header({ variant = 'default' }: { variant?: 'default' | 'landing
       )}
     >
       <div className="container flex h-16 items-center justify-between">
-        {/* Logo + Sport Badge */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <Image
-              src="/app-icon-512.png"
-              alt="PlayStat"
-              width={28}
-              height={28}
-              className="rounded"
-            />
-            <span className={cn('text-xl font-bold', isNeon && 'text-white')}>PlayStat</span>
-          </Link>
-          {sportInfo && (
-            <Badge variant="outline" className={cn('hidden sm:flex px-2 py-1 text-xs font-medium', sportInfo.color)}>
-              {sportInfo.emoji}&nbsp;&nbsp;{sports(currentSport!)}
-            </Badge>
-          )}
-        </div>
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2">
+          <Image
+            src="/app-icon-512.png"
+            alt="PlayStat"
+            width={28}
+            height={28}
+            className="rounded"
+          />
+          <span className={cn('text-xl font-bold', isNeon && 'text-white')}>PlayStat</span>
+        </Link>
 
         {/* Desktop Navigation */}
         {showNav && (
