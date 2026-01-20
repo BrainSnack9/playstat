@@ -23,7 +23,7 @@ import { generateMetadata as buildMetadata, generateMatchSEO, generateMatchJsonL
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
-import { ensureMatchAnalysisTranslations } from '@/lib/ai/translate'
+// ensureMatchAnalysisTranslations는 크론에서만 사용 (페이지 로드 시 성능 이슈)
 import { unstable_cache } from 'next/cache'
 import { getDateLocale } from '@/lib/utils'
 
@@ -111,10 +111,9 @@ export default async function MatchPage({ params, searchParams }: Props) {
     notFound()
   }
 
-  // 다국어 번역 데이터 확인 및 생성 (없을 경우에만)
-  const match = initialMatch.matchAnalysis 
-    ? { ...initialMatch, matchAnalysis: await ensureMatchAnalysisTranslations(initialMatch.matchAnalysis) }
-    : initialMatch
+  // 번역 데이터는 크론에서 생성됨 - 페이지 로드 시에는 생성하지 않음 (성능 이슈)
+  // 번역이 없으면 영어 fallback 사용
+  const match = initialMatch
 
   let kickoffDate = format(new Date(match.kickoffAt), 'yyyy-MM-dd')
   try {
