@@ -51,16 +51,22 @@ export async function GET(request: Request) {
     try {
       if (sportType === 'football') {
         // For football, we need to fetch from all supported leagues
-        const leagues = ['epl', 'laliga', 'seriea', 'bundesliga', 'ligue1']
-        const allMatches = []
+        const leagues = ['epl', 'laliga', 'seriea', 'bundesliga', 'ligue1'] as const
+        const allMatches: unknown[] = []
+        const currentSeason = ballDontLieApi.getCurrentSoccerSeason()
 
         for (const league of leagues) {
-          const response = await ballDontLieApi.getSoccerGames(league, {
-            start_date: dateFrom,
-            end_date: dateTo,
-          })
-          allMatches.push(...(response.data || []))
-          await delay(13000) // Rate limiting
+          try {
+            const response = await ballDontLieApi.getSoccerGames(league, {
+              season: currentSeason,
+              start_date: dateFrom,
+              end_date: dateTo,
+            })
+            allMatches.push(...response)
+            await delay(13000) // Rate limiting
+          } catch (error) {
+            console.error(`Failed to fetch ${league} matches:`, error)
+          }
         }
 
         matchesResponse = { data: allMatches }
@@ -108,6 +114,10 @@ export async function GET(request: Request) {
     for (const match of apiMatches as Array<{
       id: number
       status: string
+      // Soccer API uses home_score/away_score
+      home_score?: number
+      away_score?: number
+      // Basketball API uses home_team_score/visitor_team_score
       home_team_score?: number
       visitor_team_score?: number
       period?: number
@@ -118,8 +128,9 @@ export async function GET(request: Request) {
 
         if (existingMatch) {
           const newStatus = mapStatus(match.status, sportType)
-          const newHomeScore = match.home_team_score ?? null
-          const newAwayScore = match.visitor_team_score ?? null
+          // Handle both Soccer API (home_score) and Basketball API (home_team_score) formats
+          const newHomeScore = match.home_score ?? match.home_team_score ?? null
+          const newAwayScore = match.away_score ?? match.visitor_team_score ?? null
 
           const isChanged =
             existingMatch.status !== newStatus ||
@@ -219,17 +230,32 @@ export async function GET(request: Request) {
 }
 
 function mapStatus(apiStatus: string, sportType: string): MatchStatus {
-  // BallDontLie uses different status values
-  // Common: "scheduled", "in_progress", "final"
+  // BallDontLie uses different status values per sport
+  // Soccer: FullTime, C, NS, 1H, 2H, HT, etc.
+  // Basketball/Baseball: Final, scheduled, in_progress
   const statusMap: Record<string, MatchStatus> = {
-    scheduled: 'SCHEDULED',
+    // Soccer statuses
+    'fulltime': 'FINISHED',
+    'ft': 'FINISHED',
+    'c': 'FINISHED', // Completed
+    'ns': 'SCHEDULED', // Not Started
+    '1h': 'LIVE', // First Half
+    '2h': 'LIVE', // Second Half
+    'ht': 'LIVE', // Half Time
+    'et': 'LIVE', // Extra Time
+    'p': 'LIVE', // Penalty
+    'pst': 'POSTPONED', // Postponed
+    'canc': 'CANCELLED', // Cancelled
+    'susp': 'SUSPENDED', // Suspended
+    // Basketball/Baseball statuses
+    'scheduled': 'SCHEDULED',
     'in progress': 'LIVE',
     'in_progress': 'LIVE',
-    final: 'FINISHED',
-    finished: 'FINISHED',
-    postponed: 'POSTPONED',
-    cancelled: 'CANCELLED',
-    suspended: 'SUSPENDED',
+    'final': 'FINISHED',
+    'finished': 'FINISHED',
+    'postponed': 'POSTPONED',
+    'cancelled': 'CANCELLED',
+    'suspended': 'SUSPENDED',
   }
 
   const normalized = apiStatus.toLowerCase().replace(/\s+/g, '_')
