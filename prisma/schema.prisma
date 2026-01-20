@@ -252,23 +252,11 @@ model MatchAnalysis {
   id                  String   @id @default(cuid())
   matchId             String   @unique
 
-  // 다국어 번역본 통합 저장 (확장성)
-  // 구조: { "en": { "summary": "...", ... }, "ko": { ... }, "es": { ... }, "ja": { ... }, "ar": { ... } }
+  // 다국어 번역본 통합 저장
+  // 구조: { "en": { "summary": "...", "recentFlowAnalysis": "...", ... }, "ko": { ... } }
   translations        Json?
 
-  // 하위 호환성을 위한 기존 필드 (당분간 유지)
-  summary             String?  @db.Text
-  recentFlowAnalysis  String?  @db.Text
-  seasonTrends        String?  @db.Text
-  tacticalAnalysis    String?  @db.Text
-  keyPoints           Json?
-
-  summaryEn           String?  @db.Text
-  recentFlowAnalysisEn String? @db.Text
-  seasonTrendsEn      String?  @db.Text
-  tacticalAnalysisEn  String?  @db.Text
-  keyPointsEn         Json?
-
+  // AI 분석 생성 시 사용된 입력 데이터 스냅샷
   inputDataSnapshot   Json?
 
   createdAt           DateTime @default(now())
@@ -284,14 +272,9 @@ model DailyReport {
   sportType  SportType @default(FOOTBALL)
 
   // 다국어 번역본 통합 저장
-  // 구조: { "en": { "title": "...", "summary": "...", ... }, "ko": { ... }, ... }
+  // 구조: { "en": { "title": "...", "summary": "...", "hotMatches": [...], ... }, "ko": { ... } }
   translations Json?
 
-  summary    String    @db.Text
-  summaryEn  String?   @db.Text
-  hotMatches Json?     // 주목 경기 목록
-  keyNews    Json?     // 핵심 뉴스
-  insights   Json?     // 인사이트
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
@@ -303,15 +286,12 @@ model DailyReport {
 // 뉴스 테이블
 model News {
   id           String    @id @default(cuid())
-  title        String
-  titleEn      String?
-  
+  link         String    @unique
+
   // 다국어 번역본 통합 저장
+  // 구조: { "en": { "title": "...", "summary": "..." }, "ko": { ... } }
   translations Json?
 
-  link         String    @unique
-  summary      String    @db.Text
-  summaryEn    String?   @db.Text
   relatedTeams Json?     // 관련 팀 ID 목록
   sportType    SportType @default(FOOTBALL)
   imageUrl     String?
