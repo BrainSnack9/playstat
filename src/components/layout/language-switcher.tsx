@@ -1,24 +1,30 @@
 'use client'
 
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { usePathname, useRouter } from '@/i18n/routing'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { locales, localeNames, localeFlags, type Locale } from '@/i18n/config'
-import { Globe } from 'lucide-react'
+import { Globe, Home } from 'lucide-react'
 
 export function LanguageSwitcher() {
   const locale = useLocale() as Locale
   const router = useRouter()
   const pathname = usePathname()
+  const t = useTranslations('footer')
 
   const handleLocaleChange = (newLocale: Locale) => {
     router.replace(pathname, { locale: newLocale })
+  }
+
+  const handleGoToMain = () => {
+    window.location.href = 'https://playstat.space'
   }
 
   return (
@@ -40,6 +46,11 @@ export function LanguageSwitcher() {
             {localeNames[loc]}
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleGoToMain}>
+          <Home className="mr-2 h-4 w-4" />
+          {t('main_hub')}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

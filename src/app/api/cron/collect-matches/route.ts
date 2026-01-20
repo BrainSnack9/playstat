@@ -9,6 +9,7 @@ import slugify from 'slugify'
 import type { PrismaClient, MatchStatus } from '@prisma/client'
 
 import { revalidateTag } from 'next/cache'
+import { isValidSportId, type SportId } from '@/lib/sport'
 
 // Vercel Function 설정 - App Router
 export const maxDuration = 300 // 5분
@@ -38,7 +39,13 @@ const LEAGUES_TO_COLLECT = [
 /**
  * GET /api/cron/collect-matches
  * 크론: 오늘~7일 후 경기 일정 수집
- * Football-Data.org API 사용
+ *
+ * Query params:
+ * - sport: 'football' | 'basketball' | 'baseball' (기본: 'football')
+ * - chain: 'true'면 후속 작업들 순차 호출
+ *
+ * 현재 지원: football (Football-Data.org API)
+ * 추후 지원 예정: basketball, baseball (API-Sports 등 별도 통합 필요)
  */
 export async function GET(request: Request) {
   // 인증 체크
@@ -47,9 +54,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const url = new URL(request.url)
+  const sportParam = url.searchParams.get('sport') || 'football'
+  const sport: SportId = isValidSportId(sportParam) ? sportParam : 'football'
+
+  // 현재는 football만 지원
+  if (sport !== 'football') {
+    return NextResponse.json({
+      success: false,
+      error: `Sport '${sport}' is not yet supported. Only 'football' is currently available.`,
+      message: 'Basketball and baseball data collection requires additional API integration.',
+    }, { status: 501 })
+  }
+
   const prisma = await getPrisma()
   const startTime = Date.now()
-  const results: { matchesAdded: number; matchesUpdated: number; errors: string[] } = { matchesAdded: 0, matchesUpdated: 0, errors: [] }
+  const results: { sport: SportId; matchesAdded: number; matchesUpdated: number; errors: string[] } = { sport, matchesAdded: 0, matchesUpdated: 0, errors: [] }
   let totalApiCalls = 0
 
   try {
@@ -172,7 +192,6 @@ export async function GET(request: Request) {
     })
 
     // chain=true면 후속 작업들 순차 호출
-    const url = new URL(request.url)
     const shouldChain = url.searchParams.get('chain') === 'true'
     const chainResults: { job: string; success: boolean; error?: string }[] = []
 

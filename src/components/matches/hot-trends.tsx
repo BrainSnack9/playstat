@@ -5,20 +5,25 @@ import { Badge } from '@/components/ui/badge'
 import { Link } from '@/i18n/routing'
 import { TrendingUp, Flame, Zap } from 'lucide-react'
 import { analyzeTeamTrend, getMatchCombinedTrend } from '@/lib/ai/trend-engine'
-import Image from 'next/image'
-import { getTodayRangeInTimezone } from '@/lib/timezone'
+import { getDayRangeInTimezone, getTimezoneFromCookies } from '@/lib/timezone'
+import { cookies } from 'next/headers'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { format } from 'date-fns'
+import { getSportFromCookie, sportIdToEnum, SPORT_COOKIE } from '@/lib/sport'
+import type { SportId } from '@/lib/sport'
+import { SportType } from '@prisma/client'
+import { LeagueLogo } from '@/components/ui/league-logo'
+import { TeamLogo } from '@/components/ui/team-logo'
 
 // 서버 공유 캐시 적용: 홈 화면 트렌드 경기
-// 타임존별로 캐싱하여 각 지역 사용자에게 맞는 데이터 제공
-const getCachedTrendingMatches = (dateStr: string, timezone: string) => unstable_cache(
+const getCachedTrendingMatches = (dateStr: string, timezone: string, sportType: SportType) => unstable_cache(
   async () => {
-    const { start, end } = getTodayRangeInTimezone(timezone)
+    const { start, end } = getDayRangeInTimezone(dateStr, timezone)
 
     const matches = await prisma.match.findMany({
       where: {
+        sportType,
         kickoffAt: {
           gte: start,
           lte: end,
@@ -28,13 +33,23 @@ const getCachedTrendingMatches = (dateStr: string, timezone: string) => unstable
       include: {
         league: true,
         homeTeam: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            shortName: true,
+            tla: true,
+            logoUrl: true,
             seasonStats: true,
             recentMatches: true,
           },
         },
         awayTeam: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            shortName: true,
+            tla: true,
+            logoUrl: true,
             seasonStats: true,
             recentMatches: true,
           },
@@ -66,21 +81,28 @@ const getCachedTrendingMatches = (dateStr: string, timezone: string) => unstable
     .filter((m) => m.homeTrends.length > 0 || m.awayTrends.length > 0 || m.combined)
     .slice(0, 3)
   },
-  [`home-trending-matches-${dateStr}-${timezone}`],
+  [`home-trending-matches-${dateStr}-${timezone}-${sportType}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )()
 
 interface HotTrendsProps {
-  locale: string
-  timezone?: string
+  locale?: string
+  sport?: string
 }
 
-export async function HotTrends({ locale, timezone = 'Asia/Seoul' }: HotTrendsProps) {
-  const t = await getTranslations({ locale, namespace: 'home' })
-  const tt = await getTranslations({ locale, namespace: 'trends' })
+export async function HotTrends({ locale, sport }: HotTrendsProps) {
+  const cookieStore = await cookies()
+  const resolvedLocale = locale || cookieStore.get('NEXT_LOCALE')?.value || 'ko'
+  const t = await getTranslations({ locale: resolvedLocale, namespace: 'home' })
+  const tt = await getTranslations({ locale: resolvedLocale, namespace: 'trends' })
 
+  const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
+  // sport prop이 있으면 사용, 없으면 쿠키에서 가져옴
+  const sportType = sport
+    ? sportIdToEnum(sport as SportId) as SportType
+    : sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value)) as SportType
   const dateStr = format(new Date(), 'yyyy-MM-dd')
-  const trendingMatches = await getCachedTrendingMatches(dateStr, timezone)
+  const trendingMatches = await getCachedTrendingMatches(dateStr, timezone, sportType)
 
   if (trendingMatches.length === 0) return null
 
@@ -96,7 +118,10 @@ export async function HotTrends({ locale, timezone = 'Asia/Seoul' }: HotTrendsPr
             <Card className="h-full border-primary/20 bg-primary/5 transition-all hover:border-primary/40 hover:shadow-md">
               <CardContent className="p-5">
                 <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{match.league.name}</span>
+                  <span className="flex items-center gap-1.5">
+                    <LeagueLogo logoUrl={match.league.logoUrl} name={match.league.name} size="xs" />
+                    {match.league.name}
+                  </span>
                   <Badge variant="outline" className="bg-background/50 font-bold text-primary">
                     {combined ? (
                       <span className="flex items-center gap-1">
@@ -114,16 +139,24 @@ export async function HotTrends({ locale, timezone = 'Asia/Seoul' }: HotTrendsPr
                 
                 <div className="mb-4 flex items-center justify-center gap-4">
                   <div className="flex flex-col items-center gap-1">
-                    {match.homeTeam.logoUrl && (
-                      <Image src={match.homeTeam.logoUrl} alt={match.homeTeam.name} width={40} height={40} className="h-10 w-10 object-contain" />
-                    )}
+                    <TeamLogo
+                      logoUrl={match.homeTeam.logoUrl}
+                      name={match.homeTeam.name}
+                      tla={match.homeTeam.tla}
+                      shortName={match.homeTeam.shortName}
+                      size="lg"
+                    />
                     <span className="text-sm font-bold">{match.homeTeam.name}</span>
                   </div>
                   <span className="text-lg font-black text-muted-foreground/30">VS</span>
                   <div className="flex flex-col items-center gap-1">
-                    {match.awayTeam.logoUrl && (
-                      <Image src={match.awayTeam.logoUrl} alt={match.awayTeam.name} width={40} height={40} className="h-10 w-10 object-contain" />
-                    )}
+                    <TeamLogo
+                      logoUrl={match.awayTeam.logoUrl}
+                      name={match.awayTeam.name}
+                      tla={match.awayTeam.tla}
+                      shortName={match.awayTeam.shortName}
+                      size="lg"
+                    />
                     <span className="text-sm font-bold">{match.awayTeam.name}</span>
                   </div>
                 </div>

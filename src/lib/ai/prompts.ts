@@ -75,7 +75,7 @@ export const MATCH_ANALYSIS_PROMPT = `You are a professional sports analysis rep
 Below is all the data needed for match analysis in JSON format.
 Write a pre-match preview analysis based on this data.
 
-**IMPORTANT: Write your entire response in Korean (한국어).**
+**IMPORTANT: Write your entire response in Korean (한국어). Return your analysis as a JSON object.**
 
 ## CRITICAL RULES (Absolute Zero Tolerance)
 - NEVER mention odds, probability, betting, picks, or predicted scores.
@@ -89,7 +89,7 @@ Write a pre-match preview analysis based on this data.
 - Clearly summarize the last 5 matches trend.
 - Explain the style differences between the two teams.
 
-## Output Format (Must use these 5 sections, in Korean)
+## Output Format (Return as JSON with these 5 sections, in Korean)
 
 ### 1) 3줄 요약
 - Summarize the key points of this match in 3 lines (in Korean)
@@ -124,6 +124,8 @@ export const MATCH_ANALYSIS_PROMPT_EN = `You are a professional sports analysis 
 Below is all the data needed for match analysis in JSON format.
 Write a pre-match preview analysis based on this data.
 
+**IMPORTANT: Return your analysis as a JSON object.**
+
 ## CRITICAL RULES (Absolute Zero Tolerance)
 - NEVER mention odds, probability, betting, picks, or predicted scores.
 - DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line").
@@ -136,7 +138,7 @@ Write a pre-match preview analysis based on this data.
 - Clearly summarize the last 5 matches trend.
 - Explain the style differences between the two teams.
 
-## Output Format (Must use these 5 sections)
+## Output Format (Return as JSON with these 5 sections)
 
 ### 1) 3-Line Summary
 - Summarize the key points of this match in 3 lines
@@ -294,13 +296,14 @@ Team data:
 
 /**
  * 데일리 리포트 프롬프트 (영어) - SEO 최적화 버전
+ * {sport} 플레이스홀더로 스포츠 타입 동적 지정
  */
-export const DAILY_REPORT_PROMPT_EN = `You are a professional football analyst writing a daily match preview report.
-Generate an SEO-optimized daily football report based on the match data provided.
+export const DAILY_REPORT_PROMPT_EN = `You are a professional {sport} analyst writing a daily game preview report.
+Generate an SEO-optimized daily {sport} report based on the game data provided.
 
 ## CRITICAL RULES (Absolute Zero Tolerance)
 - NEVER mention betting, odds, probability, or predicted scores.
-- DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line").
+- DO NOT use any terminology related to gambling or wagering (e.g., "favorite", "underdog", "handicap", "line", "spread", "over/under").
 - This content will be served to global audiences including Arabic cultures where gambling is strictly prohibited. Keep the tone purely professional, analytical, and informative.
 
 ## DATE/TIME RULES (Important for Global Audience)
@@ -311,26 +314,26 @@ Generate an SEO-optimized daily football report based on the match data provided
 - GOOD examples: "January 20 action...", "The Jan 20 fixtures...", "On January 20..."
 
 ## Rules
-- Focus on match previews, team form, and key storylines
-- Use SEO-friendly language with relevant football keywords
-- Make the content engaging and informative for football fans
+- Focus on game previews, team form, standings, and key storylines
+- Use SEO-friendly language with relevant {sport} keywords
+- Make the content engaging and informative for {sport} fans
 
 ## Output Format (JSON)
 Return a valid JSON object with this structure:
 {
-  "title": "SEO Optimized Title (Date + Major matches, within 60 chars)",
-  "metaDescription": "Meta description (mentioning major matches, within 155 chars)",
-  "summary": "Key match insights (Sharp tactical/statistical analysis, 3 points in '1. Content \\n2. Content' format)",
+  "title": "SEO Optimized Title (Date + Major games, within 60 chars)",
+  "metaDescription": "Meta description (mentioning major games, within 155 chars)",
+  "summary": "Key game insights (Sharp tactical/statistical analysis, 3 points in '1. Content \\n2. Content' format)",
   "sections": [
     {
       "type": "highlight_matches",
-      "title": "Featured Matches of the Day",
-      "content": "Previews for major matches (2-3 sentences per match)"
+      "title": "Featured Games of the Day",
+      "content": "Previews for major games (2-3 sentences per game)"
     },
     {
       "type": "league_overview",
-      "title": "Matches by League",
-      "content": "Summary of matches for each league"
+      "title": "Games by Conference/League",
+      "content": "Summary of games grouped by conference or league"
     },
     {
       "type": "key_storylines",
@@ -346,7 +349,7 @@ Return a valid JSON object with this structure:
   "keywords": ["keyword1", "keyword2", "keyword3", "..."],
   "hotMatches": [
     {
-      "matchId": "matchID",
+      "matchId": "gameID",
       "title": "Home Team vs Away Team",
       "preview": "Short preview (1-2 sentences)",
       "keyPoint": "Key viewing point"
@@ -355,8 +358,9 @@ Return a valid JSON object with this structure:
 }
 
 ---
+Sport: {sport}
 Today's date: {date}
-Match data:
+Game data:
 {matchData}`
 
 /**
@@ -430,7 +434,7 @@ export interface ParsedMatchAnalysis {
 }
 
 /**
- * AI 응답을 파싱하여 구조화된 데이터로 변환 (KO/EN 헤더 모두 지원)
+ * AI 응답을 파싱하여 구조화된 데이터로 변환 (KO/EN 헤더 모두 지원, JSON 응답도 지원)
  */
 export function parseMatchAnalysisResponse(response: string): ParsedMatchAnalysis {
   const result: ParsedMatchAnalysis = {
@@ -441,6 +445,96 @@ export function parseMatchAnalysisResponse(response: string): ParsedMatchAnalysi
     keyPoints: [],
   }
 
+  // JSON 형식인지 먼저 확인
+  const trimmed = response.trim()
+  if (trimmed.startsWith('{') || trimmed.startsWith('```json')) {
+    try {
+      // ```json ... ``` 코드블록 제거
+      const jsonStr = trimmed
+        .replace(/^```json\s*\n?/, '')
+        .replace(/\n?```\s*$/, '')
+        .trim()
+
+      const parsed = JSON.parse(jsonStr)
+
+      // Helper to extract string from nested objects
+      const extractString = (data: unknown): string => {
+        if (!data) return ''
+        if (typeof data === 'string') return data
+        if (typeof data === 'object' && data !== null) {
+          // Handle nested objects like { home_team: {...}, away_team: {...} }
+          const values = Object.values(data as Record<string, unknown>)
+          const stringParts: string[] = []
+          for (const val of values) {
+            if (typeof val === 'string') {
+              stringParts.push(val)
+            } else if (typeof val === 'object' && val !== null) {
+              // Go one level deeper for nested team data
+              const innerVals = Object.values(val as Record<string, unknown>)
+                .filter((v): v is string => typeof v === 'string')
+              stringParts.push(...innerVals)
+            }
+          }
+          return stringParts.join('\n\n')
+        }
+        return ''
+      }
+
+      // Helper to extract key points array
+      const extractKeyPoints = (data: unknown): string[] => {
+        if (!data) return []
+        if (Array.isArray(data)) return data.filter((item): item is string => typeof item === 'string')
+        if (typeof data === 'object' && data !== null) {
+          return Object.values(data as Record<string, unknown>)
+            .filter((v): v is string => typeof v === 'string')
+        }
+        return []
+      }
+
+      // Extract fields with various naming conventions
+      result.summary = extractString(
+        parsed.summary ||
+        parsed['3줄 요약'] ||
+        parsed['3_line_summary'] ||
+        parsed['three_line_summary']
+      )
+
+      result.recentFlowAnalysis = extractString(
+        parsed.recentFlowAnalysis ||
+        parsed['최근 5경기 흐름 분석'] ||
+        parsed['recent_5_matches_flow_analysis'] ||
+        parsed['recent_flow_analysis']
+      )
+
+      result.seasonTrends = extractString(
+        parsed.seasonTrends ||
+        parsed['시즌 전체 성향 요약'] ||
+        parsed['season_overall_trends'] ||
+        parsed['season_trends']
+      )
+
+      result.tacticalAnalysis = extractString(
+        parsed.tacticalAnalysis ||
+        parsed['홈/원정 기반의 전술적 관점'] ||
+        parsed['tactical_perspective_based_on_home_away'] ||
+        parsed['tactical_analysis']
+      )
+
+      result.keyPoints = extractKeyPoints(
+        parsed.keyPoints ||
+        parsed['주요 관전 포인트'] ||
+        parsed['key_viewing_points'] ||
+        parsed['3_key_viewing_points']
+      )
+
+      return result
+    } catch {
+      // JSON 파싱 실패시 마크다운 파싱으로 폴백
+      console.warn('Failed to parse JSON response, falling back to markdown parsing')
+    }
+  }
+
+  // 마크다운 형식 파싱 (기존 로직)
   // 섹션 분리 (숫자 헤더나 ### 헤더 기준)
   const sections = response.split(/###\s*(?:\d+\)|[A-Za-z\s]+)/).filter(Boolean)
 

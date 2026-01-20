@@ -1,21 +1,23 @@
 import { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { cookies } from 'next/headers'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Newspaper, Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import Image from 'next/image'
-import { collectAllFootballNews, type NewsItem } from '@/lib/api/news-api'
+import { collectSportsNews, type NewsItem } from '@/lib/api/news-api'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { getDateLocale } from '@/lib/utils'
+import { SPORT_COOKIE, getSportFromCookie, type SportId } from '@/lib/sport'
 
-// 서버 공유 캐시 적용: 뉴스 데이터 조회
-const getCachedNews = (limit: number) => unstable_cache(
+// 서버 공유 캐시 적용: 스포츠별 뉴스 데이터 조회
+const getCachedNews = (sport: SportId, limit: number) => unstable_cache(
   async () => {
-    return await collectAllFootballNews(limit)
+    return await collectSportsNews(sport, limit)
   },
-  [`news-page-data-${limit}`],
+  [`news-page-data-${sport}-${limit}`],
   { revalidate: CACHE_REVALIDATE }
 )()
 
@@ -91,11 +93,15 @@ export default async function NewsPage({ params }: Props) {
 
   const t = await getTranslations({ locale, namespace: 'news' })
 
+  // 쿠키에서 스포츠 타입 가져오기
+  const cookieStore = await cookies()
+  const sport = getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value)
+
   let news: NewsItem[] = []
   let error = false
 
   try {
-    news = await getCachedNews(12)
+    news = await getCachedNews(sport, 12)
   } catch (e) {
     console.error('Failed to fetch news:', e)
     error = true

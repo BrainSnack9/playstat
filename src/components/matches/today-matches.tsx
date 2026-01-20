@@ -3,19 +3,23 @@ import { Calendar } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { getTranslations } from 'next-intl/server'
 import { MatchCard } from '@/components/match-card'
-import { getTodayRangeInTimezone } from '@/lib/timezone'
+import { getDayRangeInTimezone, getTimezoneFromCookies } from '@/lib/timezone'
+import { cookies } from 'next/headers'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { format } from 'date-fns'
+import { getSportFromCookie, sportIdToEnum, SPORT_COOKIE } from '@/lib/sport'
+import type { SportId } from '@/lib/sport'
+import { SportType } from '@prisma/client'
 
 // 서버 공유 캐시 적용: 홈 화면 오늘 경기
-// 타임존별로 캐싱하여 각 지역 사용자에게 맞는 데이터 제공
-const getCachedTodayMatches = (dateStr: string, timezone: string) => unstable_cache(
+const getCachedTodayMatches = (dateStr: string, timezone: string, sportType: SportType) => unstable_cache(
   async () => {
-    const { start, end } = getTodayRangeInTimezone(timezone)
+    const { start, end } = getDayRangeInTimezone(dateStr, timezone)
 
     return await prisma.match.findMany({
       where: {
+        sportType,
         kickoffAt: {
           gte: start,
           lte: end,
@@ -39,18 +43,25 @@ const getCachedTodayMatches = (dateStr: string, timezone: string) => unstable_ca
       take: 6,
     })
   },
-  [`home-today-matches-${dateStr}-${timezone}`],
+  [`home-today-matches-${dateStr}-${timezone}-${sportType}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )()
 
-interface TodayMatchesProps {
-  locale: string
-  timezone?: string
+export interface TodayMatchesProps {
+  locale?: string
+  sport?: string
 }
 
-export async function TodayMatches({ locale, timezone = 'Asia/Seoul' }: TodayMatchesProps) {
+export async function TodayMatches({ locale, sport }: TodayMatchesProps) {
+  const cookieStore = await cookies()
+  const resolvedLocale = locale || cookieStore.get('NEXT_LOCALE')?.value || 'ko'
+  const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
+  // sport prop이 있으면 사용, 없으면 쿠키에서 가져옴
+  const sportType = sport
+    ? sportIdToEnum(sport as SportId) as SportType
+    : sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value)) as SportType
   const dateStr = format(new Date(), 'yyyy-MM-dd')
-  const matches = await getCachedTodayMatches(dateStr, timezone)
+  const matches = await getCachedTodayMatches(dateStr, timezone, sportType)
   const home = await getTranslations('home')
 
   if (matches.length === 0) {
@@ -75,7 +86,7 @@ export async function TodayMatches({ locale, timezone = 'Asia/Seoul' }: TodayMat
             slug: (match as any).slug || match.id
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any} 
-          locale={locale} 
+          locale={resolvedLocale} 
         />
       ))}
     </div>

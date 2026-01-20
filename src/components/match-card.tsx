@@ -1,15 +1,17 @@
 'use client'
 
-import { Clock, Sparkles, Star, Trophy } from 'lucide-react'
+import { format } from 'date-fns'
+import { Clock, Star, Trophy } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/i18n/routing'
-import Image from 'next/image'
 import { useFavoriteTeams } from '@/stores/favorite-teams'
 import { useTranslations } from 'next-intl'
 import { MatchStatusBadge } from './match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
-import { LocalTime, LocalDateTime } from './local-time'
+import { getDateLocale } from '@/lib/utils'
+import { LeagueLogo } from '@/components/ui/league-logo'
+import { TeamLogo } from '@/components/ui/team-logo'
 
 interface MatchCardProps {
   match: {
@@ -46,9 +48,20 @@ interface MatchCardProps {
 export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
   const { favoriteTeamIds } = useFavoriteTeams()
   const t = useTranslations('match')
-
-  // locale 사용 - 실제로는 LocalDateTime에서 브라우저 로케일 사용
-  void locale
+  const tCommon = useTranslations('common')
+  const kickoffTime = format(new Date(match.kickoffAt), 'HH:mm')
+  
+  let kickoffDate = format(new Date(match.kickoffAt), 'MMM d')
+  try {
+    const mediumFormat = tCommon('date_medium_format')
+    if (mediumFormat && mediumFormat !== 'date_medium_format') {
+      kickoffDate = format(new Date(match.kickoffAt), mediumFormat, {
+        locale: getDateLocale(locale),
+      })
+    }
+  } catch {
+    // Fallback already set
+  }
 
   const hasHomeFavorite = favoriteTeamIds.includes(match.homeTeam.id)
   const hasAwayFavorite = favoriteTeamIds.includes(match.awayTeam.id)
@@ -75,21 +88,12 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
         <CardContent className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {match.league.logoUrl && (
-                <Image
-                  src={match.league.logoUrl}
-                  alt={match.league.name}
-                  width={20}
-                  height={20}
-                  className="rounded"
-                />
-              )}
+              <LeagueLogo logoUrl={match.league.logoUrl} name={match.league.name} size="sm" />
               <span className="text-xs text-muted-foreground">{match.league.name}</span>
             </div>
             <div className="flex items-center gap-2">
               {match.matchAnalysis && (
-                <Badge variant="outline" className="text-xs">
-                  <Sparkles className="h-3 w-3 me-1" />
+                <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
                   {t('ai_analysis')}
                 </Badge>
               )}
@@ -105,19 +109,14 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
             {/* 홈팀 */}
             <div className={`flex items-center justify-between p-1 rounded-md transition-colors ${homeWins ? 'bg-primary/5' : ''}`}>
               <div className="flex items-center gap-2">
-                {match.homeTeam.logoUrl ? (
-                  <Image
-                    src={match.homeTeam.logoUrl}
-                    alt={match.homeTeam.name}
-                    width={36}
-                    height={36}
-                    className={`rounded ${isFinished && !homeWins ? 'grayscale opacity-70' : ''}`}
-                  />
-                ) : (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
-                    <span className="text-xs font-bold">{match.homeTeam.tla || match.homeTeam.shortName}</span>
-                  </div>
-                )}
+                <TeamLogo
+                  logoUrl={match.homeTeam.logoUrl}
+                  name={match.homeTeam.name}
+                  tla={match.homeTeam.tla}
+                  shortName={match.homeTeam.shortName}
+                  size="md"
+                  grayscale={isFinished && !homeWins}
+                />
                 <span className={`font-medium ${hasHomeFavorite ? 'text-yellow-500' : ''} ${homeWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
                   {match.homeTeam.name}
                   {hasHomeFavorite && <Star className="inline ms-1 h-3 w-3 fill-yellow-500 text-yellow-500" />}
@@ -134,19 +133,14 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
             {/* 원정팀 */}
             <div className={`flex items-center justify-between p-1 rounded-md transition-colors ${awayWins ? 'bg-primary/5' : ''}`}>
               <div className="flex items-center gap-2">
-                {match.awayTeam.logoUrl ? (
-                  <Image
-                    src={match.awayTeam.logoUrl}
-                    alt={match.awayTeam.name}
-                    width={36}
-                    height={36}
-                    className={`rounded ${isFinished && !awayWins ? 'grayscale opacity-70' : ''}`}
-                  />
-                ) : (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
-                    <span className="text-xs font-bold">{match.awayTeam.tla || match.awayTeam.shortName}</span>
-                  </div>
-                )}
+                <TeamLogo
+                  logoUrl={match.awayTeam.logoUrl}
+                  name={match.awayTeam.name}
+                  tla={match.awayTeam.tla}
+                  shortName={match.awayTeam.shortName}
+                  size="md"
+                  grayscale={isFinished && !awayWins}
+                />
                 <span className={`font-medium ${hasAwayFavorite ? 'text-yellow-500' : ''} ${awayWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
                   {match.awayTeam.name}
                   {hasAwayFavorite && <Star className="inline ms-1 h-3 w-3 fill-yellow-500 text-yellow-500" />}
@@ -163,11 +157,7 @@ export function MatchCard({ match, locale, showDate = false }: MatchCardProps) {
 
           <div className="mt-3 flex items-center justify-center text-sm text-muted-foreground">
             <Clock className="me-1 h-4 w-4" />
-            {showDate ? (
-              <LocalDateTime utcTime={match.kickoffAt} dateFormat="MM/dd" timeFormat="HH:mm" />
-            ) : (
-              <LocalTime utcTime={match.kickoffAt} formatStr="HH:mm" />
-            )}
+            {showDate ? `${kickoffDate} ${kickoffTime}` : kickoffTime}
           </div>
         </CardContent>
       </Card>

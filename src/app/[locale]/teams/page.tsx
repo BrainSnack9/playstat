@@ -1,10 +1,12 @@
 import { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { cookies } from 'next/headers'
 import { Card, CardContent } from '@/components/ui/card'
 import { Users, Search } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { TeamCard } from '@/components/team-card'
-import Image from 'next/image'
+import { SPORT_COOKIE, getSportFromCookie, sportIdToEnum } from '@/lib/sport'
+import { LeagueLogo } from '@/components/ui/league-logo'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -20,11 +22,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-async function getTeams() {
+async function getTeams(sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL') {
   try {
     const teams = await prisma.team.findMany({
       where: {
-        sportType: 'FOOTBALL',
+        sportType,
       },
       include: {
         league: true,
@@ -46,12 +48,12 @@ async function getTeams() {
   }
 }
 
-async function getLeagues() {
+async function getLeagues(sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL') {
   try {
     // code가 있는 리그만 가져옴 (API에서 수집된 실제 리그)
     const leagues = await prisma.league.findMany({
       where: {
-        sportType: 'FOOTBALL',
+        sportType,
         code: { not: null },
       },
       orderBy: { name: 'asc' },
@@ -86,10 +88,14 @@ export default async function TeamsPage({ params, searchParams }: Props) {
   const { league: leagueFilter, search } = await searchParams
   setRequestLocale(locale)
 
+  // 쿠키에서 스포츠 타입 가져오기
+  const cookieStore = await cookies()
+  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value))
+
   const t = await getTranslations({ locale, namespace: 'team' })
 
-  let teams = await getTeams()
-  const leagues = await getLeagues()
+  let teams = await getTeams(sportType)
+  const leagues = await getLeagues(sportType)
 
   // Filter by league if specified
   if (leagueFilter) {
@@ -139,12 +145,13 @@ export default async function TeamsPage({ params, searchParams }: Props) {
             <a
               key={league.id}
               href={`/teams?league=${league.code}`}
-              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+              className={`px-3 py-1.5 rounded-full text-sm transition-colors flex items-center gap-1.5 ${
                 leagueFilter === league.code
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted hover:bg-muted/80'
               }`}
             >
+              <LeagueLogo logoUrl={league.logoUrl} name={league.name} size="xs" />
               {league.name}
             </a>
           ))}
@@ -156,15 +163,7 @@ export default async function TeamsPage({ params, searchParams }: Props) {
           {Object.entries(teamsByLeague).map(([leagueName, { league, teams: leagueTeams }]) => (
             <section key={leagueName}>
               <h2 className="mb-4 text-xl font-bold flex items-center gap-2">
-                {league.logoUrl && (
-                  <Image
-                    src={league.logoUrl}
-                    alt={leagueName}
-                    width={24}
-                    height={24}
-                    className="rounded"
-                  />
-                )}
+                <LeagueLogo logoUrl={league.logoUrl} name={leagueName} size="sm" />
                 {leagueName}
                 <span className="text-sm font-normal text-muted-foreground">
                   ({t('teams_count', { count: leagueTeams.length })})

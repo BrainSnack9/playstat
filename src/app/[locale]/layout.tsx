@@ -3,12 +3,15 @@ import { Inter } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
+import { cookies, headers } from 'next/headers'
 import { locales, type Locale } from '@/i18n/config'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import { TimezoneDetector } from '@/components/timezone-detector'
 import { AdsenseScript } from '@/components/adsense'
 import { Analytics } from '@vercel/analytics/next'
+import { getSportFromCookie, isApexHost, SPORT_COOKIE } from '@/lib/sport'
+import { spaceGrotesk } from '@/lib/fonts'
 import '../globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -57,36 +60,25 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
   setRequestLocale(locale)
   const messages = await getMessages()
   const direction = locale === 'ar' ? 'rtl' : 'ltr'
+  const sport = getSportFromCookie(cookies().get(SPORT_COOKIE)?.value)
+  const host = headers().get('host')
+  const isApex = isApexHost(host)
+  // 모든 스포츠 서브도메인에 네온 테마 적용 (CSS 변수로 스포츠별 색상 구분)
+  const isNeon = !isApex
 
   return (
-    <html lang={locale} dir={direction} className="dark" suppressHydrationWarning>
+    <html lang={locale} dir={direction} className="dark" data-sport={sport} suppressHydrationWarning>
       <head>
         <meta name="google-site-verification" content="8jWKeSdNb8M9T-sx7Tn_F5aEyGUSCpmWHl-h3xYdq6U" />
         <AdsenseScript />
       </head>
-      <body className={`${inter.className} bg-background text-foreground`}>
+      <body className={`${inter.className} ${isNeon ? spaceGrotesk.className : ''} bg-background text-foreground`}>
         <NextIntlClientProvider messages={messages}>
           <TimezoneDetector />
           <div className="flex min-h-screen flex-col">
-            <Header />
-            {/* 메인 컨텐츠 + 사이드 광고 레이아웃 */}
-            <div className="flex-1 flex justify-center">
-              <div className="flex w-full max-w-screen-xl">
-                {/* 왼쪽 사이드바 광고 - 추후 활성화 */}
-                {/* <aside className="hidden xl:flex flex-col items-center gap-4 p-4 sticky top-20 h-fit">
-                  <AdPlaceholder slot="sidebar-left" />
-                </aside> */}
-
-                {/* 메인 콘텐츠 */}
-                <main className="flex-1 min-w-0">{children}</main>
-
-                {/* 오른쪽 사이드바 광고 - 추후 활성화 */}
-                {/* <aside className="hidden xl:flex flex-col items-center gap-4 p-4 sticky top-20 h-fit">
-                  <AdPlaceholder slot="sidebar-right" />
-                </aside> */}
-              </div>
-            </div>
-            <Footer />
+            {!isApex && <Header variant={isNeon ? 'neon' : 'default'} />}
+            <main className="flex-1">{children}</main>
+            <Footer variant={isApex ? 'landing' : isNeon ? 'neon' : 'default'} />
           </div>
         </NextIntlClientProvider>
         <Analytics />

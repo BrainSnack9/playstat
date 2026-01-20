@@ -1,0 +1,103 @@
+name: Update Live Matches
+
+on:
+  schedule:
+    # 10분마다 실행 (UTC 기준)
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      sport:
+        description: 'Sport to update'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - football
+          - basketball
+          - baseball
+
+jobs:
+  update-live-football:
+    name: Update Football Live Matches
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.sport == 'football' || github.event.inputs.sport == 'all'))
+    steps:
+      - name: Update Football Live Matches
+        run: |
+          response=$(curl -X GET \
+            "${{ secrets.SITE_URL }}/api/cron/update-live-matches?sport=football" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --write-out "\n%{http_code}" \
+            --silent)
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Football live matches updated"
+            echo "$body" | jq '.' 2>/dev/null || echo "$body"
+          else
+            echo "⚠️ Football update returned HTTP $http_code"
+            echo "$body"
+          fi
+
+  update-live-basketball:
+    name: Update Basketball Live Matches
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.sport == 'basketball' || github.event.inputs.sport == 'all'))
+    steps:
+      - name: Update Basketball Live Matches
+        run: |
+          response=$(curl -X GET \
+            "${{ secrets.SITE_URL }}/api/cron/update-live-matches?sport=basketball" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --write-out "\n%{http_code}" \
+            --silent)
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Basketball live matches updated"
+            echo "$body" | jq '.' 2>/dev/null || echo "$body"
+          else
+            echo "⚠️ Basketball update returned HTTP $http_code"
+            echo "$body"
+          fi
+
+  update-live-baseball:
+    name: Update Baseball Live Matches
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.sport == 'baseball' || github.event.inputs.sport == 'all'))
+    steps:
+      - name: Update Baseball Live Matches
+        run: |
+          response=$(curl -X GET \
+            "${{ secrets.SITE_URL }}/api/cron/update-live-matches?sport=baseball" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --write-out "\n%{http_code}" \
+            --silent)
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Baseball live matches updated"
+            echo "$body" | jq '.' 2>/dev/null || echo "$body"
+          else
+            echo "⚠️ Baseball update returned HTTP $http_code"
+            echo "$body"
+          fi

@@ -1,39 +1,54 @@
-import { openai, AI_MODELS } from '@/lib/openai'
 import { prisma } from '@/lib/prisma'
 import { Locale, locales } from '@/i18n/config'
+import translate from 'google-translate-api-x'
+
+// 언어 코드 매핑 (i18n locale -> Google Translate 언어 코드)
+const LANG_MAP: Record<string, string> = {
+  en: 'en',
+  ko: 'ko',
+  es: 'es',
+  ja: 'ja',
+  de: 'de',
+}
 
 /**
- * 텍스트를 특정 언어로 번역합니다. (병렬 처리 지원을 위해 DB 저장은 하지 않음)
+ * Google Translate (비공식 무료 API)를 사용하여 텍스트를 번역합니다.
+ */
+async function translateWithGoogle(
+  text: string,
+  sourceLang: string,
+  targetLang: string
+): Promise<string> {
+  if (!text || sourceLang === targetLang) return text
+  if (text.trim().length === 0) return text
+
+  const source = LANG_MAP[sourceLang] || sourceLang
+  const target = LANG_MAP[targetLang] || targetLang
+
+  try {
+    const result = await translate(text, {
+      from: source,
+      to: target,
+      autoCorrect: false,
+    })
+
+    return result.text || text
+  } catch (error) {
+    console.error(`[Translate] Google Translate failed:`, error)
+    return text
+  }
+}
+
+/**
+ * 텍스트를 특정 언어로 번역합니다.
  */
 export async function translateText(
   text: string,
   targetLang: Locale,
-  context: string
+  _context?: string // 하위 호환성을 위해 유지 (사용 안 함)
 ): Promise<string> {
-  if (!text || targetLang === 'en') return text // 영어는 번역할 필요 없음 (원본이 영어라고 가정)
-  if (!openai) return text
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: AI_MODELS.SUMMARY, // gpt-4o-mini 사용
-      messages: [
-        {
-          role: 'system',
-          content: `You are a professional sports translator. Translate the following English ${context} into natural ${targetLang === 'ko' ? 'Korean' : targetLang === 'es' ? 'Spanish' : targetLang === 'ja' ? 'Japanese' : 'German'}. Keep the original meaning and technical terms. Use professional sports terminology.`
-        },
-        {
-          role: 'user',
-          content: text
-        }
-      ],
-      temperature: 0.3,
-    })
-
-    return response.choices[0]?.message?.content || text
-  } catch (error) {
-    console.error(`[Translate] Error translating to ${targetLang}:`, error)
-    return text
-  }
+  if (!text || targetLang === 'en') return text
+  return translateWithGoogle(text, 'en', targetLang)
 }
 
 /**
@@ -41,20 +56,20 @@ export async function translateText(
  */
 export async function translateToAllLocales(
   text: string,
-  context: string,
+  _context?: string,
   exclude: Locale[] = ['en']
 ): Promise<Record<string, string>> {
   const targetLocales = locales.filter(l => !exclude.includes(l as Locale))
-  
+
   const translations: Record<string, string> = {}
-  
-  // 병렬 번역 실행
-  await Promise.all(
-    targetLocales.map(async (lang) => {
-      translations[lang] = await translateText(text, lang as Locale, context)
-    })
-  )
-  
+
+  // 순차 번역 (Rate limit 방지)
+  for (const lang of targetLocales) {
+    translations[lang] = await translateText(text, lang as Locale)
+    // Rate limit 방지를 위한 딜레이
+    await new Promise(resolve => setTimeout(resolve, 1000))
+  }
+
   return translations
 }
 
@@ -75,6 +90,12 @@ export async function ensureMatchAnalysisTranslations(analysis: any) {
     keyPoints: analysis.keyPointsEn || analysis.keyPoints
   }
 
+  // 영문 데이터가 없으면 번역 불가
+  if (!englishData.summary) {
+    console.warn('[Translate] No English data available for analysis')
+    return analysis
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentTranslations = (analysis.translations as any) || {}
   let hasChanges = false
@@ -83,34 +104,50 @@ export async function ensureMatchAnalysisTranslations(analysis: any) {
   // 모든 언어에 대해 번역이 있는지 확인
   for (const lang of locales) {
     if (lang === 'en') continue
-    
+
     if (!currentTranslations[lang]) {
       hasChanges = true
-      console.log(`[Translate] Translating analysis to ${lang}...`)
-      
-      const [summary, tactical, flow, trends, keyPointsRaw] = await Promise.all([
-        translateText(englishData.summary, lang as Locale, 'match summary'),
-        englishData.tacticalAnalysis ? translateText(englishData.tacticalAnalysis, lang as Locale, 'tactical analysis') : Promise.resolve(null),
-        englishData.recentFlowAnalysis ? translateText(englishData.recentFlowAnalysis, lang as Locale, 'recent form analysis') : Promise.resolve(null),
-        englishData.seasonTrends ? translateText(englishData.seasonTrends, lang as Locale, 'season trends') : Promise.resolve(null),
-        englishData.keyPoints ? translateText(JSON.stringify(englishData.keyPoints), lang as Locale, 'key match points JSON') : Promise.resolve(null)
-      ])
+      console.log(`[Translate] Translating analysis to ${lang} using Google Translate...`)
 
-      let keyPoints = englishData.keyPoints
-      if (keyPointsRaw) {
-        try {
-          keyPoints = JSON.parse(keyPointsRaw)
-        } catch {
-          keyPoints = keyPointsRaw.split('\n').filter(Boolean)
+      try {
+        // 각 필드를 순차적으로 번역 (Rate limit 방지)
+        const summary = await translateText(englishData.summary, lang as Locale)
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        const tactical = englishData.tacticalAnalysis
+          ? await translateText(englishData.tacticalAnalysis, lang as Locale)
+          : null
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        const flow = englishData.recentFlowAnalysis
+          ? await translateText(englishData.recentFlowAnalysis, lang as Locale)
+          : null
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        const trends = englishData.seasonTrends
+          ? await translateText(englishData.seasonTrends, lang as Locale)
+          : null
+
+        // keyPoints 배열 번역
+        let keyPoints = englishData.keyPoints
+        if (Array.isArray(englishData.keyPoints) && englishData.keyPoints.length > 0) {
+          keyPoints = []
+          for (const point of englishData.keyPoints) {
+            await new Promise(resolve => setTimeout(resolve, 500))
+            const translatedPoint = await translateText(point, lang as Locale)
+            keyPoints.push(translatedPoint)
+          }
         }
-      }
 
-      updatedTranslations[lang] = {
-        summary,
-        tacticalAnalysis: tactical,
-        recentFlowAnalysis: flow,
-        seasonTrends: trends,
-        keyPoints
+        updatedTranslations[lang] = {
+          summary,
+          tacticalAnalysis: tactical,
+          recentFlowAnalysis: flow,
+          seasonTrends: trends,
+          keyPoints
+        }
+      } catch (error) {
+        console.error(`[Translate] Failed to translate analysis to ${lang}:`, error)
       }
     }
   }
@@ -135,29 +172,26 @@ export async function ensureDailyReportTranslations(report: any) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentTranslations = (report.translations as any) || {}
-  
+
   // 영문 데이터 추출
   let englishData = currentTranslations.en
   if (!englishData) {
     try {
-      // 기존 summaryEn이 있으면 사용, 없으면 한국어 요약을 영어로 번역하여 원본으로 삼음
+      // 기존 summaryEn이 있으면 사용
       if (report.summaryEn) {
         englishData = JSON.parse(report.summaryEn)
+      } else if (report.summary) {
+        // summary가 이미 영어라면 그대로 사용
+        try {
+          englishData = typeof report.summary === 'string'
+            ? JSON.parse(report.summary)
+            : report.summary
+        } catch {
+          englishData = { content: report.summary }
+        }
       } else {
-        // 한국어 -> 영어 번역 로직 (최초 1회만)
-        console.log('[Translate] Converting KO report to EN base...')
-        const response = await openai?.chat.completions.create({
-          model: AI_MODELS.SUMMARY,
-          messages: [
-            {
-              role: 'system',
-              content: 'Translate the provided JSON content from Korean to natural English. Return ONLY the translated JSON.'
-            },
-            { role: 'user', content: report.summary }
-          ],
-          response_format: { type: 'json_object' }
-        })
-        englishData = JSON.parse(response?.choices[0]?.message?.content || '{}')
+        console.warn('[Translate] No English data available for daily report')
+        return report
       }
       currentTranslations.en = englishData
     } catch (e) {
@@ -171,24 +205,15 @@ export async function ensureDailyReportTranslations(report: any) {
 
   for (const lang of locales) {
     if (lang === 'en') continue
-    
+
     if (!currentTranslations[lang]) {
       hasChanges = true
-      console.log(`[Translate] Translating daily report to ${lang}...`)
-      
+      console.log(`[Translate] Translating daily report to ${lang} using Google Translate...`)
+
       try {
-        const response = await openai?.chat.completions.create({
-          model: AI_MODELS.SUMMARY,
-          messages: [
-            {
-              role: 'system',
-              content: `Translate the provided JSON content from English to natural ${lang === 'ko' ? 'Korean' : lang === 'es' ? 'Spanish' : lang === 'ja' ? 'Japanese' : 'German'}. Return ONLY the translated JSON.`
-            },
-            { role: 'user', content: JSON.stringify(englishData) }
-          ],
-          response_format: { type: 'json_object' }
-        })
-        updatedTranslations[lang] = JSON.parse(response?.choices[0]?.message?.content || '{}')
+        // JSON 객체의 각 문자열 필드를 번역
+        const translatedData = await translateJsonObject(englishData, lang as Locale)
+        updatedTranslations[lang] = translatedData
       } catch (e) {
         console.error(`[Translate] Daily report translation to ${lang} failed:`, e)
       }
@@ -204,4 +229,37 @@ export async function ensureDailyReportTranslations(report: any) {
   }
 
   return report
+}
+
+/**
+ * JSON 객체 내의 모든 문자열을 번역합니다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function translateJsonObject(obj: any, targetLang: Locale): Promise<any> {
+  if (!obj) return obj
+
+  if (typeof obj === 'string') {
+    return translateText(obj, targetLang)
+  }
+
+  if (Array.isArray(obj)) {
+    const result = []
+    for (const item of obj) {
+      await new Promise(resolve => setTimeout(resolve, 300))
+      result.push(await translateJsonObject(item, targetLang))
+    }
+    return result
+  }
+
+  if (typeof obj === 'object') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = {}
+    for (const [key, value] of Object.entries(obj)) {
+      await new Promise(resolve => setTimeout(resolve, 300))
+      result[key] = await translateJsonObject(value, targetLang)
+    }
+    return result
+  }
+
+  return obj
 }

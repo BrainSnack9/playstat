@@ -7,14 +7,11 @@ import {
   type MatchAnalysisInputData,
 } from '@/lib/ai/prompts'
 import { addHours } from 'date-fns'
-import { type PrismaClient, Prisma } from '@prisma/client'
+import { type PrismaClient, Prisma, SportType } from '@prisma/client'
 import { analyzeTeamTrend, getMatchCombinedTrend } from '@/lib/ai/trend-engine'
+import { getSportFromRequest, sportIdToEnum } from '@/lib/sport'
 
 import { revalidateTag } from 'next/cache'
-
-// Vercel Function 설정 - App Router
-export const maxDuration = 300 // 5분
-export const dynamic = 'force-dynamic'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -46,54 +43,28 @@ export async function GET(request: Request) {
   const startTime = Date.now()
   const results: { matchId: string; success: boolean; error?: string }[] = []
 
+  // sport 파라미터로 스포츠 타입 필터 (기본값: 전체)
+  const sportType = getSportFromRequest(request)
+  const sportTypeEnum = sportIdToEnum(sportType) as SportType
+
   try {
     const now = new Date()
-
-    // 오늘 collect-team-data가 성공했는지 체크
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
-
-    const teamDataLog = await prisma.schedulerLog.findFirst({
-      where: {
-        jobName: 'collect-team-data',
-        executedAt: { gte: todayStart },
-        result: { in: ['success', 'partial'] },
-      },
-      orderBy: { executedAt: 'desc' },
-    })
-
-    if (!teamDataLog) {
-      console.log('[Cron] collect-team-data not completed today, skipping analysis generation')
-      return NextResponse.json({
-        success: false,
-        error: 'collect-team-data not completed today',
-        hint: 'Run collect-team-data first',
-      }, { status: 400 })
-    }
-
-    console.log(`[Cron] collect-team-data completed at ${teamDataLog.executedAt}, proceeding...`)
     const in48Hours = addHours(now, 48)
 
-    const whereCondition = {
-      kickoffAt: {
-        gte: now,
-        lte: in48Hours,
-      },
-      status: { in: ['SCHEDULED', 'TIMED'] },
-      OR: [
-        { matchAnalysis: { is: null } },
-        { matchAnalysis: { translations: { equals: Prisma.AnyNull } } }
-      ]
-    } as unknown as Prisma.MatchWhereInput
-
-    // 전체 개수 먼저 조회
-    const totalNeedingAnalysis = await prisma.match.count({ where: whereCondition })
-    console.log(`[Cron] Total matches needing analysis: ${totalNeedingAnalysis}`)
-
     // 48시간 이내 경기 중 아직 분석이 없는 것들 또는 다국어 번역이 누락된 것들 조회
-    const BATCH_SIZE = 10 // 5분 제한 내 안전하게 처리 가능한 수 (경기당 약 25-30초)
     const matchesNeedingAnalysis = await prisma.match.findMany({
-      where: whereCondition,
+      where: {
+        sportType: sportTypeEnum,
+        kickoffAt: {
+          gte: now,
+          lte: in48Hours,
+        },
+        status: { in: ['SCHEDULED', 'TIMED'] },
+        OR: [
+          { matchAnalysis: { is: null } },
+          { matchAnalysis: { translations: { equals: Prisma.AnyNull } } }
+        ]
+      } as unknown as Prisma.MatchWhereInput,
       include: {
         league: true,
         matchAnalysis: true,
@@ -110,8 +81,7 @@ export async function GET(request: Request) {
           },
         },
       },
-      orderBy: { kickoffAt: 'asc' },
-      take: BATCH_SIZE,
+      take: 5,
     })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -156,7 +126,7 @@ export async function GET(request: Request) {
 
         // AI 입력 데이터 구성
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const inputData = buildAnalysisInput(match as any, h2h)
+        const inputData = buildAnalysisInput(match as any, h2h, sportTypeEnum)
 
         // 영어 분석 생성 (English First)
         console.log(`[Cron] Generating English analysis for match ${match.id}...`)
@@ -230,15 +200,10 @@ export async function GET(request: Request) {
       },
     })
 
-    const remaining = totalNeedingAnalysis - results.filter((r) => r.success).length
-
     return NextResponse.json({
       success: true,
       duration,
       analysesGenerated: results.filter((r) => r.success).length,
-      totalNeeded: totalNeedingAnalysis,
-      remaining,
-      hasMore: remaining > 0,
       results,
     })
   } catch (error) {
@@ -328,7 +293,8 @@ function buildAnalysisInput(
       } | null
     }
   },
-  h2h: { matchesJson: unknown } | null
+  h2h: { matchesJson: unknown } | null,
+  sportType: SportType
 ): MatchAnalysisInputData {
   const homeStats = match.homeTeam.seasonStats!
   const awayStats = match.awayTeam.seasonStats!
@@ -367,12 +333,15 @@ function buildAnalysisInput(
   const combinedTrend = getMatchCombinedTrend(homeTrends, awayTrends)
 
   // AI 분석용 영문 텍스트 생성
+  const isBasketball = sportType === 'BASKETBALL'
+  const scoreUnit = isBasketball ? 'points' : 'goals'
+
   const getTrendDescEn = (t: { trendType: string; value: number }) => {
     switch (t.trendType) {
       case 'winning_streak': return `${t.value} match winning streak`
       case 'losing_streak': return `${t.value} match losing streak`
-      case 'scoring_machine': return `${t.value} goals in last 5 matches (Explosive offense)`
-      case 'defense_leak': return `${t.value} goals conceded in last 5 matches (Defensive leak)`
+      case 'scoring_machine': return `${t.value} ${scoreUnit} in last 5 matches (Explosive offense)`
+      case 'defense_leak': return `${t.value} ${scoreUnit} conceded in last 5 matches (Defensive leak)`
       default: return ''
     }
   }
@@ -387,7 +356,7 @@ function buildAnalysisInput(
 
   return {
     match: {
-      sport_type: 'football',
+      sport_type: isBasketball ? 'basketball' : 'football',
       league: match.league.name,
       kickoff_at: match.kickoffAt.toISOString(),
       home_team: match.homeTeam.name,

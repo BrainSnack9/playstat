@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
-import {
-  footballDataApi,
-} from '@/lib/api/football-data'
+import { ballDontLieApi } from '@/lib/api/balldontlie'
 import { format, subDays, addDays } from 'date-fns'
-import type { PrismaClient, MatchStatus } from '@prisma/client'
+import type { PrismaClient, MatchStatus, SportType } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
+import { getSportFromRequest, sportIdToEnum } from '@/lib/sport'
 
 // Vercel Function 설정 - App Router
 export const maxDuration = 60 // 1분 (실시간 업데이트는 빨라야 함)
@@ -20,7 +19,11 @@ async function getPrisma(): Promise<PrismaClient> {
 /**
  * GET /api/cron/update-live-matches
  * 크론: 현재 진행 중이거나 오늘/어제 경기의 상태 및 스코어 업데이트 + 데일리 DB 정리(Cleanup)
+ * BallDontLie API 사용 (Football, Basketball, Baseball 통합)
  * 실행: 매 10-15분 권장
+ *
+ * Query Parameters:
+ * - sport: football|basketball|baseball (기본값: football)
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -31,21 +34,60 @@ export async function GET(request: Request) {
   const prisma = await getPrisma()
   const startTime = Date.now()
   const now = new Date()
-  
+
+  // sport 파라미터로 스포츠 타입 필터
+  const sportType = getSportFromRequest(request)
+  const sportTypeEnum = sportIdToEnum(sportType) as SportType
+
   try {
     // --- 1. 실시간 경기 업데이트 로직 ---
     const dateFrom = format(subDays(now, 1), 'yyyy-MM-dd')
     const dateTo = format(addDays(now, 1), 'yyyy-MM-dd')
 
-    console.log(`[Cron] Fetching all matches from ${dateFrom} to ${dateTo}`)
-    const matchesResponse = await footballDataApi.getMatchesByDateRange(dateFrom, dateTo)
-    
+    console.log(`[Cron] Fetching ${sportType} matches from ${dateFrom} to ${dateTo}`)
+
+    let matchesResponse: { data?: unknown[] } = { data: [] }
+
+    try {
+      if (sportType === 'football') {
+        // For football, we need to fetch from all supported leagues
+        const leagues = ['epl', 'laliga', 'seriea', 'bundesliga', 'ligue1']
+        const allMatches = []
+
+        for (const league of leagues) {
+          const response = await ballDontLieApi.getSoccerGames(league, {
+            start_date: dateFrom,
+            end_date: dateTo,
+          })
+          allMatches.push(...(response.data || []))
+          await delay(13000) // Rate limiting
+        }
+
+        matchesResponse = { data: allMatches }
+      } else if (sportType === 'basketball') {
+        matchesResponse = await ballDontLieApi.getGamesByDateRange(dateFrom, dateTo)
+      } else if (sportType === 'baseball') {
+        matchesResponse = await ballDontLieApi.getBaseballGames({
+          start_date: dateFrom,
+          end_date: dateTo,
+        })
+      }
+    } catch (error) {
+      console.error(`Failed to fetch ${sportType} matches:`, error)
+      throw error
+    }
+
+    const apiMatches = matchesResponse.data || []
+
     // DB에 있는 해당 범위의 경기들을 한 번에 가져와서 메모리에서 비교 (성능 최적화)
-    const externalIds = matchesResponse.matches.map(m => String(m.id))
+    const externalIds = apiMatches.map((m: { id: number }) => String(m.id))
     const existingMatches = await prisma.match.findMany({
-      where: { externalId: { in: externalIds } },
-      select: { 
-        id: true, 
+      where: {
+        externalId: { in: externalIds },
+        sportType: sportTypeEnum,
+      },
+      select: {
+        id: true,
         externalId: true,
         status: true,
         homeScore: true,
@@ -58,31 +100,31 @@ export async function GET(request: Request) {
     })
 
     const existingMatchMap = new Map(existingMatches.map(m => [m.externalId, m]))
-    
+
     let updatedCount = 0
     const errors: string[] = []
     const updatedMatchesLog: string[] = []
 
-    for (const match of matchesResponse.matches) {
+    for (const match of apiMatches as Array<{
+      id: number
+      status: string
+      home_team_score?: number
+      visitor_team_score?: number
+      period?: number
+      time?: string
+    }>) {
       try {
-        const LEAGUE_CODES = ['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'DED', 'PPL']
-        if (!LEAGUE_CODES.includes(match.competition.code)) continue
-
         const existingMatch = existingMatchMap.get(String(match.id))
 
         if (existingMatch) {
-          const newStatus = mapStatus(match.status)
-          const newHomeScore = match.score.fullTime.home
-          const newAwayScore = match.score.fullTime.away
-          const newHTHome = match.score.halfTime.home
-          const newHTAway = match.score.halfTime.away
+          const newStatus = mapStatus(match.status, sportType)
+          const newHomeScore = match.home_team_score ?? null
+          const newAwayScore = match.visitor_team_score ?? null
 
-          const isChanged = 
+          const isChanged =
             existingMatch.status !== newStatus ||
             existingMatch.homeScore !== newHomeScore ||
-            existingMatch.awayScore !== newAwayScore ||
-            existingMatch.halfTimeHome !== newHTHome ||
-            existingMatch.halfTimeAway !== newHTAway
+            existingMatch.awayScore !== newAwayScore
 
           if (isChanged) {
             await prisma.match.update({
@@ -91,8 +133,6 @@ export async function GET(request: Request) {
                 status: newStatus,
                 homeScore: newHomeScore,
                 awayScore: newAwayScore,
-                halfTimeHome: newHTHome,
-                halfTimeAway: newHTAway,
               },
             })
             updatedCount++
@@ -116,10 +156,17 @@ export async function GET(request: Request) {
       const days90Ago = subDays(now, 90)
 
       const deletedMatches = await prisma.match.deleteMany({
-        where: { kickoffAt: { lt: days30Ago }, status: 'FINISHED' },
+        where: {
+          kickoffAt: { lt: days30Ago },
+          status: 'FINISHED',
+          sportType: sportTypeEnum,
+        },
       })
       const deletedH2H = await prisma.headToHead.deleteMany({
-        where: { updatedAt: { lt: days90Ago } },
+        where: {
+          updatedAt: { lt: days90Ago },
+          sportType: sportTypeEnum,
+        },
       })
       const deletedLogs = await prisma.schedulerLog.deleteMany({
         where: { executedAt: { lt: days60Ago } },
@@ -145,43 +192,51 @@ export async function GET(request: Request) {
 
     await prisma.schedulerLog.create({
       data: {
-        jobName: 'update-live-matches-with-cleanup',
+        jobName: `update-live-matches-${sportType}`,
         result: errors.length === 0 ? 'success' : 'partial',
-        details: { updatedCount, updatedMatchesLog, cleanupResults, errors },
+        details: { sportType, updatedCount, updatedMatchesLog, cleanupResults, errors },
         duration,
-        apiCalls: 1,
+        apiCalls: sportType === 'football' ? 5 : 1, // 5 for football (one per league), 1 for others
       },
     })
 
     return NextResponse.json({
       success: true,
+      sportType,
       updatedCount,
       cleanupExecuted: !!cleanupResults,
       cleanupResults,
       duration,
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    console.error('Cron update-live-matches error:', error)
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message || String(error),
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+  } catch (error: unknown) {
+    console.error(`Cron update-live-matches-${sportType} error:`, error)
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
     }, { status: 500 })
   }
 }
 
-function mapStatus(apiStatus: string): MatchStatus {
+function mapStatus(apiStatus: string, sportType: string): MatchStatus {
+  // BallDontLie uses different status values
+  // Common: "scheduled", "in_progress", "final"
   const statusMap: Record<string, MatchStatus> = {
-    SCHEDULED: 'SCHEDULED',
-    TIMED: 'TIMED',
-    IN_PLAY: 'LIVE',
-    PAUSED: 'LIVE',
-    FINISHED: 'FINISHED',
-    SUSPENDED: 'SUSPENDED',
-    POSTPONED: 'POSTPONED',
-    CANCELLED: 'CANCELLED',
-    AWARDED: 'FINISHED',
+    scheduled: 'SCHEDULED',
+    'in progress': 'LIVE',
+    'in_progress': 'LIVE',
+    final: 'FINISHED',
+    finished: 'FINISHED',
+    postponed: 'POSTPONED',
+    cancelled: 'CANCELLED',
+    suspended: 'SUSPENDED',
   }
-  return statusMap[apiStatus] || 'SCHEDULED'
+
+  const normalized = apiStatus.toLowerCase().replace(/\s+/g, '_')
+  return statusMap[normalized] || statusMap[apiStatus.toLowerCase()] || 'SCHEDULED'
+}
+
+// Rate limiting helper
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }

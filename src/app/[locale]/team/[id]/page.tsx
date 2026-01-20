@@ -584,7 +584,7 @@ export default async function TeamPage({ params }: Props) {
                             <span className="font-medium">vs {match.opponent.name}</span>
                           </div>
                           {match.matchAnalysis && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
                               {t('ai_analysis')}
                             </Badge>
                           )}

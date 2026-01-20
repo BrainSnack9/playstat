@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server'
 import { openai, AI_MODELS, TOKEN_LIMITS } from '@/lib/openai'
-import type { PrismaClient } from '@prisma/client'
+import type { PrismaClient, SportType } from '@prisma/client'
 import { format, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { getKSTDayRange } from '@/lib/timezone'
+import { getDayRangeInTimezone } from '@/lib/timezone'
+import { getSportFromRequest, sportIdToEnum } from '@/lib/sport'
 
 import { revalidateTag } from 'next/cache'
-
-// Vercel Function 설정 - App Router
-export const maxDuration = 300 // 5분
-export const dynamic = 'force-dynamic'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -19,8 +16,187 @@ async function getPrisma(): Promise<PrismaClient> {
 }
 
 /**
+ * 특정 날짜의 데일리 리포트 생성
+ */
+async function generateReportForDate(
+  prisma: PrismaClient,
+  dateStr: string,
+  timezone: string,
+  sportTypeEnum: SportType,
+  sportLabel: string,
+  sportLabelEn: string
+): Promise<{ success: boolean; reportId?: string; matchCount: number; message?: string }> {
+  const { start: dayStart, end: dayEnd } = getDayRangeInTimezone(dateStr, timezone)
+
+  // 표시용 날짜 (타임존 기준)
+  const displayDate = new Date(dateStr + 'T00:00:00')
+  const dateKo = format(displayDate, 'yyyy년 M월 d일 (EEEE)', { locale: ko })
+  const dateEn = format(displayDate, 'EEEE, MMMM do, yyyy')
+
+  // 이미 리포트가 있는지 확인
+  const existingReport = await prisma.dailyReport.findFirst({
+    where: { date: dayStart, sportType: sportTypeEnum },
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (existingReport && (existingReport as any).translations) {
+    return {
+      success: true,
+      message: `Report already exists for ${dateStr}`,
+      reportId: existingReport.id,
+      matchCount: 0,
+    }
+  }
+
+  // 해당 날짜의 경기 조회
+  const matches = await prisma.match.findMany({
+    where: {
+      sportType: sportTypeEnum,
+      kickoffAt: {
+        gte: dayStart,
+        lte: dayEnd,
+      },
+      status: { in: ['SCHEDULED', 'TIMED'] },
+    },
+    include: {
+      league: true,
+      homeTeam: {
+        include: { seasonStats: true },
+      },
+      awayTeam: {
+        include: { seasonStats: true },
+      },
+      matchAnalysis: true,
+    },
+    orderBy: { kickoffAt: 'asc' },
+  })
+
+  if (matches.length === 0) {
+    // 경기가 없으면 간단한 리포트 생성
+    await prisma.dailyReport.create({
+      data: {
+        date: dayStart,
+        sportType: sportTypeEnum,
+        summary: `${dateKo} - 오늘은 ${sportLabel} 경기가 예정되어 있지 않습니다.`,
+        hotMatches: [],
+        keyNews: [],
+        insights: [],
+      },
+    })
+
+    return {
+      success: true,
+      message: `No matches for ${dateStr}, created empty report`,
+      matchCount: 0,
+    }
+  }
+
+  // AI 입력 데이터 구성
+  const matchData = matches.map((match) => ({
+    id: match.id,
+    league: match.league.name,
+    leagueCode: match.league.code,
+    kickoffAt: format(match.kickoffAt, 'HH:mm'),
+    homeTeam: {
+      name: match.homeTeam.name,
+      rank: match.homeTeam.seasonStats?.rank,
+      form: match.homeTeam.seasonStats?.form,
+      points: match.homeTeam.seasonStats?.points,
+    },
+    awayTeam: {
+      name: match.awayTeam.name,
+      rank: match.awayTeam.seasonStats?.rank,
+      form: match.awayTeam.seasonStats?.form,
+      points: match.awayTeam.seasonStats?.points,
+    },
+    hasAnalysis: !!match.matchAnalysis,
+    matchday: match.matchday,
+  }))
+
+  // 리그별 그룹핑
+  const matchesByLeague: Record<string, typeof matchData> = {}
+  for (const match of matchData) {
+    if (!matchesByLeague[match.league]) {
+      matchesByLeague[match.league] = []
+    }
+    matchesByLeague[match.league].push(match)
+  }
+
+  const { DAILY_REPORT_PROMPT_EN } = await import('@/lib/ai/prompts')
+  const prompt = DAILY_REPORT_PROMPT_EN
+    .replace(/{sport}/g, sportLabelEn)
+    .replace('{date}', dateEn)
+    .replace('{matchData}', JSON.stringify({
+      totalMatches: matchData.length,
+      matchesByLeague,
+      allMatches: matchData,
+    }, null, 2))
+
+  console.log(`[Cron] Generating report for ${dateStr}...`)
+  const response = await openai.chat.completions.create({
+    model: AI_MODELS.ANALYSIS,
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: TOKEN_LIMITS.ANALYSIS,
+    temperature: 0.7,
+    response_format: { type: 'json_object' },
+  })
+
+  const content = response.choices[0]?.message?.content
+  if (!content) {
+    throw new Error('No response from OpenAI')
+  }
+
+  const parsed = JSON.parse(content)
+
+  // DB에 저장
+  const reportData = {
+    title: parsed.title,
+    metaDescription: parsed.metaDescription,
+    summary: parsed.summary,
+    sections: parsed.sections,
+    keywords: parsed.keywords,
+    hotMatches: parsed.hotMatches || [],
+  }
+
+  let report
+  if (existingReport) {
+    report = await prisma.dailyReport.update({
+      where: { id: existingReport.id },
+      data: {
+        translations: { en: reportData },
+        summary: JSON.stringify(reportData),
+      },
+    })
+  } else {
+    report = await prisma.dailyReport.create({
+      data: {
+        date: dayStart,
+        sportType: sportTypeEnum,
+        translations: { en: reportData },
+        summary: JSON.stringify(reportData),
+        hotMatches: parsed.hotMatches || [],
+        keyNews: [],
+        insights: parsed.sections?.find((s: { type: string }) => s.type === 'key_storylines')?.content || null,
+      },
+    })
+  }
+
+  // 다국어 번역 수행
+  const { ensureDailyReportTranslations } = await import('@/lib/ai/translate')
+  await ensureDailyReportTranslations(report)
+
+  return {
+    success: true,
+    reportId: report.id,
+    matchCount: matches.length,
+  }
+}
+
+/**
  * GET /api/cron/generate-daily-report
- * 매일 새벽에 "내일" 데일리 리포트 미리 생성
+ * 오늘 + 내일 데일리 리포트 생성
+ * - 오늘 리포트가 없으면 오늘 + 내일 생성
+ * - 오늘 리포트가 있으면 내일만 생성
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -38,189 +214,60 @@ export async function GET(request: Request) {
   const prisma = await getPrisma()
   const startTime = Date.now()
 
+  // sport 파라미터로 스포츠 타입 결정 (기본값: football)
+  const sportId = getSportFromRequest(request)
+  const sportTypeEnum = sportIdToEnum(sportId) as SportType
+  const sportLabel = sportId === 'basketball' ? 'NBA' : sportId === 'baseball' ? 'MLB' : '축구'
+  const sportLabelEn = sportId === 'basketball' ? 'NBA' : sportId === 'baseball' ? 'MLB' : 'Football'
+
   try {
-    // 오늘 generate-analysis가 성공했는지 체크
-    const checkTodayStart = new Date()
-    checkTodayStart.setHours(0, 0, 0, 0)
+    const url = new URL(request.url)
+    const timezone = url.searchParams.get('timezone') || 'Asia/Seoul'
 
-    const analysisLog = await prisma.schedulerLog.findFirst({
-      where: {
-        jobName: 'generate-analysis',
-        executedAt: { gte: checkTodayStart },
-        result: { in: ['success', 'partial'] },
-      },
-      orderBy: { executedAt: 'desc' },
+    // 오늘과 내일 날짜 계산 (타임존 기준)
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
+    const tomorrowStr = format(addDays(new Date(), 1), 'yyyy-MM-dd')
+
+    const results = []
+
+    // 오늘 리포트 확인
+    const { start: todayStart } = getDayRangeInTimezone(todayStr, timezone)
+    const todayReport = await prisma.dailyReport.findFirst({
+      where: { date: todayStart, sportType: sportTypeEnum },
     })
 
-    if (!analysisLog) {
-      console.log('[Cron] generate-analysis not completed today, skipping daily report')
-      return NextResponse.json({
-        success: false,
-        error: 'generate-analysis not completed today',
-        hint: 'Run generate-analysis first',
-      }, { status: 400 })
+    // 오늘 리포트가 없으면 생성
+    if (!todayReport) {
+      console.log(`[Cron] Generating today's report (${todayStr})...`)
+      const todayResult = await generateReportForDate(
+        prisma,
+        todayStr,
+        timezone,
+        sportTypeEnum,
+        sportLabel,
+        sportLabelEn
+      )
+      results.push({ date: todayStr, ...todayResult })
+    } else {
+      console.log(`[Cron] Today's report (${todayStr}) already exists`)
+      results.push({ date: todayStr, success: true, message: 'Already exists', matchCount: 0 })
     }
 
-    console.log(`[Cron] generate-analysis completed at ${analysisLog.executedAt}, proceeding...`)
-
-    // 한국 시간(KST) 기준으로 "내일" 날짜 계산
-    // 크론은 새벽에 실행되므로 내일 리포트를 미리 생성
-    const { start, end, kstDate } = getKSTDayRange()
-    const tomorrowKstDate = addDays(kstDate, 1)
-    const tomorrowStart = addDays(start, 1)
-    const tomorrowEnd = addDays(end, 1)
-
-    const dateStr = format(tomorrowKstDate, 'yyyy-MM-dd')
-    const dateKo = format(tomorrowKstDate, 'yyyy년 M월 d일 (EEEE)', { locale: ko })
-    const dateEn = format(tomorrowKstDate, 'EEEE, MMMM do, yyyy')
-
-    console.log(`[Cron] Generating daily report for TOMORROW: ${dateStr}`)
-
-    // 이미 내일 리포트가 있는지 확인
-    const existingReport = await prisma.dailyReport.findUnique({
-      where: { date: tomorrowStart },
-    })
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (existingReport && (existingReport as any).translations) {
-      return NextResponse.json({
-        success: true,
-        message: 'Daily report already exists with translations',
-        reportId: existingReport.id,
-      })
-    }
-
-    // 내일 경기 조회
-    const tomorrowMatches = await prisma.match.findMany({
-      where: {
-        kickoffAt: {
-          gte: tomorrowStart,
-          lte: tomorrowEnd,
-        },
-        status: { in: ['SCHEDULED', 'TIMED'] },
-      },
-      include: {
-        league: true,
-        homeTeam: {
-          include: { seasonStats: true },
-        },
-        awayTeam: {
-          include: { seasonStats: true },
-        },
-        matchAnalysis: true,
-      },
-      orderBy: { kickoffAt: 'asc' },
-    })
-
-    if (tomorrowMatches.length === 0) {
-      // 경기가 없으면 간단한 리포트 생성
-      await prisma.dailyReport.create({
-        data: {
-          date: tomorrowStart,
-          sportType: 'FOOTBALL',
-          summary: `${dateKo} - 오늘은 주요 리그 경기가 예정되어 있지 않습니다.`,
-          hotMatches: [],
-          keyNews: [],
-          insights: [],
-        },
-      })
-
-      return NextResponse.json({
-        success: true,
-        message: 'No matches today, created empty report',
-      })
-    }
-
-    // AI 입력 데이터 구성
-    const matchData = tomorrowMatches.map((match) => ({
-      id: match.id,
-      league: match.league.name,
-      leagueCode: match.league.code,
-      kickoffAt: format(match.kickoffAt, 'HH:mm'),
-      homeTeam: {
-        name: match.homeTeam.name,
-        rank: match.homeTeam.seasonStats?.rank,
-        form: match.homeTeam.seasonStats?.form,
-        points: match.homeTeam.seasonStats?.points,
-      },
-      awayTeam: {
-        name: match.awayTeam.name,
-        rank: match.awayTeam.seasonStats?.rank,
-        form: match.awayTeam.seasonStats?.form,
-        points: match.awayTeam.seasonStats?.points,
-      },
-      hasAnalysis: !!match.matchAnalysis,
-      matchday: match.matchday,
-    }))
-
-    // 리그별 그룹핑
-    const matchesByLeague: Record<string, typeof matchData> = {}
-    for (const match of matchData) {
-      if (!matchesByLeague[match.league]) {
-        matchesByLeague[match.league] = []
-      }
-      matchesByLeague[match.league].push(match)
-    }
-
-    const { DAILY_REPORT_PROMPT_EN } = await import('@/lib/ai/prompts')
-    const prompt = DAILY_REPORT_PROMPT_EN
-      .replace('{date}', dateEn)
-      .replace('{matchData}', JSON.stringify({
-        totalMatches: matchData.length,
-        matchesByLeague,
-        allMatches: matchData,
-      }, null, 2))
-
-    console.log('[Cron] Generating English daily report...')
-    const response = await openai.chat.completions.create({
-      model: AI_MODELS.ANALYSIS,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: TOKEN_LIMITS.ANALYSIS,
-      temperature: 0.7,
-      response_format: { type: 'json_object' },
-    })
-
-    const content = response.choices[0]?.message?.content
-    if (!content) {
-      throw new Error('No response from OpenAI')
-    }
-
-    const parsed = JSON.parse(content)
-
-    // DB에 저장 (영어를 원본 translations.en에 저장)
-    const reportData = {
-      title: parsed.title,
-      metaDescription: parsed.metaDescription,
-      summary: parsed.summary,
-      sections: parsed.sections,
-      keywords: parsed.keywords,
-      hotMatches: parsed.hotMatches || [],
-    }
-
-    const report = await prisma.dailyReport.upsert({
-      where: { date: tomorrowStart },
-      update: {
-        translations: { en: reportData },
-        summary: JSON.stringify(reportData), // 하위 호환성
-      },
-      create: {
-        date: tomorrowStart,
-        sportType: 'FOOTBALL',
-        translations: { en: reportData },
-        summary: JSON.stringify(reportData),
-        hotMatches: parsed.hotMatches || [],
-        keyNews: [],
-        insights: parsed.sections?.find((s: { type: string }) => s.type === 'key_storylines')?.content || null,
-      },
-    })
-
-    // 즉시 다국어 번역 수행 (KO, ES, JA, AR)
-    const { ensureDailyReportTranslations } = await import('@/lib/ai/translate')
-    await ensureDailyReportTranslations(report)
+    // 내일 리포트 생성
+    console.log(`[Cron] Generating tomorrow's report (${tomorrowStr})...`)
+    const tomorrowResult = await generateReportForDate(
+      prisma,
+      tomorrowStr,
+      timezone,
+      sportTypeEnum,
+      sportLabel,
+      sportLabelEn
+    )
+    results.push({ date: tomorrowStr, ...tomorrowResult })
 
     const duration = Date.now() - startTime
 
-    // 캐시 무효화: 리포트가 생성되었을 때
+    // 캐시 무효화
     console.log('[Cron] Revalidating daily report tag...')
     revalidateTag('daily-report')
 
@@ -229,9 +276,9 @@ export async function GET(request: Request) {
         jobName: 'generate-daily-report',
         result: 'success',
         details: {
-          reportId: report.id,
-          matchCount: tomorrowMatches.length,
-          date: dateStr,
+          sportType: sportId,
+          timezone,
+          results,
         },
         duration,
       },
@@ -239,8 +286,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      reportId: report.id,
-      matchCount: tomorrowMatches.length,
+      results,
       duration,
     })
   } catch (error) {
