@@ -157,7 +157,14 @@
     "sport_football_title": "Football",
     "sport_football_desc": "本日の試合、デイリーレポート、AI分析を提供。",
     "sport_racing_title": "Racing",
-    "sport_racing_desc": "競馬向け分析体験を準備中です。"
+    "sport_racing_desc": "競馬向け分析体験を準備中です。",
+    "shortcut_title": "クイックリンク",
+    "coverage_title": "スポーツカバレッジ",
+    "coverage_subtitle": "スポーツ別リーグ範囲",
+    "coverage_football_leagues": "対応リーグ",
+    "coverage_basketball_leagues": "対応リーグ",
+    "coverage_baseball_leagues": "対応リーグ",
+    "coverage_coming_soon": "準備中"
   },
   "match": {
     "upcoming": "予定",

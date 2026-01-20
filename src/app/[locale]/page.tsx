@@ -93,16 +93,9 @@ export default async function HomePage({ params }: Props) {
 
         </div>
 
-        <div className="container px-4 pb-10 md:px-6 md:pb-16">
-          <section id="about" className="relative mb-40 overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/5 via-white/0 to-white/10 p-8 md:p-12">
-            <div className="absolute inset-0 -z-10">
-              <div className="absolute -left-16 top-10 h-72 w-72 rounded-full bg-lime-400/10 blur-3xl" />
-              <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
-            </div>
+        <div className="container px-6 pb-10 md:px-12 md:pb-16">
+          <section id="about" className="mb-40">
             <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/30 bg-lime-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-lime-300">
-                {t('eyebrow')}
-              </div>
               <div className="relative overflow-hidden rounded-2xl border border-white/10">
                 <img
                   src="/img_main_banner.jpg"
@@ -113,14 +106,15 @@ export default async function HomePage({ params }: Props) {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                 <div className="pointer-events-none absolute inset-0 shadow-[0_0_60px_rgba(163,255,18,0.12)]" />
               </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/30 bg-lime-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-lime-300">
+                {t('eyebrow')}
+              </div>
               <div>
                 <h1 className={`mb-4 text-4xl font-extrabold leading-tight md:text-5xl ${orbitron.className}`}>
                   {t('title')}
                 </h1>
                 <p className="mb-5 text-lg text-white/90 md:text-xl">{t('subtitle')}</p>
-              <p className="mb-8 max-w-xl text-sm leading-relaxed text-white/70 md:text-base">
-                {t('description')}
-              </p>
+             
               <div className="mb-6 flex flex-wrap gap-2 text-xs uppercase tracking-[0.2em] text-white/60">
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{t('pill_one')}</span>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{t('pill_two')}</span>
@@ -135,6 +129,7 @@ export default async function HomePage({ params }: Props) {
                   </div>
                 ))}
               </div>
+              <h3 className="mb-4 text-lg font-semibold text-white/80">{t('shortcut_title')}</h3>
               <div className="grid gap-3 sm:grid-cols-3">
                 <Button asChild size="lg" className="h-14 w-full bg-gradient-to-r from-lime-300 to-lime-400 text-black shadow-[0_0_24px_rgba(163,255,18,0.25)] hover:from-lime-200 hover:to-lime-300">
                   <a href={footballUrl} className="flex items-center justify-center gap-2">
@@ -160,7 +155,6 @@ export default async function HomePage({ params }: Props) {
             <div className="mb-10 text-center">
               <h2 className={`text-2xl font-semibold md:text-3xl ${orbitron.className}`}>{t('features_title')}</h2>
               <p className="mt-2 text-sm text-white/60">{t('features_subtitle')}</p>
-              <p className="mx-auto mt-4 max-w-2xl text-sm text-white/70">{t('features_lead')}</p>
             </div>
             <div className="relative mx-auto max-w-3xl">
               <div className="absolute left-3 top-6 bottom-6 w-px bg-white/10" />
@@ -190,41 +184,40 @@ export default async function HomePage({ params }: Props) {
 
           <section id="sports" className="mb-40">
             <div className="mb-8 text-center">
-              <h2 className={`text-2xl font-semibold md:text-3xl ${orbitron.className}`}>Sports Coverage</h2>
-              <p className="mt-2 text-sm text-white/60">축구 · 농구 · 야구 종목별 리그 범위</p>
+              <h2 className={`text-2xl font-semibold md:text-3xl ${orbitron.className}`}>{t('coverage_title')}</h2>
+              <p className="mt-2 text-sm text-white/60">{t('coverage_subtitle')}</p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="relative overflow-hidden rounded-2xl border border-lime-300/20 bg-white/5 p-6 shadow-[0_0_24px_rgba(163,255,18,0.12)]">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-lime-300/60 via-white/10 to-transparent" />
                 <p className="text-xs uppercase tracking-[0.2em] text-lime-300">FOOTBALL</p>
-                <h3 className="mt-2 text-lg font-semibold">지원 리그</h3>
+                <h3 className="mt-2 text-lg font-semibold">{t('coverage_football_leagues')}</h3>
                 <ul className="mt-4 space-y-2 text-sm text-white/70">
-                  <li>프리미어리그 (PL)</li>
-                  <li>라리가 (PD)</li>
-                  <li>세리에 A (SA)</li>
-                  <li>분데스리가 (BL1)</li>
-                  <li>리그 1 (FL1)</li>
-                  <li>챔피언스리그 (CL)</li>
+                  <li>Premier League (PL)</li>
+                  <li>La Liga (PD)</li>
+                  <li>Serie A (SA)</li>
+                  <li>Bundesliga (BL1)</li>
+                  <li>Ligue 1 (FL1)</li>
+                  <li>Champions League (CL)</li>
+                  <li>Eredivisie (DED)</li>
+                  <li>Primeira Liga (PPL)</li>
+                  <li>Championship (ELC)</li>
                 </ul>
               </div>
-              <div className="relative overflow-hidden rounded-2xl border border-cyan-300/20 bg-white/5 p-6 shadow-[0_0_24px_rgba(60,242,255,0.12)]">
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-cyan-300/60 via-white/10 to-transparent" />
-                <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">BASKETBALL</p>
-                <h3 className="mt-2 text-lg font-semibold">더미 리그</h3>
+              <div className="relative overflow-hidden rounded-2xl border border-orange-300/20 bg-white/5 p-6 shadow-[0_0_24px_rgba(249,115,22,0.12)]">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-orange-300/60 via-white/10 to-transparent" />
+                <p className="text-xs uppercase tracking-[0.2em] text-orange-300">BASKETBALL</p>
+                <h3 className="mt-2 text-lg font-semibold">{t('coverage_basketball_leagues')}</h3>
                 <ul className="mt-4 space-y-2 text-sm text-white/70">
-                  <li>NBA (예정)</li>
-                  <li>유로리그 (예정)</li>
-                  <li>KBL (예정)</li>
+                  <li>NBA</li>
                 </ul>
               </div>
               <div className="relative overflow-hidden rounded-2xl border border-emerald-300/20 bg-white/5 p-6 shadow-[0_0_24px_rgba(16,185,129,0.12)]">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-emerald-300/60 via-white/10 to-transparent" />
                 <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">BASEBALL</p>
-                <h3 className="mt-2 text-lg font-semibold">더미 리그</h3>
+                <h3 className="mt-2 text-lg font-semibold">{t('coverage_baseball_leagues')}</h3>
                 <ul className="mt-4 space-y-2 text-sm text-white/70">
-                  <li>MLB (예정)</li>
-                  <li>KBO (예정)</li>
-                  <li>NPB (예정)</li>
+                  <li>MLB</li>
                 </ul>
               </div>
             </div>

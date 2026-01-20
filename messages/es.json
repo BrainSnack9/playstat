@@ -157,7 +157,14 @@
     "sport_football_title": "Football",
     "sport_football_desc": "Partidos de hoy, reportes diarios y análisis con IA.",
     "sport_racing_title": "Racing",
-    "sport_racing_desc": "La experiencia de carreras estará disponible pronto."
+    "sport_racing_desc": "La experiencia de carreras estará disponible pronto.",
+    "shortcut_title": "Acceso Rápido",
+    "coverage_title": "Cobertura Deportiva",
+    "coverage_subtitle": "Ligas cubiertas por deporte",
+    "coverage_football_leagues": "Ligas Soportadas",
+    "coverage_basketball_leagues": "Ligas Soportadas",
+    "coverage_baseball_leagues": "Ligas Soportadas",
+    "coverage_coming_soon": "Próximamente"
   },
   "match": {
     "upcoming": "Próximo",

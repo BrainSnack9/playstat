@@ -157,7 +157,14 @@
     "sport_football_title": "Football",
     "sport_football_desc": "오늘의 경기, 데일리 리포트, AI 매치 분석을 제공합니다.",
     "sport_racing_title": "Racing",
-    "sport_racing_desc": "경마 전용 분석 화면을 준비 중입니다."
+    "sport_racing_desc": "경마 전용 분석 화면을 준비 중입니다.",
+    "shortcut_title": "바로가기",
+    "coverage_title": "스포츠 커버리지",
+    "coverage_subtitle": "종목별 리그 범위",
+    "coverage_football_leagues": "지원 리그",
+    "coverage_basketball_leagues": "지원 리그",
+    "coverage_baseball_leagues": "지원 리그",
+    "coverage_coming_soon": "준비 중"
   },
   "match": {
     "upcoming": "예정",
