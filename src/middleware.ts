@@ -53,23 +53,16 @@ export default function middleware(request: NextRequest) {
       newPathname = `/${sport}${pathname}`
     }
 
-    // 새로운 URL로 요청 수정 후 intlMiddleware 호출
-    const url = request.nextUrl.clone()
-    url.pathname = newPathname
-
-    // x-middleware-rewrite 헤더를 사용하여 내부 rewrite 수행
-    // intlMiddleware가 처리할 수 있도록 URL을 변경한 요청 생성
-    const modifiedRequest = new NextRequest(url, request)
-    const response = intlMiddleware(modifiedRequest)
-
-    response.cookies.set(SPORT_COOKIE, sport, {
-      path: '/',
-      sameSite: 'lax',
+    // pathname만 수정하여 원본 request 객체 유지
+    // Object.defineProperty로 nextUrl.pathname을 수정
+    const url = request.nextUrl
+    Object.defineProperty(url, 'pathname', {
+      value: newPathname,
+      writable: true,
     })
-    return response
   }
 
-  // apex 도메인이거나 이미 스포츠 경로가 있는 경우 기존 처리
+  // intlMiddleware 호출 (pathname이 수정된 상태)
   const response = intlMiddleware(request)
 
   response.cookies.set(SPORT_COOKIE, sport, {
