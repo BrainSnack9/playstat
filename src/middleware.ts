@@ -1,5 +1,5 @@
 import createMiddleware from 'next-intl/middleware'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { routing } from './i18n/routing'
 import { getSportFromHost, isApexHost, SPORT_COOKIE } from './lib/sport'
 
@@ -53,12 +53,15 @@ export default function middleware(request: NextRequest) {
       newPathname = `/${sport}${pathname}`
     }
 
-    // URL을 변경하고 intl middleware 호출
+    // 새로운 URL로 요청 수정 후 intlMiddleware 호출
     const url = request.nextUrl.clone()
     url.pathname = newPathname
 
-    // next-intl이 제대로 동작하도록 rewrite 사용
-    const response = NextResponse.rewrite(url)
+    // x-middleware-rewrite 헤더를 사용하여 내부 rewrite 수행
+    // intlMiddleware가 처리할 수 있도록 URL을 변경한 요청 생성
+    const modifiedRequest = new NextRequest(url, request)
+    const response = intlMiddleware(modifiedRequest)
+
     response.cookies.set(SPORT_COOKIE, sport, {
       path: '/',
       sameSite: 'lax',
