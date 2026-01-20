@@ -53,7 +53,6 @@ export async function GET(request: Request) {
         matchAnalysis: {
           select: {
             id: true,
-            summary: true,
           },
         },
       },
