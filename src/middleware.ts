@@ -1,5 +1,5 @@
 import createMiddleware from 'next-intl/middleware'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { routing } from './i18n/routing'
 import { getSportFromHost, isApexHost, SPORT_COOKIE } from './lib/sport'
 
@@ -39,31 +39,30 @@ export default function middleware(request: NextRequest) {
   const isApex = isApexHost(host)
   const pathname = request.nextUrl.pathname
 
-  // 서브도메인이고 스포츠 경로가 아직 없는 경우 rewrite
+  // 서브도메인이고 스포츠 경로가 아직 없는 경우
   if (!isApex && !hasSportPrefix(pathname)) {
-    const url = request.nextUrl.clone()
     const locale = hasLocalePrefix(pathname)
 
+    let newPathname: string
     if (locale) {
-      // /ko/matches -> /ko/football/matches
-      const rest = pathname.slice(locale.length + 1) // +1 for the leading /
-      url.pathname = `/${locale}/${sport}${rest ? `/${rest}` : ''}`
+      // /ko/matches -> /ko/basketball/matches
+      const rest = pathname.slice(locale.length + 1) // "/ko" 다음 부분
+      newPathname = `/${locale}/${sport}${rest ? `/${rest}` : ''}`
     } else {
-      // /matches -> /football/matches
-      url.pathname = `/${sport}${pathname}`
+      // / -> /basketball, /matches -> /basketball/matches
+      newPathname = `/${sport}${pathname}`
     }
 
-    // intl middleware를 통해 rewrite된 URL 처리
-    const rewrittenRequest = new NextRequest(url, {
-      headers: request.headers,
-    })
-    const response = intlMiddleware(rewrittenRequest)
+    // URL을 변경하고 intl middleware 호출
+    const url = request.nextUrl.clone()
+    url.pathname = newPathname
 
+    // next-intl이 제대로 동작하도록 rewrite 사용
+    const response = NextResponse.rewrite(url)
     response.cookies.set(SPORT_COOKIE, sport, {
       path: '/',
       sameSite: 'lax',
     })
-
     return response
   }
 
