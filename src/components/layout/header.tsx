@@ -93,8 +93,8 @@ export function Header({ variant = 'default' }: { variant?: 'default' | 'landing
     >
       <div className="container flex h-16 items-center justify-between">
         {/* Logo + Sport Badge */}
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Link href="/" className="flex items-center gap-2 shrink-0">
             <Image
               src="/app-icon-512.png"
               alt="PlayStat"
@@ -105,8 +105,8 @@ export function Header({ variant = 'default' }: { variant?: 'default' | 'landing
             <span className={cn('text-xl font-bold', isNeon && 'text-white')}>PlayStat</span>
           </Link>
           {sportInfo && (
-            <Badge variant="outline" className={cn('px-2 py-1 text-xs font-medium', sportInfo.color)}>
-              {sportInfo.emoji}&nbsp;&nbsp;{sports(currentSport!)}
+            <Badge variant="outline" className={cn('px-1.5 py-0.5 text-[10px] sm:px-2 sm:py-1 sm:text-xs font-medium shrink-0', sportInfo.color)}>
+              {sportInfo.emoji}<span className="hidden sm:inline">&nbsp;&nbsp;{sports(currentSport!)}</span>
             </Badge>
           )}
         </div>
