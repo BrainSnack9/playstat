@@ -93,8 +93,13 @@ export async function GET(request: Request) {
 
     if (existingTeamCount < 30) {
       console.log('[Basketball Cron] Fetching NBA teams...')
-      const teams = await ballDontLieApi.getTeams()
+      const allTeams = await ballDontLieApi.getTeams()
       totalApiCalls++
+
+      // 현재 활동 중인 NBA 팀만 필터링 (externalId 1~30)
+      // 31 이상은 역대 폐지된 팀 (1940~50년대)
+      const teams = allTeams.filter(t => t.id >= 1 && t.id <= 30)
+      console.log(`[Basketball Cron] Filtered ${teams.length} active teams from ${allTeams.length} total`)
 
       for (const team of teams) {
         try {
@@ -140,7 +145,8 @@ export async function GET(request: Request) {
     const nextWeek = format(addDays(new Date(), 7), 'yyyy-MM-dd')
 
     console.log(`[Basketball Cron] Fetching games from ${yesterday} to ${nextWeek}...`)
-    const games = await ballDontLieApi.getGamesByDateRange(yesterday, nextWeek)
+    const gamesResponse = await ballDontLieApi.getGamesByDateRange(yesterday, nextWeek)
+    const games = gamesResponse.data || []
     totalApiCalls++ // getGamesByDateRange 내부에서 페이지네이션 시 추가 호출 가능
 
     // 팀 매핑 캐시
@@ -235,7 +241,8 @@ export async function GET(request: Request) {
     const seasonStart = `${currentSeason}-10-01`
     const today = format(new Date(), 'yyyy-MM-dd')
 
-    const seasonGames = await ballDontLieApi.getGamesByDateRange(seasonStart, today)
+    const seasonGamesResponse = await ballDontLieApi.getGamesByDateRange(seasonStart, today)
+    const seasonGames = seasonGamesResponse.data || []
     totalApiCalls++
 
     const standings = calculateStandings(seasonGames)

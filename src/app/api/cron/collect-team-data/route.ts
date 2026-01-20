@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { ballDontLieApi } from '@/lib/api/balldontlie'
+import { footballDataApi, FREE_COMPETITIONS, type StandingTableEntry } from '@/lib/api/football-data'
 import { addDays } from 'date-fns'
 import type { PrismaClient, SportType } from '@prisma/client'
 import { getSportFromRequest, sportIdToEnum } from '@/lib/sport'
@@ -11,10 +12,20 @@ async function getPrisma(): Promise<PrismaClient> {
   return prisma
 }
 
+// 리그 DB code를 Football-Data.org 코드로 변환
+const LEAGUE_CODE_TO_FD_CODE: Record<string, string> = {
+  'PL': FREE_COMPETITIONS.PREMIER_LEAGUE,
+  'PD': FREE_COMPETITIONS.LA_LIGA,
+  'SA': FREE_COMPETITIONS.SERIE_A,
+  'BL1': FREE_COMPETITIONS.BUNDESLIGA,
+  'FL1': FREE_COMPETITIONS.LIGUE_1,
+}
+
 /**
  * GET /api/cron/collect-team-data
  * 크론: 7일 이내 경기 팀 데이터 수집
- * BallDontLie API 사용 (Football, Basketball, Baseball 통합)
+ * - Football: Football-Data.org API 사용
+ * - Basketball/Baseball: BallDontLie API 사용
  *
  * 수집 항목:
  * - 팀 시즌 스탯 (순위표 기반)
@@ -64,7 +75,7 @@ export async function GET(request: Request) {
     })
 
     // 리그별로 순위표를 한 번만 가져오도록 캐싱
-    const standingsCache: Record<string, unknown> = {}
+    const standingsCache: Record<string, StandingTableEntry[] | unknown> = {}
 
     for (const match of upcomingMatches) {
       const matchResult = {
@@ -74,20 +85,30 @@ export async function GET(request: Request) {
       }
 
       try {
+        const leagueCode = match.league.code || ''
+
         // 리그 순위표 가져오기 (캐싱)
-        if (!standingsCache[match.league.slug!]) {
+        if (!standingsCache[leagueCode]) {
           try {
             if (sportType === 'football') {
-              standingsCache[match.league.slug!] = await ballDontLieApi.getSoccerStandings(match.league.slug!)
+              const fdCode = LEAGUE_CODE_TO_FD_CODE[leagueCode]
+              if (fdCode) {
+                const response = await footballDataApi.getStandings(fdCode)
+                // TOTAL 타입의 순위표만 사용
+                const totalStanding = response.standings.find(s => s.type === 'TOTAL')
+                standingsCache[leagueCode] = totalStanding?.table || []
+              } else {
+                console.warn(`Unknown league code: ${leagueCode}`)
+                continue
+              }
             } else if (sportType === 'basketball') {
-              standingsCache[match.league.slug!] = await ballDontLieApi.getStandings()
+              standingsCache[leagueCode] = await ballDontLieApi.getStandings()
             } else if (sportType === 'baseball') {
-              standingsCache[match.league.slug!] = await ballDontLieApi.getBaseballStandings()
+              standingsCache[leagueCode] = await ballDontLieApi.getBaseballStandings()
             }
             totalApiCalls++
-            await delay(13000) // Rate limiting
           } catch (error) {
-            console.error(`Failed to fetch standings for ${match.league.slug}:`, error)
+            console.error(`Failed to fetch standings for ${leagueCode}:`, error)
             matchResult.errors.push(`Standings fetch failed: ${String(error)}`)
             continue
           }
@@ -100,13 +121,12 @@ export async function GET(request: Request) {
               prisma,
               match.homeTeam.id,
               match.homeTeam.externalId!,
-              match.league.slug!,
+              leagueCode,
               sportType,
-              sportTypeEnum
+              sportTypeEnum,
+              standingsCache[leagueCode]
             )
             matchResult.teamsUpdated.push(match.homeTeam.name)
-            totalApiCalls++
-            await delay(13000) // Rate limiting
           } catch (error) {
             matchResult.errors.push(`Home team stats (${match.homeTeam.name}): ${String(error)}`)
           }
@@ -119,13 +139,12 @@ export async function GET(request: Request) {
               prisma,
               match.awayTeam.id,
               match.awayTeam.externalId!,
-              match.league.slug!,
+              leagueCode,
               sportType,
-              sportTypeEnum
+              sportTypeEnum,
+              standingsCache[leagueCode]
             )
             matchResult.teamsUpdated.push(match.awayTeam.name)
-            totalApiCalls++
-            await delay(13000) // Rate limiting
           } catch (error) {
             matchResult.errors.push(`Away team stats (${match.awayTeam.name}): ${String(error)}`)
           }
@@ -175,17 +194,17 @@ export async function GET(request: Request) {
   }
 }
 
-// 팀 시즌 스탯 수집 (BallDontLie API 기반)
+// 팀 시즌 스탯 수집
 async function collectTeamStats(
   prisma: PrismaClient,
   teamId: string,
   externalTeamId: string,
   leagueSlug: string,
   sportType: 'football' | 'basketball' | 'baseball',
-  sportTypeEnum: SportType
+  sportTypeEnum: SportType,
+  cachedStandings: StandingTableEntry[] | unknown
 ) {
   try {
-    let standings: unknown
     let teamStats: {
       rank?: number
       points?: number
@@ -200,38 +219,27 @@ async function collectTeamStats(
     } | null = null
 
     if (sportType === 'football') {
-      standings = await ballDontLieApi.getSoccerStandings(leagueSlug)
-      const standingsData = standings as { data: Array<{
-        team: { id: number; name: string }
-        rank: number
-        points: number
-        games_played: number
-        wins: number
-        draws: number
-        losses: number
-        goals_for: number
-        goals_against: number
-        goal_difference: number
-      }> }
+      // Football-Data.org 순위표에서 팀 찾기
+      const standings = cachedStandings as StandingTableEntry[]
+      const teamEntry = standings.find(t => String(t.team.id) === externalTeamId)
 
-      const teamEntry = standingsData.data.find(t => String(t.team.id) === externalTeamId)
       if (teamEntry) {
         teamStats = {
-          rank: teamEntry.rank,
+          rank: teamEntry.position,
           points: teamEntry.points,
-          gamesPlayed: teamEntry.games_played,
-          wins: teamEntry.wins,
-          draws: teamEntry.draws,
-          losses: teamEntry.losses,
-          goalsFor: teamEntry.goals_for,
-          goalsAgainst: teamEntry.goals_against,
-          goalDifference: teamEntry.goal_difference,
+          gamesPlayed: teamEntry.playedGames,
+          wins: teamEntry.won,
+          draws: teamEntry.draw,
+          losses: teamEntry.lost,
+          goalsFor: teamEntry.goalsFor,
+          goalsAgainst: teamEntry.goalsAgainst,
+          goalDifference: teamEntry.goalDifference,
+          form: teamEntry.form || undefined,
         }
       }
     } else if (sportType === 'basketball') {
-      // NBA standings
-      standings = await ballDontLieApi.getStandings()
-      const standingsData = standings as { data: Array<{
+      // BallDontLie NBA standings
+      const standingsData = cachedStandings as { data: Array<{
         team: { id: number; name: string }
         conference: string
         conference_rank: number
@@ -251,9 +259,8 @@ async function collectTeamStats(
         }
       }
     } else if (sportType === 'baseball') {
-      // MLB standings
-      standings = await ballDontLieApi.getBaseballStandings()
-      const standingsData = standings as { data: Array<{
+      // BallDontLie MLB standings
+      const standingsData = cachedStandings as { data: Array<{
         team: { id: number; name: string }
         division: string
         division_rank: number
@@ -316,9 +323,4 @@ async function collectTeamStats(
     console.error(`Failed to collect team stats for ${teamId}:`, error)
     throw error
   }
-}
-
-// Rate limiting helper
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
 }

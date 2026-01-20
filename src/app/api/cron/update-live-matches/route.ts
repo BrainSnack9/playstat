@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { ballDontLieApi } from '@/lib/api/balldontlie'
+import { footballDataApi, FREE_COMPETITIONS, type Match as FDMatch } from '@/lib/api/football-data'
 import { format, subDays, addDays } from 'date-fns'
 import type { PrismaClient, MatchStatus, SportType } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
@@ -16,10 +17,20 @@ async function getPrisma(): Promise<PrismaClient> {
   return prisma
 }
 
+// Football-Data.org에서 지원하는 무료 리그 목록
+const FOOTBALL_COMPETITIONS = [
+  FREE_COMPETITIONS.PREMIER_LEAGUE,
+  FREE_COMPETITIONS.LA_LIGA,
+  FREE_COMPETITIONS.SERIE_A,
+  FREE_COMPETITIONS.BUNDESLIGA,
+  FREE_COMPETITIONS.LIGUE_1,
+]
+
 /**
  * GET /api/cron/update-live-matches
  * 크론: 현재 진행 중이거나 오늘/어제 경기의 상태 및 스코어 업데이트 + 데일리 DB 정리(Cleanup)
- * BallDontLie API 사용 (Football, Basketball, Baseball 통합)
+ * - Football: Football-Data.org API 사용
+ * - Basketball/Baseball: BallDontLie API 사용
  * 실행: 매 10-15분 권장
  *
  * Query Parameters:
@@ -46,112 +57,169 @@ export async function GET(request: Request) {
 
     console.log(`[Cron] Fetching ${sportType} matches from ${dateFrom} to ${dateTo}`)
 
-    let matchesResponse: { data?: unknown[] } = { data: [] }
-
-    try {
-      if (sportType === 'football') {
-        // For football, we need to fetch from all supported leagues
-        const leagues = ['epl', 'laliga', 'seriea', 'bundesliga', 'ligue1'] as const
-        const allMatches: unknown[] = []
-        const currentSeason = ballDontLieApi.getCurrentSoccerSeason()
-
-        for (const league of leagues) {
-          try {
-            const response = await ballDontLieApi.getSoccerGames(league, {
-              season: currentSeason,
-              start_date: dateFrom,
-              end_date: dateTo,
-            })
-            allMatches.push(...response)
-            await delay(13000) // Rate limiting
-          } catch (error) {
-            console.error(`Failed to fetch ${league} matches:`, error)
-          }
-        }
-
-        matchesResponse = { data: allMatches }
-      } else if (sportType === 'basketball') {
-        matchesResponse = await ballDontLieApi.getGamesByDateRange(dateFrom, dateTo)
-      } else if (sportType === 'baseball') {
-        matchesResponse = await ballDontLieApi.getBaseballGames({
-          start_date: dateFrom,
-          end_date: dateTo,
-        })
-      }
-    } catch (error) {
-      console.error(`Failed to fetch ${sportType} matches:`, error)
-      throw error
-    }
-
-    const apiMatches = matchesResponse.data || []
-
-    // DB에 있는 해당 범위의 경기들을 한 번에 가져와서 메모리에서 비교 (성능 최적화)
-    const externalIds = apiMatches.map((m: { id: number }) => String(m.id))
-    const existingMatches = await prisma.match.findMany({
-      where: {
-        externalId: { in: externalIds },
-        sportType: sportTypeEnum,
-      },
-      select: {
-        id: true,
-        externalId: true,
-        status: true,
-        homeScore: true,
-        awayScore: true,
-        halfTimeHome: true,
-        halfTimeAway: true,
-        homeTeam: { select: { name: true } },
-        awayTeam: { select: { name: true } }
-      }
-    })
-
-    const existingMatchMap = new Map(existingMatches.map(m => [m.externalId, m]))
-
     let updatedCount = 0
     const errors: string[] = []
     const updatedMatchesLog: string[] = []
+    let apiCalls = 0
 
-    for (const match of apiMatches as Array<{
-      id: number
-      status: string
-      // Soccer API uses home_score/away_score
-      home_score?: number
-      away_score?: number
-      // Basketball API uses home_team_score/visitor_team_score
-      home_team_score?: number
-      visitor_team_score?: number
-      period?: number
-      time?: string
-    }>) {
-      try {
-        const existingMatch = existingMatchMap.get(String(match.id))
+    if (sportType === 'football') {
+      // Football: Football-Data.org API 사용
+      const allFootballMatches: FDMatch[] = []
 
-        if (existingMatch) {
-          const newStatus = mapStatus(match.status, sportType)
-          // Handle both Soccer API (home_score) and Basketball API (home_team_score) formats
-          const newHomeScore = match.home_score ?? match.home_team_score ?? null
-          const newAwayScore = match.away_score ?? match.visitor_team_score ?? null
+      for (const competitionCode of FOOTBALL_COMPETITIONS) {
+        try {
+          const response = await footballDataApi.getCompetitionMatches(competitionCode, {
+            dateFrom,
+            dateTo,
+          })
+          allFootballMatches.push(...response.matches)
+          apiCalls++
+        } catch (error) {
+          console.error(`Failed to fetch ${competitionCode} matches:`, error)
+          errors.push(`Competition ${competitionCode}: ${String(error)}`)
+        }
+      }
 
-          const isChanged =
-            existingMatch.status !== newStatus ||
-            existingMatch.homeScore !== newHomeScore ||
-            existingMatch.awayScore !== newAwayScore
+      // DB에 있는 해당 범위의 경기들을 한 번에 가져와서 메모리에서 비교
+      const externalIds = allFootballMatches.map(m => String(m.id))
+      const existingMatches = await prisma.match.findMany({
+        where: {
+          externalId: { in: externalIds },
+          sportType: sportTypeEnum,
+        },
+        select: {
+          id: true,
+          externalId: true,
+          status: true,
+          homeScore: true,
+          awayScore: true,
+          halfTimeHome: true,
+          halfTimeAway: true,
+          homeTeam: { select: { name: true } },
+          awayTeam: { select: { name: true } }
+        }
+      })
 
-          if (isChanged) {
-            await prisma.match.update({
-              where: { id: existingMatch.id },
-              data: {
-                status: newStatus,
-                homeScore: newHomeScore,
-                awayScore: newAwayScore,
-              },
-            })
-            updatedCount++
-            updatedMatchesLog.push(`${existingMatch.homeTeam.name} vs ${existingMatch.awayTeam.name} (${newStatus} ${newHomeScore}:${newAwayScore})`)
+      const existingMatchMap = new Map(existingMatches.map(m => [m.externalId, m]))
+
+      for (const match of allFootballMatches) {
+        try {
+          const existingMatch = existingMatchMap.get(String(match.id))
+
+          if (existingMatch) {
+            const newStatus = mapFDStatus(match.status)
+            const newHomeScore = match.score.fullTime.home
+            const newAwayScore = match.score.fullTime.away
+            const newHalfTimeHome = match.score.halfTime.home
+            const newHalfTimeAway = match.score.halfTime.away
+
+            const isChanged =
+              existingMatch.status !== newStatus ||
+              existingMatch.homeScore !== newHomeScore ||
+              existingMatch.awayScore !== newAwayScore ||
+              existingMatch.halfTimeHome !== newHalfTimeHome ||
+              existingMatch.halfTimeAway !== newHalfTimeAway
+
+            if (isChanged) {
+              await prisma.match.update({
+                where: { id: existingMatch.id },
+                data: {
+                  status: newStatus,
+                  homeScore: newHomeScore,
+                  awayScore: newAwayScore,
+                  halfTimeHome: newHalfTimeHome,
+                  halfTimeAway: newHalfTimeAway,
+                },
+              })
+              updatedCount++
+              updatedMatchesLog.push(`${existingMatch.homeTeam.name} vs ${existingMatch.awayTeam.name} (${newStatus} ${newHomeScore}:${newAwayScore})`)
+            }
           }
+        } catch (error) {
+          errors.push(`Match ${match.id}: ${String(error)}`)
+        }
+      }
+    } else {
+      // Basketball/Baseball: BallDontLie API 사용
+      let matchesResponse: { data?: unknown[] } = { data: [] }
+
+      try {
+        if (sportType === 'basketball') {
+          matchesResponse = await ballDontLieApi.getGamesByDateRange(dateFrom, dateTo)
+          apiCalls = 1
+        } else if (sportType === 'baseball') {
+          matchesResponse = await ballDontLieApi.getBaseballGames({
+            start_date: dateFrom,
+            end_date: dateTo,
+          })
+          apiCalls = 1
         }
       } catch (error) {
-        errors.push(`Match ${match.id}: ${String(error)}`)
+        console.error(`Failed to fetch ${sportType} matches:`, error)
+        throw error
+      }
+
+      const apiMatches = matchesResponse.data || []
+
+      // DB에 있는 해당 범위의 경기들을 한 번에 가져와서 메모리에서 비교
+      const externalIds = apiMatches.map((m: { id: number }) => String(m.id))
+      const existingMatches = await prisma.match.findMany({
+        where: {
+          externalId: { in: externalIds },
+          sportType: sportTypeEnum,
+        },
+        select: {
+          id: true,
+          externalId: true,
+          status: true,
+          homeScore: true,
+          awayScore: true,
+          halfTimeHome: true,
+          halfTimeAway: true,
+          homeTeam: { select: { name: true } },
+          awayTeam: { select: { name: true } }
+        }
+      })
+
+      const existingMatchMap = new Map(existingMatches.map(m => [m.externalId, m]))
+
+      for (const match of apiMatches as Array<{
+        id: number
+        status: string
+        home_team_score?: number
+        visitor_team_score?: number
+        period?: number
+        time?: string
+      }>) {
+        try {
+          const existingMatch = existingMatchMap.get(String(match.id))
+
+          if (existingMatch) {
+            const newStatus = mapBDLStatus(match.status)
+            const newHomeScore = match.home_team_score ?? null
+            const newAwayScore = match.visitor_team_score ?? null
+
+            const isChanged =
+              existingMatch.status !== newStatus ||
+              existingMatch.homeScore !== newHomeScore ||
+              existingMatch.awayScore !== newAwayScore
+
+            if (isChanged) {
+              await prisma.match.update({
+                where: { id: existingMatch.id },
+                data: {
+                  status: newStatus,
+                  homeScore: newHomeScore,
+                  awayScore: newAwayScore,
+                },
+              })
+              updatedCount++
+              updatedMatchesLog.push(`${existingMatch.homeTeam.name} vs ${existingMatch.awayTeam.name} (${newStatus} ${newHomeScore}:${newAwayScore})`)
+            }
+          }
+        } catch (error) {
+          errors.push(`Match ${match.id}: ${String(error)}`)
+        }
       }
     }
 
@@ -207,7 +275,7 @@ export async function GET(request: Request) {
         result: errors.length === 0 ? 'success' : 'partial',
         details: { sportType, updatedCount, updatedMatchesLog, cleanupResults, errors },
         duration,
-        apiCalls: sportType === 'football' ? 5 : 1, // 5 for football (one per league), 1 for others
+        apiCalls,
       },
     })
 
@@ -229,25 +297,29 @@ export async function GET(request: Request) {
   }
 }
 
-function mapStatus(apiStatus: string, sportType: string): MatchStatus {
-  // BallDontLie uses different status values per sport
-  // Soccer: FullTime, C, NS, 1H, 2H, HT, etc.
-  // Basketball/Baseball: Final, scheduled, in_progress
+/**
+ * Football-Data.org 상태 매핑
+ */
+function mapFDStatus(status: FDMatch['status']): MatchStatus {
+  const statusMap: Record<FDMatch['status'], MatchStatus> = {
+    SCHEDULED: 'SCHEDULED',
+    TIMED: 'SCHEDULED',
+    IN_PLAY: 'LIVE',
+    PAUSED: 'LIVE',
+    FINISHED: 'FINISHED',
+    SUSPENDED: 'SUSPENDED',
+    POSTPONED: 'POSTPONED',
+    CANCELLED: 'CANCELLED',
+    AWARDED: 'FINISHED',
+  }
+  return statusMap[status] || 'SCHEDULED'
+}
+
+/**
+ * BallDontLie (Basketball/Baseball) 상태 매핑
+ */
+function mapBDLStatus(apiStatus: string): MatchStatus {
   const statusMap: Record<string, MatchStatus> = {
-    // Soccer statuses
-    'fulltime': 'FINISHED',
-    'ft': 'FINISHED',
-    'c': 'FINISHED', // Completed
-    'ns': 'SCHEDULED', // Not Started
-    '1h': 'LIVE', // First Half
-    '2h': 'LIVE', // Second Half
-    'ht': 'LIVE', // Half Time
-    'et': 'LIVE', // Extra Time
-    'p': 'LIVE', // Penalty
-    'pst': 'POSTPONED', // Postponed
-    'canc': 'CANCELLED', // Cancelled
-    'susp': 'SUSPENDED', // Suspended
-    // Basketball/Baseball statuses
     'scheduled': 'SCHEDULED',
     'in progress': 'LIVE',
     'in_progress': 'LIVE',
@@ -262,7 +334,3 @@ function mapStatus(apiStatus: string, sportType: string): MatchStatus {
   return statusMap[normalized] || statusMap[apiStatus.toLowerCase()] || 'SCHEDULED'
 }
 
-// Rate limiting helper
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}

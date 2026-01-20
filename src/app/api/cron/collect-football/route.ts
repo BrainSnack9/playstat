@@ -4,12 +4,12 @@ import slugify from 'slugify'
 import type { PrismaClient, MatchStatus } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
 import {
-  ballDontLieApi,
-  calculateSoccerStandings,
-  type BDLSoccerGame,
-  type BDLSoccerTeam,
-  type SoccerLeague,
-} from '@/lib/api/balldontlie'
+  footballDataApi,
+  FREE_COMPETITIONS,
+  getCurrentSeason,
+  type Match as FDMatch,
+  type StandingTableEntry,
+} from '@/lib/api/football-data'
 
 // Vercel Cron 인증
 const CRON_SECRET = process.env.CRON_SECRET
@@ -20,69 +20,65 @@ async function getPrisma(): Promise<PrismaClient> {
   return prisma
 }
 
-// 지원 리그 정보
-const SUPPORTED_LEAGUES: Array<{
-  league: SoccerLeague
-  name: string
-  country: string
-  slug: string
-  code: string
-  logoUrl: string
-}> = [
+// Football-Data.org 지원 리그 정보
+const SUPPORTED_LEAGUES = [
   {
-    league: 'epl',
+    code: FREE_COMPETITIONS.PREMIER_LEAGUE,
     name: 'Premier League',
     country: 'England',
     slug: 'epl',
-    code: 'EPL',
-    logoUrl: 'https://a.espncdn.com/i/teamlogos/soccer/500/23.png',
+    dbCode: 'PL',
+    logoUrl: 'https://crests.football-data.org/PL.png',
   },
   {
-    league: 'laliga',
+    code: FREE_COMPETITIONS.LA_LIGA,
     name: 'La Liga',
     country: 'Spain',
     slug: 'laliga',
-    code: 'LALIGA',
-    logoUrl: 'https://a.espncdn.com/i/teamlogos/soccer/500/15.png',
+    dbCode: 'PD',
+    logoUrl: 'https://crests.football-data.org/PD.png',
   },
   {
-    league: 'seriea',
+    code: FREE_COMPETITIONS.SERIE_A,
     name: 'Serie A',
     country: 'Italy',
     slug: 'seriea',
-    code: 'SERIEA',
-    logoUrl: 'https://a.espncdn.com/i/teamlogos/soccer/500/12.png',
+    dbCode: 'SA',
+    logoUrl: 'https://crests.football-data.org/SA.png',
   },
   {
-    league: 'bundesliga',
+    code: FREE_COMPETITIONS.BUNDESLIGA,
     name: 'Bundesliga',
     country: 'Germany',
     slug: 'bundesliga',
-    code: 'BUNDESLIGA',
-    logoUrl: 'https://a.espncdn.com/i/teamlogos/soccer/500/10.png',
+    dbCode: 'BL1',
+    logoUrl: 'https://crests.football-data.org/BL1.png',
   },
   {
-    league: 'ligue1',
+    code: FREE_COMPETITIONS.LIGUE_1,
     name: 'Ligue 1',
     country: 'France',
     slug: 'ligue1',
-    code: 'LIGUE1',
-    logoUrl: 'https://a.espncdn.com/i/teamlogos/soccer/500/9.png',
+    dbCode: 'FL1',
+    logoUrl: 'https://crests.football-data.org/FL1.png',
   },
-]
+] as const
+
+type LeagueCode = (typeof SUPPORTED_LEAGUES)[number]['code']
 
 /**
  * GET /api/cron/collect-football
- * 크론: 축구 경기 데이터 수집 (BallDontLie API)
+ * 크론: 축구 경기 데이터 수집 (Football-Data.org API)
  *
- * BallDontLie Free Tier 제한:
- * - 분당 5회 요청
- * - 요청 사이 13초 딜레이 적용됨
+ * Football-Data.org Free Tier:
+ * - 분당 10회 요청
+ * - 5대 리그 + Champions League 무료
  *
  * 수집 범위:
  * - 어제~7일 후 경기
- * - 팀 정보 (최초 1회)
+ * - 팀 정보
  * - 순위표
+ * - 최근 경기 폼
  */
 export async function GET(request: Request) {
   // 인증 체크
@@ -101,6 +97,7 @@ export async function GET(request: Request) {
     matchesAdded: 0,
     matchesUpdated: 0,
     standingsUpdated: 0,
+    recentMatchesUpdated: 0,
     errors: [] as string[],
   }
   let totalApiCalls = 0
@@ -108,7 +105,7 @@ export async function GET(request: Request) {
   try {
     const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd')
     const nextWeek = format(addDays(new Date(), 7), 'yyyy-MM-dd')
-    const currentSeason = ballDontLieApi.getCurrentSoccerSeason()
+    const currentSeason = getCurrentSeason()
 
     // 쿼리 파라미터
     const url = new URL(request.url)
@@ -117,16 +114,21 @@ export async function GET(request: Request) {
 
     // 처리할 리그 목록 결정
     const leaguesToProcess = leagueParam
-      ? SUPPORTED_LEAGUES.filter(l => l.league === leagueParam)
+      ? SUPPORTED_LEAGUES.filter((l) => l.code === leagueParam || l.slug === leagueParam)
       : SUPPORTED_LEAGUES
 
     if (leagueParam && leaguesToProcess.length === 0) {
-      return NextResponse.json({
-        error: `Invalid league: ${leagueParam}. Valid leagues: ${SUPPORTED_LEAGUES.map(l => l.league).join(', ')}`
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: `Invalid league: ${leagueParam}. Valid leagues: ${SUPPORTED_LEAGUES.map((l) => l.code).join(', ')}`,
+        },
+        { status: 400 }
+      )
     }
 
-    console.log(`[Football Cron] Processing ${leaguesToProcess.length} leagues, skipStandings=${skipStandings}`)
+    console.log(
+      `[Football Cron] Processing ${leaguesToProcess.length} leagues, skipStandings=${skipStandings}`
+    )
 
     // 각 리그별로 데이터 수집
     for (const leagueInfo of leaguesToProcess) {
@@ -135,7 +137,7 @@ export async function GET(request: Request) {
 
         // 1. 리그 확인/생성
         let dbLeague = await prisma.league.findFirst({
-          where: { code: leagueInfo.code, sportType: 'FOOTBALL' },
+          where: { code: leagueInfo.dbCode, sportType: 'FOOTBALL' },
         })
 
         if (!dbLeague) {
@@ -144,56 +146,70 @@ export async function GET(request: Request) {
               name: leagueInfo.name,
               country: leagueInfo.country,
               sportType: 'FOOTBALL',
-              code: leagueInfo.code,
+              code: leagueInfo.dbCode,
               logoUrl: leagueInfo.logoUrl,
               isActive: true,
               season: currentSeason,
             },
           })
           console.log(`[Football Cron] Created ${leagueInfo.name} league`)
-        } else if (!dbLeague.logoUrl) {
+        } else {
+          // 기존 리그 업데이트 (logoUrl 등)
           dbLeague = await prisma.league.update({
             where: { id: dbLeague.id },
-            data: { logoUrl: leagueInfo.logoUrl, season: currentSeason },
+            data: {
+              logoUrl: leagueInfo.logoUrl,
+              season: currentSeason,
+            },
           })
         }
 
-        // 2. 팀 정보 수집 (항상 API에서 가져와서 동기화)
-        console.log(`[Football Cron] Fetching ${leagueInfo.name} teams...`)
-        const apiTeams = await ballDontLieApi.getSoccerTeams(leagueInfo.league, currentSeason)
+        // 2. 순위표에서 팀 정보 수집 (팀 목록 + 순위 동시에)
+        console.log(`[Football Cron] Fetching ${leagueInfo.name} standings...`)
+        const standingsResponse = await footballDataApi.getStandings(leagueInfo.code)
         totalApiCalls++
 
-        // 팀 ID → 팀 정보 맵 생성 (순위 계산용)
-        const apiTeamMap = new Map<number, typeof apiTeams[0]>()
-        apiTeams.forEach((t) => apiTeamMap.set(t.id, t))
+        // TOTAL 타입의 순위표 찾기
+        const totalStandings = standingsResponse.standings.find((s) => s.type === 'TOTAL')
+        if (!totalStandings) {
+          results.errors.push(`${leagueInfo.name}: No TOTAL standings found`)
+          continue
+        }
 
-        // 모든 API 팀을 DB에 upsert
-        for (const team of apiTeams) {
+        // 팀 정보 맵 생성 (API ID -> 팀 정보)
+        const apiTeamMap = new Map<number, StandingTableEntry['team']>()
+        totalStandings.table.forEach((entry) => {
+          apiTeamMap.set(entry.team.id, entry.team)
+        })
+
+        // 모든 팀을 DB에 upsert
+        for (const entry of totalStandings.table) {
+          const team = entry.team
           try {
             const existingTeam = await prisma.team.findFirst({
               where: { externalId: String(team.id), sportType: 'FOOTBALL' },
             })
 
             if (existingTeam) {
-              // 기존 팀 업데이트 (리그 ID도 업데이트해서 올바른 리그에 연결)
               await prisma.team.update({
                 where: { id: existingTeam.id },
                 data: {
                   leagueId: dbLeague.id,
                   name: team.name,
-                  shortName: team.abbr,
-                  tla: team.abbr,
+                  shortName: team.shortName,
+                  tla: team.tla,
+                  logoUrl: team.crest,
                 },
               })
               results.teamsUpdated++
             } else {
-              // 새 팀 생성
               await prisma.team.create({
                 data: {
                   leagueId: dbLeague.id,
                   name: team.name,
-                  shortName: team.abbr,
-                  tla: team.abbr,
+                  shortName: team.shortName,
+                  tla: team.tla,
+                  logoUrl: team.crest,
                   externalId: String(team.id),
                   sportType: 'FOOTBALL',
                 },
@@ -205,16 +221,7 @@ export async function GET(request: Request) {
           }
         }
 
-        // 3. 경기 데이터 수집 (어제 ~ 7일 후)
-        console.log(`[Football Cron] Fetching ${leagueInfo.name} games from ${yesterday} to ${nextWeek}...`)
-        const games = await ballDontLieApi.getSoccerGames(leagueInfo.league, {
-          season: currentSeason,
-          start_date: yesterday,
-          end_date: nextWeek,
-        })
-        totalApiCalls++
-
-        // 팀 매핑 캐시
+        // 팀 매핑 캐시 (API ID -> DB ID)
         const teamCache = new Map<number, string>()
         const dbTeams = await prisma.team.findMany({
           where: { sportType: 'FOOTBALL', leagueId: dbLeague.id },
@@ -224,11 +231,20 @@ export async function GET(request: Request) {
           if (t.externalId) teamCache.set(Number(t.externalId), t.id)
         })
 
-        // 기존 경기 조회 (N+1 방지: 한 번에 조회)
+        // 3. 경기 데이터 수집 (어제 ~ 7일 후)
+        console.log(`[Football Cron] Fetching ${leagueInfo.name} matches from ${yesterday} to ${nextWeek}...`)
+        const matchesResponse = await footballDataApi.getCompetitionMatches(leagueInfo.code, {
+          dateFrom: yesterday,
+          dateTo: nextWeek,
+        })
+        totalApiCalls++
+
+        // 기존 경기 조회 (N+1 방지)
+        const matchExternalIds = matchesResponse.matches.map((m) => String(m.id))
         const existingMatches = await prisma.match.findMany({
           where: {
             sportType: 'FOOTBALL',
-            externalId: { in: games.map((g) => String(g.id)) },
+            externalId: { in: matchExternalIds },
           },
           select: { id: true, externalId: true, status: true },
         })
@@ -236,48 +252,45 @@ export async function GET(request: Request) {
           existingMatches.map((m) => [m.externalId, { id: m.id, status: m.status }])
         )
 
-        for (const game of games) {
+        for (const match of matchesResponse.matches) {
           try {
-            const homeTeamDbId = teamCache.get(game.home_team_id)
-            const awayTeamDbId = teamCache.get(game.away_team_id)
+            const homeTeamDbId = teamCache.get(match.homeTeam.id)
+            const awayTeamDbId = teamCache.get(match.awayTeam.id)
 
             if (!homeTeamDbId || !awayTeamDbId) {
-              results.errors.push(`${leagueInfo.name} Game ${game.id}: Team not found in DB (home: ${game.home_team_id}, away: ${game.away_team_id})`)
+              results.errors.push(
+                `${leagueInfo.name} Match ${match.id}: Team not found (home: ${match.homeTeam.id}, away: ${match.awayTeam.id})`
+              )
               continue
             }
 
-            const existingMatch = existingMatchMap.get(String(game.id))
-            const matchStatus = mapSoccerStatus(game.status)
+            const existingMatch = existingMatchMap.get(String(match.id))
+            const matchStatus = mapFDStatus(match.status)
 
-            // 이미 종료된 경기는 스킵 (점수 변경 없음)
+            // 이미 종료된 경기는 스킵
             if (existingMatch && existingMatch.status === 'FINISHED') {
               continue
             }
 
-            // 팀 약어 조회
-            const homeTeam = apiTeamMap.get(game.home_team_id)
-            const awayTeam = apiTeamMap.get(game.away_team_id)
-            const homeAbbr = homeTeam?.abbr || `T${game.home_team_id}`
-            const awayAbbr = awayTeam?.abbr || `T${game.away_team_id}`
-
             const matchSlug = createMatchSlug(
               leagueInfo.slug,
-              homeAbbr,
-              awayAbbr,
-              game.kickoff
+              match.homeTeam.tla,
+              match.awayTeam.tla,
+              match.utcDate
             )
 
-            const kickoffAt = new Date(game.kickoff)
+            const kickoffAt = new Date(match.utcDate)
 
             if (existingMatch) {
-              // 진행 중이거나 예정된 경기만 업데이트
               await prisma.match.update({
                 where: { id: existingMatch.id },
                 data: {
                   kickoffAt,
                   status: matchStatus,
-                  homeScore: game.home_score,
-                  awayScore: game.away_score,
+                  homeScore: match.score.fullTime.home,
+                  awayScore: match.score.fullTime.away,
+                  halfTimeHome: match.score.halfTime.home,
+                  halfTimeAway: match.score.halfTime.away,
                 },
               })
               results.matchesUpdated++
@@ -290,179 +303,140 @@ export async function GET(request: Request) {
                   sportType: 'FOOTBALL',
                   kickoffAt,
                   status: matchStatus,
-                  homeScore: game.home_score,
-                  awayScore: game.away_score,
+                  homeScore: match.score.fullTime.home,
+                  awayScore: match.score.fullTime.away,
+                  halfTimeHome: match.score.halfTime.home,
+                  halfTimeAway: match.score.halfTime.away,
                   slug: matchSlug,
-                  externalId: String(game.id),
-                  venue: game.ground,
-                  matchday: game.week,
-                  round: `Week ${game.week}`,
+                  externalId: String(match.id),
+                  venue: match.venue || null,
+                  matchday: match.matchday,
+                  round: `Matchday ${match.matchday}`,
                 },
               })
               results.matchesAdded++
             }
           } catch (error) {
-            results.errors.push(`${leagueInfo.name} Game ${game.id}: ${String(error)}`)
+            results.errors.push(`${leagueInfo.name} Match ${match.id}: ${String(error)}`)
           }
         }
 
-        // DB 팀 정보 캐시 (N+1 쿼리 방지)
-        const dbTeamsByExternalId = new Map<string, { id: string }>()
-        dbTeams.forEach((t) => {
-          if (t.externalId) dbTeamsByExternalId.set(t.externalId, { id: t.id })
-        })
+        // 4. 순위 저장 (skipStandings=true면 스킵)
+        if (!skipStandings) {
+          console.log(`[Football Cron] Saving ${leagueInfo.name} standings...`)
 
-        // 4. 순위 계산 및 저장 (skipStandings=true면 스킵)
-        if (skipStandings) {
-          console.log(`[Football Cron] Skipping standings for ${leagueInfo.name} (skipStandings=true)`)
-          results.leaguesProcessed.push(leagueInfo.name)
-          continue // 다음 리그로
-        }
+          for (const entry of totalStandings.table) {
+            try {
+              const teamDbId = teamCache.get(entry.team.id)
+              if (!teamDbId) continue
 
-        console.log(`[Football Cron] Calculating ${leagueInfo.name} standings from games...`)
-        const allSeasonGames = await ballDontLieApi.getSoccerGames(leagueInfo.league, {
-          season: currentSeason,
-        })
-        totalApiCalls++
-
-        const standings = calculateSoccerStandings(allSeasonGames, apiTeamMap)
-        console.log(`[Football Cron] Calculated standings for ${standings.length} ${leagueInfo.name} teams`)
-
-        // TeamSeasonStats 저장
-        for (const standing of standings) {
-          try {
-            const team = dbTeamsByExternalId.get(String(standing.teamId))
-
-            if (!team) {
-              results.errors.push(`${leagueInfo.name} Standing: Team ${standing.teamId} not found`)
-              continue
+              await prisma.teamSeasonStats.upsert({
+                where: { teamId: teamDbId },
+                create: {
+                  teamId: teamDbId,
+                  sportType: 'FOOTBALL',
+                  season: currentSeason,
+                  gamesPlayed: entry.playedGames,
+                  wins: entry.won,
+                  draws: entry.draw,
+                  losses: entry.lost,
+                  goalsFor: entry.goalsFor,
+                  goalsAgainst: entry.goalsAgainst,
+                  goalDifference: entry.goalDifference,
+                  points: entry.points,
+                  rank: entry.position,
+                  form: entry.form?.replace(/,/g, '') || null,
+                },
+                update: {
+                  season: currentSeason,
+                  gamesPlayed: entry.playedGames,
+                  wins: entry.won,
+                  draws: entry.draw,
+                  losses: entry.lost,
+                  goalsFor: entry.goalsFor,
+                  goalsAgainst: entry.goalsAgainst,
+                  goalDifference: entry.goalDifference,
+                  points: entry.points,
+                  rank: entry.position,
+                  form: entry.form?.replace(/,/g, '') || null,
+                },
+              })
+              results.standingsUpdated++
+            } catch (error) {
+              results.errors.push(`${leagueInfo.name} Standing ${entry.team.id}: ${String(error)}`)
             }
+          }
 
-            await prisma.teamSeasonStats.upsert({
-              where: { teamId: team.id },
-              create: {
-                teamId: team.id,
-                sportType: 'FOOTBALL',
-                season: currentSeason,
-                gamesPlayed: standing.gamesPlayed,
-                wins: standing.wins,
-                draws: standing.draws,
-                losses: standing.losses,
-                goalsFor: standing.goalsFor,
-                goalsAgainst: standing.goalsAgainst,
-                goalDifference: standing.goalDifference,
-                points: standing.points,
-                rank: standing.rank,
-                form: standing.form,
-              },
-              update: {
-                season: currentSeason,
-                gamesPlayed: standing.gamesPlayed,
-                wins: standing.wins,
-                draws: standing.draws,
-                losses: standing.losses,
-                goalsFor: standing.goalsFor,
-                goalsAgainst: standing.goalsAgainst,
-                goalDifference: standing.goalDifference,
-                points: standing.points,
-                rank: standing.rank,
-                form: standing.form,
-              },
-            })
-            results.standingsUpdated++
-          } catch (error) {
-            results.errors.push(`${leagueInfo.name} Standing ${standing.teamId}: ${String(error)}`)
+          // 5. 각 팀의 최근 경기 수집 (팀별로 API 호출)
+          console.log(`[Football Cron] Collecting recent matches for ${leagueInfo.name} teams...`)
+
+          for (const entry of totalStandings.table) {
+            try {
+              const teamDbId = teamCache.get(entry.team.id)
+              if (!teamDbId) continue
+
+              // 팀의 최근 경기 조회 (완료된 경기만)
+              const teamMatchesResponse = await footballDataApi.getTeamMatches(entry.team.id, {
+                status: 'FINISHED',
+                limit: 10,
+              })
+              totalApiCalls++
+
+              const recentMatches = teamMatchesResponse.matches
+                .sort((a, b) => new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime())
+                .slice(0, 10)
+
+              if (recentMatches.length === 0) continue
+
+              // RecentMatches 형식으로 변환
+              const matchesJson = recentMatches.map((m) => {
+                const isHome = m.homeTeam.id === entry.team.id
+                const teamScore = isHome ? m.score.fullTime.home : m.score.fullTime.away
+                const opponentScore = isHome ? m.score.fullTime.away : m.score.fullTime.home
+                const opponent = isHome ? m.awayTeam.name : m.homeTeam.name
+
+                let result = 'D'
+                if ((teamScore || 0) > (opponentScore || 0)) result = 'W'
+                else if ((teamScore || 0) < (opponentScore || 0)) result = 'L'
+
+                return {
+                  date: m.utcDate,
+                  opponent,
+                  result,
+                  score: `${teamScore}-${opponentScore}`,
+                  isHome,
+                }
+              })
+
+              // 최근 5경기 폼 계산
+              const recentForm = matchesJson
+                .slice(0, 5)
+                .map((m) => m.result)
+                .join('')
+
+              await prisma.teamRecentMatches.upsert({
+                where: { teamId: teamDbId },
+                create: {
+                  teamId: teamDbId,
+                  sportType: 'FOOTBALL',
+                  matchesJson,
+                  recentForm,
+                },
+                update: {
+                  matchesJson,
+                  recentForm,
+                  updatedAt: new Date(),
+                },
+              })
+
+              results.recentMatchesUpdated++
+            } catch (error) {
+              results.errors.push(`${leagueInfo.name} Recent matches ${entry.team.id}: ${String(error)}`)
+            }
           }
         }
 
-        // 5. 각 팀의 최근 경기 수집 및 저장 (이미 가져온 allSeasonGames 재사용)
-        console.log(`[Football Cron] Collecting recent matches for ${leagueInfo.name} teams...`)
-        let recentMatchesUpdated = 0
-
-        // 완료된 경기만 필터하고 팀별로 그룹핑
-        const finishedGames = allSeasonGames
-          .filter(g => g.status === 'FullTime' || g.status === 'C' || g.status === 'FT')
-          .sort((a, b) => new Date(b.kickoff).getTime() - new Date(a.kickoff).getTime())
-
-        // 팀별 최근 경기 맵 생성
-        const allTeamsRecentGames = new Map<number, typeof allSeasonGames>()
-        for (const game of finishedGames) {
-          // 홈팀
-          if (!allTeamsRecentGames.has(game.home_team_id)) {
-            allTeamsRecentGames.set(game.home_team_id, [])
-          }
-          const homeGames = allTeamsRecentGames.get(game.home_team_id)!
-          if (homeGames.length < 10) homeGames.push(game)
-
-          // 원정팀
-          if (!allTeamsRecentGames.has(game.away_team_id)) {
-            allTeamsRecentGames.set(game.away_team_id, [])
-          }
-          const awayGames = allTeamsRecentGames.get(game.away_team_id)!
-          if (awayGames.length < 10) awayGames.push(game)
-        }
-
-        for (const standing of standings) {
-          try {
-            const team = dbTeamsByExternalId.get(String(standing.teamId))
-            if (!team) continue
-
-            // 이미 처리된 데이터에서 해당 팀 경기 추출
-            const recentGames = allTeamsRecentGames.get(standing.teamId) || []
-
-            if (recentGames.length === 0) continue
-
-            // RecentMatches 형식으로 변환
-            const matchesJson = recentGames.map((game) => {
-              const isHome = game.home_team_id === standing.teamId
-              const teamScore = isHome ? game.home_score : game.away_score
-              const opponentScore = isHome ? game.away_score : game.home_score
-              const opponentId = isHome ? game.away_team_id : game.home_team_id
-              const opponentTeam = apiTeamMap.get(opponentId)
-              const opponent = opponentTeam?.name || `Team ${opponentId}`
-
-              let result = 'D' // Draw
-              if ((teamScore || 0) > (opponentScore || 0)) result = 'W'
-              else if ((teamScore || 0) < (opponentScore || 0)) result = 'L'
-
-              return {
-                date: game.kickoff,
-                opponent,
-                result,
-                score: `${teamScore}-${opponentScore}`,
-                isHome,
-              }
-            })
-
-            // 최근 5경기 폼 계산 (WWDLW 형식)
-            const recentForm = matchesJson
-              .slice(0, 5)
-              .map((m) => m.result)
-              .join('')
-
-            // DB에 저장
-            await prisma.teamRecentMatches.upsert({
-              where: { teamId: team.id },
-              create: {
-                teamId: team.id,
-                sportType: 'FOOTBALL',
-                matchesJson,
-                recentForm,
-              },
-              update: {
-                matchesJson,
-                recentForm,
-                updatedAt: new Date(),
-              },
-            })
-
-            recentMatchesUpdated++
-          } catch (error) {
-            results.errors.push(`${leagueInfo.name} Recent matches ${standing.teamId}: ${String(error)}`)
-          }
-        }
-
-        console.log(`[Football Cron] Updated recent matches for ${recentMatchesUpdated} ${leagueInfo.name} teams`)
+        console.log(`[Football Cron] Completed ${leagueInfo.name}`)
         results.leaguesProcessed.push(leagueInfo.name)
       } catch (error) {
         results.errors.push(`${leagueInfo.name} League processing: ${String(error)}`)
@@ -534,38 +508,25 @@ export async function GET(request: Request) {
       },
     })
 
-    return NextResponse.json(
-      { success: false, error: String(error) },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
 }
 
 /**
- * BallDontLie 축구 상태를 Prisma MatchStatus로 매핑
+ * Football-Data.org 상태를 Prisma MatchStatus로 매핑
  */
-function mapSoccerStatus(status: string): MatchStatus {
-  const statusMap: Record<string, MatchStatus> = {
-    'FT': 'FINISHED',        // Full Time
-    'AET': 'FINISHED',       // After Extra Time
-    'PEN': 'FINISHED',       // Penalties
-    '1H': 'LIVE',            // First Half
-    'HT': 'LIVE',            // Half Time
-    '2H': 'LIVE',            // Second Half
-    'ET': 'LIVE',            // Extra Time
-    'P': 'LIVE',             // Penalty Shootout
-    'SUSP': 'SUSPENDED',     // Suspended
-    'INT': 'SUSPENDED',      // Interrupted
-    'PST': 'POSTPONED',      // Postponed
-    'CANC': 'CANCELLED',     // Cancelled
-    'ABD': 'CANCELLED',      // Abandoned
-    'AWD': 'FINISHED',       // Awarded
-    'WO': 'FINISHED',        // Walkover
-    'LIVE': 'LIVE',          // Live
-    'NS': 'SCHEDULED',       // Not Started
-    'TBD': 'SCHEDULED',      // To Be Defined
+function mapFDStatus(status: FDMatch['status']): MatchStatus {
+  const statusMap: Record<FDMatch['status'], MatchStatus> = {
+    SCHEDULED: 'SCHEDULED',
+    TIMED: 'SCHEDULED',
+    IN_PLAY: 'LIVE',
+    PAUSED: 'LIVE',
+    FINISHED: 'FINISHED',
+    SUSPENDED: 'SUSPENDED',
+    POSTPONED: 'POSTPONED',
+    CANCELLED: 'CANCELLED',
+    AWARDED: 'FINISHED',
   }
-
   return statusMap[status] || 'SCHEDULED'
 }
 
@@ -579,9 +540,8 @@ function createMatchSlug(
   date: string
 ): string {
   const dateStr = format(new Date(date), 'yyyyMMdd')
-  const slug = slugify(`${leagueSlug}-${homeTeam}-vs-${awayTeam}-${dateStr}`, {
+  return slugify(`${leagueSlug}-${homeTeam}-vs-${awayTeam}-${dateStr}`, {
     lower: true,
     strict: true,
   })
-  return slug
 }
