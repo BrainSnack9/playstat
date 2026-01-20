@@ -47,7 +47,10 @@
       "Bash(do)",
       "Bash(echo:*)",
       "Bash(done)",
-      "Bash(npx prisma db pull:*)"
+      "Bash(npx prisma db pull:*)",
+      "Bash(git rm:*)",
+      "Bash(for file in \"src/app/[locale]/daily/[date]/page.tsx\" \"src/app/[locale]/layout.tsx\" \"src/app/[locale]/league/[slug]/page.tsx\" \"src/app/[locale]/match/[slug]/page.tsx\" \"src/app/[locale]/page.tsx\" \"src/app/api/cron/collect-team-data/route.ts\" \"src/app/api/cron/generate-analysis/route.ts\" \"src/app/api/cron/generate-daily-report/route.ts\" \"src/components/match-card.tsx\" \"src/components/matches/hot-trends.tsx\" \"src/components/matches/today-matches.tsx\" \"src/lib/ai/translate.ts\" \"src/lib/timezone.ts\" \"vercel.json\")",
+      "Bash(gh workflow:*)"
     ]
   }
 }
