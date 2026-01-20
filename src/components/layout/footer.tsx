@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link, usePathname } from '@/i18n/routing'
 import Image from 'next/image'
@@ -11,31 +12,37 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
   const footer = useTranslations('footer')
   const sports = useTranslations('sports')
   const pathname = usePathname()
-  const currentYear = new Date().getFullYear()
   const isNeon = variant !== 'default'
-  const legalBase =
-    typeof window !== 'undefined'
-      ? window.location.hostname.endsWith('localhost')
+
+  // Hydration 에러 방지: 클라이언트에서만 계산
+  const [mounted, setMounted] = useState(false)
+  const [currentSport, setCurrentSport] = useState<string | null>(null)
+  const [legalBase, setLegalBase] = useState('')
+
+  useEffect(() => {
+    setMounted(true)
+
+    // Legal base URL 설정
+    const hostname = window.location.hostname
+    setLegalBase(
+      hostname.endsWith('localhost') || hostname === 'localhost'
         ? 'http://localhost:3030'
         : window.location.origin
-      : ''
+    )
 
-  // 서브도메인에서 스포츠 타입 감지
-  const getCurrentSport = (): string | null => {
-    if (typeof window === 'undefined') return null
-    const hostname = window.location.hostname
-    if (hostname.startsWith('football.')) return 'football'
-    if (hostname.startsWith('basketball.')) return 'basketball'
-    if (hostname.startsWith('baseball.')) return 'baseball'
-    if (hostname === 'localhost') {
-      if (pathname.includes('/football')) return 'football'
-      if (pathname.includes('/basketball')) return 'basketball'
-      if (pathname.includes('/baseball')) return 'baseball'
+    // 스포츠 타입 감지
+    if (hostname.startsWith('football.')) {
+      setCurrentSport('football')
+    } else if (hostname.startsWith('basketball.')) {
+      setCurrentSport('basketball')
+    } else if (hostname.startsWith('baseball.')) {
+      setCurrentSport('baseball')
+    } else if (hostname === 'localhost' || hostname.includes('localhost')) {
+      if (pathname.includes('/football')) setCurrentSport('football')
+      else if (pathname.includes('/basketball')) setCurrentSport('basketball')
+      else if (pathname.includes('/baseball')) setCurrentSport('baseball')
     }
-    return null
-  }
-
-  const currentSport = getCurrentSport()
+  }, [pathname])
 
   return (
     <footer
@@ -59,7 +66,7 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
             />
             <span className="font-semibold flex items-center gap-2">
               PlayStat
-              {currentSport && (
+              {mounted && currentSport && (
                 <span className="text-primary text-sm">[{sports(currentSport)}]</span>
               )}
             </span>
@@ -92,18 +99,18 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
               {footer('main_hub')}
             </a>
             <span className={cn(isNeon ? 'text-white/30' : 'text-muted-foreground/50')}>|</span>
-            <a href={`${legalBase}/privacy`} className="hover:text-primary transition-colors">
+            <a href={mounted ? `${legalBase}/privacy` : '/privacy'} className="hover:text-primary transition-colors">
               {footer('privacy')}
             </a>
             <span className={cn(isNeon ? 'text-white/30' : 'text-muted-foreground/50')}>|</span>
-            <a href={`${legalBase}/terms`} className="hover:text-primary transition-colors">
+            <a href={mounted ? `${legalBase}/terms` : '/terms'} className="hover:text-primary transition-colors">
               {footer('terms')}
             </a>
           </nav>
 
           {/* Copyright */}
           <p className={cn('text-xs text-center', isNeon ? 'text-white/60' : 'text-muted-foreground')}>
-            © {currentYear} PlayStat. All rights reserved.
+            © 2026 PlayStat. All rights reserved.
           </p>
         </div>
       </div>

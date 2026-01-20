@@ -19,13 +19,15 @@ import { format } from 'date-fns'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
-import { generateMetadata as buildMetadata, generateMatchSEO, generateMatchJsonLd } from '@/lib/seo'
+import { generateMetadata as buildMetadata, generateMatchSEO, generateMatchJsonLd, resolveBaseUrl } from '@/lib/seo'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
 // ensureMatchAnalysisTranslations는 크론에서만 사용 (페이지 로드 시 성능 이슈)
 import { unstable_cache } from 'next/cache'
 import { getDateLocale } from '@/lib/utils'
+import { type Locale } from '@/i18n/config'
+import { headers } from 'next/headers'
 
 export const revalidate = CACHE_REVALIDATE
 
@@ -72,6 +74,8 @@ type MatchWithRelations = NonNullable<Awaited<ReturnType<typeof getCachedMatch>>
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, locale } = await params
+  const host = headers().get('host')
+  const baseUrl = resolveBaseUrl(host)
   const match = await getCachedMatch(slug)
 
   if (!match) {
@@ -94,7 +98,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           : t('seo_description_no_analysis', { league: match.league.name, date: dateFormatted, homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name }),
         keywords: [match.homeTeam.name, match.awayTeam.name, match.league.name, t('analysis'), t('preview'), t('tactics')],
       },
-    })
+    }),
+    { path: `/match/${slug}`, locale: locale as Locale, baseUrl }
   )
 }
 

@@ -1,7 +1,24 @@
 import { Metadata } from 'next'
+import { locales, type Locale } from '@/i18n/config'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://playstat.space'
 const SITE_NAME = 'PlayStat'
+
+const localeToLangTag: Record<Locale, string> = {
+  ko: 'ko-KR',
+  en: 'en-US',
+  es: 'es-ES',
+  ja: 'ja-JP',
+  de: 'de-DE',
+}
+
+const localeToOgLocale: Record<Locale, string> = {
+  ko: 'ko_KR',
+  en: 'en_US',
+  es: 'es_ES',
+  ja: 'ja_JP',
+  de: 'de_DE',
+}
 
 export interface SEOConfig {
   title: string
@@ -15,10 +32,32 @@ export interface SEOConfig {
   noIndex?: boolean
 }
 
+export interface SEOPageOptions {
+  path?: string
+  locale?: Locale
+  baseUrl?: string
+}
+
+function normalizePath(path: string): string {
+  if (!path) return '/'
+  return path.startsWith('/') ? path : `/${path}`
+}
+
+function buildAlternates(path: string, locale: Locale) {
+  const normalized = normalizePath(path)
+  const localizedPath = normalized === '/' ? '' : normalized
+  const canonical = `/${locale}${localizedPath}`
+  const languages = Object.fromEntries(
+    locales.map((loc) => [localeToLangTag[loc], `/${loc}${localizedPath}`])
+  )
+
+  return { canonical, languages }
+}
+
 /**
  * SEO 메타데이터 생성 헬퍼
  */
-export function generateMetadata(config: SEOConfig): Metadata {
+export function generateMetadata(config: SEOConfig, options: SEOPageOptions = {}): Metadata {
   const {
     title,
     description,
@@ -27,12 +66,19 @@ export function generateMetadata(config: SEOConfig): Metadata {
     type = 'website',
     publishedTime,
     modifiedTime,
-    locale = 'ko_KR',
+    locale,
     noIndex = false,
   } = config
+  const pageLocale = options.locale || 'ko'
+  const ogLocale = locale || localeToOgLocale[pageLocale]
+  const baseUrl = options.baseUrl || SITE_URL
 
   const fullTitle = `${title} | ${SITE_NAME}`
-  const ogImage = image || `${SITE_URL}/og-default.png`
+  const ogImage = image || `${baseUrl}/og-default.png`
+  const alternates = options.path ? buildAlternates(options.path, pageLocale) : undefined
+  const canonicalUrl = alternates?.canonical
+    ? new URL(alternates.canonical, baseUrl).toString()
+    : baseUrl
 
   return {
     title: fullTitle,
@@ -41,18 +87,12 @@ export function generateMetadata(config: SEOConfig): Metadata {
     authors: [{ name: SITE_NAME }],
     creator: SITE_NAME,
     publisher: SITE_NAME,
-    metadataBase: new URL(SITE_URL),
-    alternates: {
-      canonical: '/',
-      languages: {
-        'ko-KR': '/ko',
-        'en-US': '/en',
-      },
-    },
+    metadataBase: new URL(baseUrl),
+    alternates,
     openGraph: {
       title: fullTitle,
       description,
-      url: SITE_URL,
+      url: canonicalUrl,
       siteName: SITE_NAME,
       images: [
         {
@@ -62,7 +102,7 @@ export function generateMetadata(config: SEOConfig): Metadata {
           alt: title,
         },
       ],
-      locale,
+      locale: ogLocale,
       type,
       ...(type === 'article' && {
         publishedTime,
@@ -228,4 +268,33 @@ export function generateTeamJsonLd(team: {
       : undefined,
     foundingDate: team.founded ? String(team.founded) : undefined,
   }
+}
+
+/**
+ * JSON-LD 스키마 생성 (WebSite/Organization)
+ */
+export function generateWebsiteJsonLd(locale?: Locale, baseUrl: string = SITE_URL) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: baseUrl,
+    inLanguage: locale ? localeToLangTag[locale] : 'ko-KR',
+  }
+}
+
+export function generateOrganizationJsonLd(baseUrl: string = SITE_URL) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: baseUrl,
+    logo: `${baseUrl}/app-icon-512.png`,
+  }
+}
+
+export function resolveBaseUrl(host?: string | null) {
+  if (!host) return SITE_URL
+  const protocol = host.includes('localhost') ? 'http' : 'https'
+  return `${protocol}://${host}`
 }

@@ -9,30 +9,21 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// 스포츠 타입 enum
-enum SportType {
-  FOOTBALL
-  BASKETBALL
-  BASEBALL
-}
-
-// 리그 테이블
 model League {
   id              String    @id @default(cuid())
   name            String
   country         String
   sportType       SportType @default(FOOTBALL)
-  externalId      String?   // External API competition ID
-  code            String?   // Competition code (e.g., "PL", "NBA")
+  externalId      String?
   logoUrl         String?
-  season          Int?      // 현재 시즌
-  currentMatchday Int?      // 현재 라운드
+  season          Int?
   isActive        Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-
-  teams   Team[]
-  matches Match[]
+  code            String?
+  currentMatchday Int?
+  matches         Match[]
+  teams           Team[]
 
   @@unique([sportType, externalId])
   @@unique([sportType, code])
@@ -41,31 +32,29 @@ model League {
   @@index([code])
 }
 
-// 팀 테이블
 model Team {
-  id          String    @id @default(cuid())
-  leagueId    String
-  name        String
-  shortName   String?
-  tla         String?   // 3글자 약어 (e.g., "MUN", "ARS")
-  logoUrl     String?
-  externalId  String?   // External API team ID
-  sportType   SportType @default(FOOTBALL)
-  founded     Int?
-  venue       String?
-  city        String?
-  clubColors  String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  league           League             @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  players          Player[]
-  homeMatches      Match[]            @relation("HomeTeam")
-  awayMatches      Match[]            @relation("AwayTeam")
-  seasonStats      TeamSeasonStats?   // 시즌 전체 요약 스탯
-  recentMatches    TeamRecentMatches? // 최근 경기 목록
-  homeH2H          HeadToHead[]       @relation("H2HTeamA")
-  awayH2H          HeadToHead[]       @relation("H2HTeamB")
+  id            String             @id @default(cuid())
+  leagueId      String
+  name          String
+  shortName     String?
+  logoUrl       String?
+  externalId    String?
+  sportType     SportType          @default(FOOTBALL)
+  founded       Int?
+  venue         String?
+  city          String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  clubColors    String?
+  tla           String?
+  homeH2H       HeadToHead[]       @relation("H2HTeamA")
+  awayH2H       HeadToHead[]       @relation("H2HTeamB")
+  awayMatches   Match[]            @relation("AwayTeam")
+  homeMatches   Match[]            @relation("HomeTeam")
+  players       Player[]
+  league        League             @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  recentMatches TeamRecentMatches?
+  seasonStats   TeamSeasonStats?
 
   @@unique([sportType, externalId])
   @@index([leagueId])
@@ -73,70 +62,55 @@ model Team {
   @@index([sportType])
 }
 
-// 선수 테이블
 model Player {
-  id              String    @id @default(cuid())
-  teamId          String
-  name            String
-  firstName       String?
-  lastName        String?
-  position        String?   // Goalkeeper, Defence, Midfield, Offence
-  nationality     String?
-  birthDate       DateTime?
-  shirtNumber     Int?
-  photoUrl        String?
-  marketValue     Int?      // 시장 가치 (유로)
-  contractStart   DateTime?
-  contractEnd     DateTime?
-  externalId      String?   @unique  // Football-Data.org person ID
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  teamId        String
+  name          String
+  position      String?
+  nationality   String?
+  birthDate     DateTime?
+  photoUrl      String?
+  externalId    String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  contractEnd   DateTime?
+  contractStart DateTime?
+  firstName     String?
+  lastName      String?
+  marketValue   Int?
+  shirtNumber   Int?
+  team          Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([teamId])
   @@index([name])
   @@index([position])
 }
 
-// 경기 상태 enum (Football-Data.org 상태와 매핑)
-enum MatchStatus {
-  SCHEDULED   // 예정
-  TIMED       // 시간 확정
-  LIVE        // 진행 중 (IN_PLAY, PAUSED)
-  FINISHED    // 종료
-  POSTPONED   // 연기
-  CANCELLED   // 취소
-  SUSPENDED   // 중단
-}
-
-// 경기 테이블
 model Match {
-  id            String      @id @default(cuid())
+  id            String         @id @default(cuid())
   leagueId      String
   homeTeamId    String
   awayTeamId    String
-  sportType     SportType   @default(FOOTBALL)
+  sportType     SportType      @default(FOOTBALL)
   kickoffAt     DateTime
-  status        MatchStatus @default(SCHEDULED)
+  status        MatchStatus    @default(SCHEDULED)
   homeScore     Int?
   awayScore     Int?
-  halfTimeHome  Int?        // 전반전 홈 스코어
-  halfTimeAway  Int?        // 전반전 원정 스코어
-  matchday      Int?        // 라운드 번호
-  round         String?     // 라운드 문자열 (예: "Regular Season - 20")
-  stage         String?     // 스테이지 (예: "GROUP_STAGE", "FINAL")
+  round         String?
   venue         String?
-  slug          String?     @unique
-  externalId    String?     // External API match ID
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  league        League         @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  homeTeam      Team           @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Cascade)
+  slug          String?        @unique
+  externalId    String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  halfTimeAway  Int?
+  halfTimeHome  Int?
+  matchday      Int?
+  stage         String?
   awayTeam      Team           @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: Cascade)
-  matchStats    MatchStats?
+  homeTeam      Team           @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Cascade)
+  league        League         @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   matchAnalysis MatchAnalysis?
+  matchStats    MatchStats?
 
   @@unique([sportType, externalId])
   @@index([leagueId])
@@ -148,186 +122,162 @@ model Match {
   @@index([matchday])
 }
 
-// 경기 스탯 테이블 (실시간/캐시용)
 model MatchStats {
   id        String   @id @default(cuid())
   matchId   String   @unique
-  statsJson Json     // 경기 스탯 JSON
+  statsJson Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
 }
 
-// 팀 시즌 스탯 테이블 (시즌 전체 요약)
 model TeamSeasonStats {
   id               String    @id @default(cuid())
   teamId           String    @unique
   sportType        SportType @default(FOOTBALL)
-  season           Int       // 시즌 년도
-
-  // 공통 필드
+  season           Int
   gamesPlayed      Int       @default(0)
   wins             Int       @default(0)
-  draws            Int?      // 축구만 해당
+  draws            Int?
   losses           Int       @default(0)
-  rank             Int?      // 리그 순위
-
-  // 축구용 필드
-  points           Int?      // 승점 (축구)
-  goalsFor         Int?      // 득점 (축구)
-  goalsAgainst     Int?      // 실점 (축구)
-  goalDifference   Int?      // 골득실차
-  form             String?   // 최근 폼 (예: "W,W,D,L,W")
-
-  // 농구/야구 공통
-  pointsScored     Float?    // 평균 득점 (농구/야구)
-  pointsAllowed    Float?    // 평균 실점 (농구/야구)
-
-  // 홈/원정 성향
+  rank             Int?
+  points           Int?
+  goalsFor         Int?
+  goalsAgainst     Int?
+  pointsScored     Float?
+  pointsAllowed    Float?
   homeGames        Int       @default(0)
   homeWins         Int       @default(0)
-  homeDraws        Int?
-  homeLosses       Int?
-  homeGoalsFor     Int?
-  homeGoalsAgainst Int?
-  homeAvgFor       Float?    // 홈 평균 득점
-  homeAvgAgainst   Float?    // 홈 평균 실점
-
+  homeAvgFor       Float?
+  homeAvgAgainst   Float?
   awayGames        Int       @default(0)
   awayWins         Int       @default(0)
-  awayDraws        Int?
-  awayLosses       Int?
-  awayGoalsFor     Int?
-  awayGoalsAgainst Int?
-  awayAvgFor       Float?    // 원정 평균 득점
-  awayAvgAgainst   Float?    // 원정 평균 실점
-
-  // 추가 스탯 (JSON으로 유연하게)
+  awayAvgFor       Float?
+  awayAvgAgainst   Float?
   additionalStats  Json?
-
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
-
-  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  awayDraws        Int?
+  awayGoalsAgainst Int?
+  awayGoalsFor     Int?
+  awayLosses       Int?
+  form             String?
+  goalDifference   Int?
+  homeDraws        Int?
+  homeGoalsAgainst Int?
+  homeGoalsFor     Int?
+  homeLosses       Int?
+  team             Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([sportType])
   @@index([season])
 }
 
-// 팀 최근 경기 목록 테이블
 model TeamRecentMatches {
-  id           String    @id @default(cuid())
-  teamId       String    @unique
-  sportType    SportType @default(FOOTBALL)
-  matchesJson  Json      // 최근 10~15경기 저장 [{date, opponent, result, score, isHome}, ...]
-  recentForm   String?   // 최근 5경기 폼 (예: "WWDLW")
-  updatedAt    DateTime  @updatedAt
-  createdAt    DateTime  @default(now())
-
-  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  teamId      String    @unique
+  sportType   SportType @default(FOOTBALL)
+  matchesJson Json
+  recentForm  String?
+  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime  @default(now())
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([sportType])
 }
 
-// 상대전적 테이블
 model HeadToHead {
-  id           String    @id @default(cuid())
-  teamAId      String
-  teamBId      String
-  sportType    SportType @default(FOOTBALL)
-  matchesJson  Json      // 최근 맞대결 경기 목록 [{date, result, score}, ...]
-  updatedAt    DateTime  @updatedAt
-  createdAt    DateTime  @default(now())
-
-  teamA Team @relation("H2HTeamA", fields: [teamAId], references: [id], onDelete: Cascade)
-  teamB Team @relation("H2HTeamB", fields: [teamBId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  teamAId     String
+  teamBId     String
+  sportType   SportType @default(FOOTBALL)
+  matchesJson Json
+  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime  @default(now())
+  teamA       Team      @relation("H2HTeamA", fields: [teamAId], references: [id], onDelete: Cascade)
+  teamB       Team      @relation("H2HTeamB", fields: [teamBId], references: [id], onDelete: Cascade)
 
   @@unique([teamAId, teamBId])
   @@index([sportType])
 }
 
-// AI 경기 분석 테이블
 model MatchAnalysis {
-  id                  String   @id @default(cuid())
-  matchId             String   @unique
-
-  // 다국어 번역본 통합 저장
-  // 구조: { "en": { "summary": "...", "recentFlowAnalysis": "...", ... }, "ko": { ... } }
-  translations        Json?
-
-  // AI 분석 생성 시 사용된 입력 데이터 스냅샷
-  inputDataSnapshot   Json?
-
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  id                String   @id @default(cuid())
+  matchId           String   @unique
+  inputDataSnapshot Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  translations      Json?
+  match             Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
 }
 
-// 데일리 리포트 테이블
 model DailyReport {
-  id         String    @id @default(cuid())
-  date       DateTime  @db.Date
-  sportType  SportType @default(FOOTBALL)
-
-  // 다국어 번역본 통합 저장
-  // 구조: { "en": { "title": "...", "summary": "...", "hotMatches": [...], ... }, "ko": { ... } }
+  id           String    @id @default(cuid())
+  date         DateTime  @db.Date
+  sportType    SportType @default(FOOTBALL)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   translations Json?
-
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
 
   @@unique([date, sportType])
   @@index([date])
   @@index([sportType])
 }
 
-// 뉴스 테이블
 model News {
   id           String    @id @default(cuid())
   link         String    @unique
-
-  // 다국어 번역본 통합 저장
-  // 구조: { "en": { "title": "...", "summary": "..." }, "ko": { ... } }
-  translations Json?
-
-  relatedTeams Json?     // 관련 팀 ID 목록
+  relatedTeams Json?
   sportType    SportType @default(FOOTBALL)
   imageUrl     String?
   source       String?
   publishedAt  DateTime
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  translations Json?
 
   @@index([publishedAt])
   @@index([sportType])
 }
 
-// 스케줄러 로그 테이블
 model SchedulerLog {
   id         String   @id @default(cuid())
   jobName    String
   executedAt DateTime @default(now())
-  result     String   // 'success' | 'failed' | 'partial'
-  details    Json?    // 상세 결과
-  duration   Int?     // 실행 시간 (ms)
-  apiCalls   Int?     // API 호출 횟수
+  result     String
+  details    Json?
+  duration   Int?
+  apiCalls   Int?
   createdAt  DateTime @default(now())
 
   @@index([jobName])
   @@index([executedAt])
 }
 
-// API 호출 추적 테이블 (Free Plan 제한 관리용)
 model ApiCallLog {
-  id         String    @id @default(cuid())
-  apiType    String    // 'football' | 'basketball' | 'baseball'
-  endpoint   String    // 호출한 엔드포인트
-  calledAt   DateTime  @default(now())
-  success    Boolean   @default(true)
-  response   Json?     // 응답 요약 (선택)
+  id       String   @id @default(cuid())
+  apiType  String
+  endpoint String
+  calledAt DateTime @default(now())
+  success  Boolean  @default(true)
+  response Json?
 
   @@index([apiType])
   @@index([calledAt])
+}
+
+enum SportType {
+  FOOTBALL
+  BASKETBALL
+  BASEBALL
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  CANCELLED
+  TIMED
+  SUSPENDED
 }

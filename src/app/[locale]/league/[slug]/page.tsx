@@ -11,15 +11,16 @@ import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
-import { generateMetadata as buildMetadata, generateLeagueSEO } from '@/lib/seo'
+import { generateMetadata as buildMetadata, generateLeagueSEO, resolveBaseUrl } from '@/lib/seo'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { getTranslations } from 'next-intl/server'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
 import { getDateLocale } from '@/lib/utils'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { getSportFromCookie, sportIdToEnum, SPORT_COOKIE, type SportId } from '@/lib/sport'
 import type { SportType } from '@prisma/client'
+import { type Locale } from '@/i18n/config'
 
 interface Props {
   params: Promise<{ locale: string; slug: string }>
@@ -133,6 +134,8 @@ type MatchWithRelations = LeagueWithRelations['matches'][number]
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, locale } = await params
+  const host = headers().get('host')
+  const baseUrl = resolveBaseUrl(host)
   const cookieStore = await cookies()
   const sportCookie = cookieStore.get(SPORT_COOKIE)?.value
   const sport = getSportFromCookie(sportCookie)
@@ -157,7 +160,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description: t('seo_description', { name: league.name, season: seasonLabel }),
         keywords: [league.name, league.country || '', seasonLabel, t('standings'), t('fixtures')],
       },
-    })
+    }),
+    { path: `/league/${slug}`, locale: locale as Locale, baseUrl }
   )
 }
 

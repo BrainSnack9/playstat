@@ -6,31 +6,27 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('=== Checking Basketball Matches Analysis ===\n')
 
-  // 20일 경기 확인
+  // 화면에 보이는 경기: KST 09:00~13:00 = UTC 00:00~04:00
   const matches = await prisma.match.findMany({
     where: {
       sportType: 'BASKETBALL',
-      kickoffAt: {
-        gte: new Date('2026-01-20T00:00:00Z'),
-        lt: new Date('2026-01-21T00:00:00Z'),
-      },
     },
     include: {
-      homeTeam: { select: { name: true } },
-      awayTeam: { select: { name: true } },
-      matchAnalysis: { select: { id: true } },
+      matchAnalysis: { select: { id: true, createdAt: true } },
     },
     orderBy: { kickoffAt: 'asc' },
   })
 
-  console.log(`Found ${matches.length} basketball matches on 2026-01-20:\n`)
+  console.log(`Found ${matches.length} basketball matches:\n`)
 
   matches.forEach((match) => {
     const hasAnalysis = !!match.matchAnalysis
     console.log(`${format(match.kickoffAt, 'yyyy-MM-dd HH:mm')} UTC`)
-    console.log(`  ${match.homeTeam.name} vs ${match.awayTeam.name}`)
+    console.log(`  ${match.homeTeamName} vs ${match.awayTeamName}`)
     console.log(`  AI Analysis: ${hasAnalysis ? '✅ YES' : '❌ NO'}`)
-    console.log(`  Match ID: ${match.id}`)
+    if (hasAnalysis && match.matchAnalysis) {
+      console.log(`  Created: ${match.matchAnalysis.createdAt.toISOString()}`)
+    }
     console.log()
   })
 
@@ -40,6 +36,17 @@ async function main() {
   console.log(`Summary:`)
   console.log(`  With AI Analysis: ${withAnalysis}`)
   console.log(`  Without AI Analysis: ${withoutAnalysis}`)
+
+  // 최근 분석 생성 로그 확인
+  console.log('\n=== Recent Scheduler Logs (analysis) ===')
+  const logs = await prisma.schedulerLog.findMany({
+    where: { jobName: { contains: 'analysis' } },
+    orderBy: { createdAt: 'desc' },
+    take: 5
+  })
+  for (const log of logs) {
+    console.log(`${log.createdAt.toISOString().slice(0, 19)} | ${log.jobName} | ${log.result}`)
+  }
 }
 
 main()

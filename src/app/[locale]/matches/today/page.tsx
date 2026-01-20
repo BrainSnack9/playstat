@@ -118,19 +118,21 @@ export default async function TodayMatchesPage({ params }: Props) {
   const timezone = cookieStore.get('timezone')?.value || 'Asia/Seoul'
   const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value))
 
-  let today = format(new Date(), 'yyyy-MM-dd')
+  // 서버에서 날짜 한 번만 계산 (hydration 에러 방지)
+  const now = new Date()
+  const dateStr = format(now, 'yyyy-MM-dd')
+
+  let today = dateStr
   try {
     const fullFormat = tCommon('date_full_format')
     if (fullFormat && fullFormat !== 'date_full_format') {
-      today = format(new Date(), fullFormat, {
+      today = format(now, fullFormat, {
         locale: getDateLocale(locale),
       })
     }
   } catch {
     // Fallback set above
   }
-
-  const dateStr = format(new Date(), 'yyyy-MM-dd')
   const { todayMatches, upcomingMatches } = await getCachedMatches(timezone, dateStr, sportType)
 
   const todayByLeague = groupMatchesByLeague(todayMatches)

@@ -12,6 +12,7 @@ import { AdsenseScript } from '@/components/adsense'
 import { Analytics } from '@vercel/analytics/next'
 import { getSportFromCookie, isApexHost, SPORT_COOKIE } from '@/lib/sport'
 import { spaceGrotesk } from '@/lib/fonts'
+import { generateOrganizationJsonLd, generateWebsiteJsonLd, resolveBaseUrl } from '@/lib/seo'
 import '../globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -25,6 +26,7 @@ export const metadata: Metadata = {
   keywords: ['sports', 'analysis', 'football', 'NBA', 'MLB', 'AI', 'soccer', 'EPL', 'K-League'],
   authors: [{ name: 'PlayStat' }],
   creator: 'PlayStat',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://playstat.space'),
   openGraph: {
     type: 'website',
     siteName: 'PlayStat',
@@ -65,12 +67,22 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
   const isApex = isApexHost(host)
   // 모든 스포츠 서브도메인에 네온 테마 적용 (CSS 변수로 스포츠별 색상 구분)
   const isNeon = !isApex
+  const baseUrl = resolveBaseUrl(host)
 
   return (
     <html lang={locale} dir={direction} className="dark" data-sport={sport} suppressHydrationWarning>
       <head>
         <meta name="google-site-verification" content="8jWKeSdNb8M9T-sx7Tn_F5aEyGUSCpmWHl-h3xYdq6U" />
         <AdsenseScript />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify([
+              generateOrganizationJsonLd(baseUrl),
+              generateWebsiteJsonLd(locale as Locale, baseUrl),
+            ]),
+          }}
+        />
       </head>
       <body className={`${inter.className} ${isNeon ? spaceGrotesk.className : ''} bg-background text-foreground`}>
         <NextIntlClientProvider messages={messages}>

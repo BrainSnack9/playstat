@@ -34,12 +34,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function BaseballHomePage({ params }: Props) {
+export default async function FootballHomePage({ params }: Props) {
   const { locale } = await params
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'home' })
   const common = await getTranslations({ locale, namespace: 'common' })
+
+  // 서버에서 날짜 계산 (hydration 에러 방지)
+  const todayDate = new Date().toISOString().split('T')[0]
 
   return (
     <div className="container space-y-12 py-8">
@@ -72,7 +75,7 @@ export default async function BaseballHomePage({ params }: Props) {
             </p>
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link href={`/football/daily/${new Date().toISOString().split('T')[0]}`}>
+            <Link href={`/football/daily/${todayDate}`}>
               <Calendar className="mr-2 h-4 w-4" />
               {common('view_daily_report')}
             </Link>

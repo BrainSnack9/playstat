@@ -124,7 +124,7 @@ export const MATCH_ANALYSIS_PROMPT_EN = `You are a professional sports analysis 
 Below is all the data needed for match analysis in JSON format.
 Write a pre-match preview analysis based on this data.
 
-**IMPORTANT: Return your analysis as a JSON object.**
+**IMPORTANT: Return your analysis as a JSON object with the EXACT keys specified below.**
 
 ## CRITICAL RULES (Absolute Zero Tolerance)
 - NEVER mention odds, probability, betting, picks, or predicted scores.
@@ -138,29 +138,17 @@ Write a pre-match preview analysis based on this data.
 - Clearly summarize the last 5 matches trend.
 - Explain the style differences between the two teams.
 
-## Output Format (Return as JSON with these 5 sections)
+## Output Format (Return as JSON with EXACTLY these keys)
 
-### 1) 3-Line Summary
-- Summarize the key points of this match in 3 lines
-
-### 2) Recent 5 Matches Flow Analysis
-- Home team's recent 5 matches trend
-- Away team's recent 5 matches trend
-- Comparison of both teams' momentum
-
-### 3) Season Overall Trends
-- Home team season performance and characteristics
-- Away team season performance and characteristics
-
-### 4) Tactical Perspective Based on Home/Away
-- Home team's performance at home
-- Away team's performance away
-- Expected tactical matchup
-
-### 5) 3 Key Viewing Points for This Match
-1. First key point
-2. Second key point
-3. Third key point
+\`\`\`json
+{
+  "summary": "3-line summary of the key points of this match",
+  "recentFlowAnalysis": "Home team's recent 5 matches trend. Away team's recent 5 matches trend. Comparison of both teams' momentum.",
+  "seasonTrends": "Home team season performance and characteristics. Away team season performance and characteristics.",
+  "tacticalAnalysis": "Home team's performance at home. Away team's performance away. Expected tactical matchup.",
+  "keyPoints": ["First key viewing point", "Second key viewing point", "Third key viewing point"]
+}
+\`\`\`
 
 ---
 Here is the data to analyze:
@@ -491,40 +479,56 @@ export function parseMatchAnalysisResponse(response: string): ParsedMatchAnalysi
         return []
       }
 
-      // Extract fields with various naming conventions
+      // Extract fields with various naming conventions (case-insensitive search)
+      const findKey = (obj: Record<string, unknown>, patterns: string[]): unknown => {
+        for (const pattern of patterns) {
+          // Exact match first
+          if (obj[pattern] !== undefined) return obj[pattern]
+          // Case-insensitive match
+          const lowerPattern = pattern.toLowerCase().replace(/[-_\s]/g, '')
+          for (const key of Object.keys(obj)) {
+            const lowerKey = key.toLowerCase().replace(/[-_\s]/g, '')
+            if (lowerKey === lowerPattern || lowerKey.includes(lowerPattern) || lowerPattern.includes(lowerKey)) {
+              return obj[key]
+            }
+          }
+        }
+        return undefined
+      }
+
       result.summary = extractString(
-        parsed.summary ||
-        parsed['3줄 요약'] ||
-        parsed['3_line_summary'] ||
-        parsed['three_line_summary']
+        findKey(parsed, [
+          'summary', '3줄 요약', '3_line_summary', 'three_line_summary',
+          '3_Line_Summary', '3-Line Summary', '3linesummary'
+        ])
       )
 
       result.recentFlowAnalysis = extractString(
-        parsed.recentFlowAnalysis ||
-        parsed['최근 5경기 흐름 분석'] ||
-        parsed['recent_5_matches_flow_analysis'] ||
-        parsed['recent_flow_analysis']
+        findKey(parsed, [
+          'recentFlowAnalysis', '최근 5경기 흐름 분석', 'recent_5_matches_flow_analysis',
+          'recent_flow_analysis', 'Recent_5_Matches_Flow_Analysis', 'Recent 5 Matches Flow Analysis'
+        ])
       )
 
       result.seasonTrends = extractString(
-        parsed.seasonTrends ||
-        parsed['시즌 전체 성향 요약'] ||
-        parsed['season_overall_trends'] ||
-        parsed['season_trends']
+        findKey(parsed, [
+          'seasonTrends', '시즌 전체 성향 요약', 'season_overall_trends', 'season_trends',
+          'Season_Overall_Trends', 'Season Overall Trends'
+        ])
       )
 
       result.tacticalAnalysis = extractString(
-        parsed.tacticalAnalysis ||
-        parsed['홈/원정 기반의 전술적 관점'] ||
-        parsed['tactical_perspective_based_on_home_away'] ||
-        parsed['tactical_analysis']
+        findKey(parsed, [
+          'tacticalAnalysis', '홈/원정 기반의 전술적 관점', 'tactical_perspective_based_on_home_away',
+          'tactical_analysis', 'Tactical_Perspective_Based_on_Home_Away', 'Tactical Perspective Based on Home/Away'
+        ])
       )
 
       result.keyPoints = extractKeyPoints(
-        parsed.keyPoints ||
-        parsed['주요 관전 포인트'] ||
-        parsed['key_viewing_points'] ||
-        parsed['3_key_viewing_points']
+        findKey(parsed, [
+          'keyPoints', '주요 관전 포인트', 'key_viewing_points', '3_key_viewing_points',
+          '3_Key_Viewing_Points', '3 Key Viewing Points for This Match', 'key_points'
+        ])
       )
 
       return result

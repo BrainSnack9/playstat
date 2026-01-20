@@ -20,9 +20,11 @@ import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
-import { generateMetadata as buildMetadata, generateTeamSEO, generateTeamJsonLd } from '@/lib/seo'
+import { generateMetadata as buildMetadata, generateTeamSEO, generateTeamJsonLd, resolveBaseUrl } from '@/lib/seo'
 import { FormBadge } from '@/components/form-badge'
 import { LocalDateTime } from '@/components/local-time'
+import { type Locale } from '@/i18n/config'
+import { headers } from 'next/headers'
 
 interface Props {
   params: Promise<{ locale: string; id: string }>
@@ -84,6 +86,8 @@ const getCachedTeamData = (id: string) => unstable_cache(
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, locale } = await params
+  const host = headers().get('host')
+  const baseUrl = resolveBaseUrl(host)
   const team = await getCachedTeamData(id)
 
   if (!team) {
@@ -101,7 +105,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description: t('seo_description', { name: team.name, recentForm: recentForm ? ` (${recentForm})` : '' }),
         keywords: [team.name, team.league.name, t('analysis'), t('squad'), t('tactics')],
       },
-    })
+    }),
+    { path: `/team/${id}`, locale: locale as Locale, baseUrl }
   )
 }
 

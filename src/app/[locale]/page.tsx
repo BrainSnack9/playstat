@@ -12,10 +12,11 @@ import { SeasonStatus } from '@/components/season-status'
 import { ArrowRight, Calendar, ChartBar } from 'lucide-react'
 import Image from 'next/image'
 import { headers, cookies } from 'next/headers'
-import { defaultLocale } from '@/i18n/config'
+import { defaultLocale, type Locale } from '@/i18n/config'
 import { isApexHost, getSportFromCookie, SPORT_COOKIE, type SportId } from '@/lib/sport'
 import { orbitron, spaceGrotesk } from '@/lib/fonts'
 import { LanguageSwitcher } from '@/components/layout/language-switcher'
+import { generateMetadata as buildMetadata, resolveBaseUrl } from '@/lib/seo'
 
 // 빌드 시 외부 API fetch 방지 (뉴스 RSS, DB 쿼리 등)
 export const dynamic = 'force-dynamic'
@@ -31,16 +32,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const namespace = isApex ? 'landing' : 'home'
   const t = await getTranslations({ locale, namespace })
   const seo = await getTranslations({ locale, namespace: 'seo' })
+  const baseUrl = resolveBaseUrl(host)
 
-  return {
-    title: t('title'),
-    description: t('description'),
-    openGraph: {
+  return buildMetadata(
+    {
       title: t('title'),
       description: t('description'),
-      siteName: seo('site_name'),
+      keywords: [seo('site_name'), 'sports', 'analysis'],
     },
-  }
+    { path: '/', locale: locale as Locale, baseUrl }
+  )
 }
 
 export default async function HomePage({ params }: Props) {
