@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { Card, CardContent } from '@/components/ui/card'
 import { format } from 'date-fns'
 import { Calendar, Clock } from 'lucide-react'
@@ -11,7 +11,9 @@ import { MatchCard } from '@/components/match-card'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
 import { getDateLocale } from '@/lib/utils'
-import { SPORT_COOKIE, getSportFromCookie, sportIdToEnum } from '@/lib/sport'
+import { SPORT_COOKIE, getSportFromCookie, getSportFromHost, sportIdToEnum } from '@/lib/sport'
+import { generateMetadata as buildMetadata, resolveBaseUrl } from '@/lib/seo'
+import { type Locale } from '@/i18n/config'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -23,11 +25,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params
   const t = await getTranslations({ locale, namespace: 'home' })
   const tCommon = await getTranslations({ locale, namespace: 'common' })
+  const host = headers().get('host')
+  const baseUrl = resolveBaseUrl(host)
 
-  return {
-    title: t('today_matches'),
-    description: tCommon('description'),
-  }
+  return buildMetadata(
+    {
+      title: t('today_matches'),
+      description: tCommon('description'),
+    },
+    { path: '/matches/today', locale: locale as Locale, baseUrl }
+  )
 }
 
 // 서버 공유 캐시 적용: 경기 목록 데이터 조회
@@ -116,7 +123,10 @@ export default async function TodayMatchesPage({ params }: Props) {
   // 쿠키에서 타임존과 스포츠 타입 가져오기
   const cookieStore = await cookies()
   const timezone = cookieStore.get('timezone')?.value || 'Asia/Seoul'
-  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value))
+  const host = headers().get('host')
+  const sportCookie = cookieStore.get(SPORT_COOKIE)?.value
+  const sportId = sportCookie ? getSportFromCookie(sportCookie) : getSportFromHost(host)
+  const sportType = sportIdToEnum(sportId)
 
   // 서버에서 날짜 한 번만 계산 (hydration 에러 방지)
   const now = new Date()
