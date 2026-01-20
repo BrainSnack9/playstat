@@ -2,7 +2,38 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [],
   "redirects": [],
-  "rewrites": [],
+  "rewrites": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "football.playstat.space" }],
+      "destination": "/ko/football"
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "football.playstat.space" }],
+      "destination": "/ko/football/:path*"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "basketball.playstat.space" }],
+      "destination": "/ko/basketball"
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "basketball.playstat.space" }],
+      "destination": "/ko/basketball/:path*"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "baseball.playstat.space" }],
+      "destination": "/ko/baseball"
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "baseball.playstat.space" }],
+      "destination": "/ko/baseball/:path*"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
