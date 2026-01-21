@@ -80,18 +80,12 @@ export async function translateToAllLocales(
 export async function ensureMatchAnalysisTranslations(analysis: any) {
   if (!analysis) return analysis
 
-  // 영문 데이터(원본)가 있는지 확인
+  // 영문 데이터(원본)가 있는지 확인 (translations.en에서만 가져옴)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const englishData = (analysis.translations as any)?.en || {
-    summary: analysis.summaryEn || analysis.summary,
-    tacticalAnalysis: analysis.tacticalAnalysisEn || analysis.tacticalAnalysis,
-    recentFlowAnalysis: analysis.recentFlowAnalysisEn || analysis.recentFlowAnalysis,
-    seasonTrends: analysis.seasonTrendsEn || analysis.seasonTrends,
-    keyPoints: analysis.keyPointsEn || analysis.keyPoints
-  }
+  const englishData = (analysis.translations as any)?.en
 
   // 영문 데이터가 없으면 번역 불가
-  if (!englishData.summary) {
+  if (!englishData?.summary) {
     console.warn('[Translate] No English data available for analysis')
     return analysis
   }
@@ -173,31 +167,11 @@ export async function ensureDailyReportTranslations(report: any) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentTranslations = (report.translations as any) || {}
 
-  // 영문 데이터 추출
-  let englishData = currentTranslations.en
+  // 영문 데이터 추출 (translations.en에서만 가져옴)
+  const englishData = currentTranslations.en
   if (!englishData) {
-    try {
-      // 기존 summaryEn이 있으면 사용
-      if (report.summaryEn) {
-        englishData = JSON.parse(report.summaryEn)
-      } else if (report.summary) {
-        // summary가 이미 영어라면 그대로 사용
-        try {
-          englishData = typeof report.summary === 'string'
-            ? JSON.parse(report.summary)
-            : report.summary
-        } catch {
-          englishData = { content: report.summary }
-        }
-      } else {
-        console.warn('[Translate] No English data available for daily report')
-        return report
-      }
-      currentTranslations.en = englishData
-    } catch (e) {
-      console.error('[Translate] Failed to establish EN base for report', e)
-      return report
-    }
+    console.warn('[Translate] No English data available for daily report')
+    return report
   }
 
   let hasChanges = false

@@ -221,7 +221,8 @@ async function processNewsWithAI(newsItem: NewsItem): Promise<ProcessedNews | nu
 export async function collectFootballNews(limit: number = 10): Promise<NewsItem[]> {
   const allNews: NewsItem[] = []
 
-  for (const source of RSS_SOURCES) {
+  // 축구 RSS 소스에서만 수집
+  for (const source of FOOTBALL_RSS_SOURCES) {
     const items = await fetchRSSFeed(source)
     allNews.push(...items)
   }

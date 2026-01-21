@@ -403,55 +403,25 @@ export default async function DailyReportPage({ params }: Props) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         title: langData.title || tDaily(titleKey as any, { date: dateFormatted }),
         metaDescription: langData.metaDescription || tDaily('description'),
-        summary: langData.summary || report.summary || '',
+        summary: langData.summary || '',
         sections: (langData.sections && langData.sections.length > 0) ? [...langData.sections] : [],
         keywords: (langData.keywords && langData.keywords.length > 0) ? [...langData.keywords] : [],
       }
-      
+
       // 주목 경기(Hot Matches) 번역본 적용
       if (langData.hotMatches && Array.isArray(langData.hotMatches)) {
         hotMatches = [...langData.hotMatches]
-      } else {
-        hotMatches = (report.hotMatches as unknown as HotMatch[]) || []
-      }
-      
-      // 1. 만약 insights 필드에 데이터가 있다면 섹션에 추가 (구버전 호환)
-      const insightsText = typeof report.insights === 'string' ? report.insights : ''
-      if (insightsText && !content.sections.some(s => s.content === insightsText)) {
-        content.sections.push({
-          type: 'key_storylines',
-          title: tDaily('strategic_insights'),
-          content: insightsText
-        })
-      }
-
-      // 2. 만약 sections가 여전히 비어있고 summary가 JSON 문자열인 경우
-      if (content.sections.length === 0 && report.summary && report.summary.startsWith('{')) {
-        try {
-          const legacySummary = JSON.parse(report.summary)
-          if (legacySummary.sections && Array.isArray(legacySummary.sections)) {
-            content.sections = [...legacySummary.sections]
-          }
-          if (legacySummary.keywords && Array.isArray(legacySummary.keywords)) {
-            content.keywords = [...legacySummary.keywords]
-          }
-          // 주목 경기 번역본이 root에만 있을 경우 처리
-          if (!langData.hotMatches && legacySummary.hotMatches && Array.isArray(legacySummary.hotMatches)) {
-            hotMatches = [...legacySummary.hotMatches]
-          }
-        } catch { /* ignore */ }
       }
     } catch {
-      // JSON 파싱 실패 시 일반 텍스트 요약으로 처리
+      // JSON 파싱 실패 시 기본값
       content = {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         title: tDaily(titleKey as any, { date: dateFormatted }),
-        summary: report.summary || "",
+        summary: '',
         sections: [],
         keywords: [],
-        metaDescription: ""
+        metaDescription: ''
       }
-      hotMatches = (report.hotMatches as unknown as HotMatch[]) || []
     }
   }
 

@@ -49,19 +49,25 @@ export async function GET(request: Request) {
           continue
         }
 
-        // 새 뉴스 저장
+        // 새 뉴스 저장 (translations 필드에 다국어 데이터 저장)
         await prisma.news.create({
           data: {
-            title: news.title,
-            titleEn: news.title,
             link: news.link,
-            summary: news.summaryKo || news.summary,
-            summaryEn: news.summary,
             source: news.source,
             imageUrl: news.imageUrl,
             sportType: 'FOOTBALL',
             relatedTeams: news.relatedTeams,
             publishedAt: news.publishedAt,
+            translations: {
+              en: {
+                title: news.title,
+                summary: news.summary,
+              },
+              ko: {
+                title: news.titleKo || news.title,
+                summary: news.summaryKo || news.summary,
+              },
+            },
           },
         })
 

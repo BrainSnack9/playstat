@@ -72,15 +72,28 @@ async function generateReportForDate(
   })
 
   if (matches.length === 0) {
-    // 경기가 없으면 간단한 리포트 생성
+    // 경기가 없으면 간단한 리포트 생성 (translations만 사용)
+    const emptyReportKo = {
+      title: `${dateKo} ${sportLabel} 경기 일정`,
+      summary: `오늘은 ${sportLabel} 경기가 예정되어 있지 않습니다.`,
+      sections: [],
+      hotMatches: [],
+    }
+    const emptyReportEn = {
+      title: `${dateEn} ${sportLabelEn} Schedule`,
+      summary: `No ${sportLabelEn} matches scheduled for today.`,
+      sections: [],
+      hotMatches: [],
+    }
+
     await prisma.dailyReport.create({
       data: {
         date: dayStart,
         sportType: sportTypeEnum,
-        summary: `${dateKo} - 오늘은 ${sportLabel} 경기가 예정되어 있지 않습니다.`,
-        hotMatches: [],
-        keyNews: [],
-        insights: [],
+        translations: {
+          ko: emptyReportKo,
+          en: emptyReportEn,
+        },
       },
     })
 
@@ -133,7 +146,7 @@ async function generateReportForDate(
     }, null, 2))
 
   console.log(`[Cron] Generating report for ${dateStr}...`)
-  const response = await openai.chat.completions.create({
+  const response = await openai!.chat.completions.create({
     model: AI_MODELS.ANALYSIS,
     messages: [{ role: 'user', content: prompt }],
     max_tokens: TOKEN_LIMITS.ANALYSIS,
@@ -164,7 +177,6 @@ async function generateReportForDate(
       where: { id: existingReport.id },
       data: {
         translations: { en: reportData },
-        summary: JSON.stringify(reportData),
       },
     })
   } else {
@@ -173,10 +185,6 @@ async function generateReportForDate(
         date: dayStart,
         sportType: sportTypeEnum,
         translations: { en: reportData },
-        summary: JSON.stringify(reportData),
-        hotMatches: parsed.hotMatches || [],
-        keyNews: [],
-        insights: parsed.sections?.find((s: { type: string }) => s.type === 'key_storylines')?.content || null,
       },
     })
   }

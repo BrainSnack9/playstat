@@ -139,7 +139,7 @@ export default async function FootballHomePage({ params }: Props) {
         </div>
 
         <Suspense fallback={<LatestNewsSkeleton />}>
-          <LatestNews sport={SPORT_ID} />
+          <LatestNews />
         </Suspense>
       </section>
 

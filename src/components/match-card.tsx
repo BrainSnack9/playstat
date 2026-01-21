@@ -38,7 +38,7 @@ interface MatchCardProps {
       name: string
       logoUrl: string | null
     }
-    matchAnalysis: { id: string } | null
+    matchAnalysis?: { id: string } | null
   }
   locale?: string
   showDate?: boolean

@@ -102,9 +102,15 @@ export async function GET(request: Request) {
                 continue
               }
             } else if (sportType === 'basketball') {
-              standingsCache[leagueCode] = await ballDontLieApi.getStandings()
+              // BallDontLie Free tier에서 NBA standings API 미지원
+              // 시즌 경기 기반으로 순위 계산
+              const season = ballDontLieApi.getCurrentNBASeason()
+              const games = await ballDontLieApi.getGamesBySeason(season)
+              const calculatedStandings = ballDontLieApi.calculateStandings(games)
+              standingsCache[leagueCode] = { data: calculatedStandings }
             } else if (sportType === 'baseball') {
-              standingsCache[leagueCode] = await ballDontLieApi.getBaseballStandings()
+              const standings = await ballDontLieApi.getBaseballStandings()
+              standingsCache[leagueCode] = standings
             }
             totalApiCalls++
           } catch (error) {
@@ -238,24 +244,28 @@ async function collectTeamStats(
         }
       }
     } else if (sportType === 'basketball') {
-      // BallDontLie NBA standings
+      // BallDontLie NBA standings (시즌 경기 기반으로 계산된 데이터)
       const standingsData = cachedStandings as { data: Array<{
-        team: { id: number; name: string }
+        teamId: number
+        teamName: string
         conference: string
-        conference_rank: number
+        division: string
         wins: number
         losses: number
-        win_pct: string
-        games_back: string
+        gamesPlayed: number
+        winPct: number
+        form?: string
+        rank?: number
       }> }
 
-      const teamEntry = standingsData.data.find(t => String(t.team.id) === externalTeamId)
+      const teamEntry = standingsData.data.find(t => String(t.teamId) === externalTeamId)
       if (teamEntry) {
         teamStats = {
-          rank: teamEntry.conference_rank,
-          gamesPlayed: teamEntry.wins + teamEntry.losses,
+          rank: teamEntry.rank,
+          gamesPlayed: teamEntry.gamesPlayed,
           wins: teamEntry.wins,
           losses: teamEntry.losses,
+          form: teamEntry.form,
         }
       }
     } else if (sportType === 'baseball') {

@@ -194,7 +194,7 @@ export async function GET(request: Request) {
     const existingMatches = await prisma.match.findMany({
       where: {
         sportType: 'BASEBALL',
-        externalId: { in: games.map((g) => String(g.id)) },
+        externalId: { in: games.data.map((g) => String(g.id)) },
       },
       select: { id: true, externalId: true, status: true },
     })
@@ -202,7 +202,7 @@ export async function GET(request: Request) {
       existingMatches.map((m) => [m.externalId, { id: m.id, status: m.status }])
     )
 
-    for (const game of games) {
+    for (const game of games.data) {
       try {
         const homeTeamDbId = teamCache.get(game.home_team.id)
         const awayTeamDbId = teamCache.get(game.away_team.id)
@@ -280,7 +280,7 @@ export async function GET(request: Request) {
     })
     totalApiCalls++
 
-    const standings = calculateBaseballStandings(seasonGames)
+    const standings = calculateBaseballStandings(seasonGames.data)
     console.log(`[Baseball Cron] Calculated standings for ${standings.length} teams`)
 
     // 리그 시즌 업데이트
