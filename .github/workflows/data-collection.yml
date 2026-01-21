@@ -302,12 +302,23 @@ jobs:
       )
     steps:
       - name: Collect Baseball Matches
+        id: collect
         run: |
           RESPONSE=$(curl -X GET "${{ secrets.SITE_URL }}/api/cron/collect-baseball" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
             --fail --show-error)
           echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+          # 오프시즌 체크
+          OFF_SEASON=$(echo "$RESPONSE" | jq -r '.offSeason // false')
+          if [ "$OFF_SEASON" = "true" ]; then
+            echo "⚾ MLB is in off-season (Nov-Mar). Skipping data collection."
+          else
+            ADDED=$(echo "$RESPONSE" | jq -r '.results.matchesAdded // 0')
+            UPDATED=$(echo "$RESPONSE" | jq -r '.results.matchesUpdated // 0')
+            echo "✅ Collected $ADDED new matches, updated $UPDATED matches"
+          fi
+          echo "off_season=$OFF_SEASON" >> $GITHUB_OUTPUT
 
   baseball-generate-analysis:
     name: Baseball - Generate Analysis

@@ -140,6 +140,38 @@ export async function GET(request: Request) {
     const nextWeek = format(addDays(new Date(), 7), 'yyyy-MM-dd')
     const currentSeason = ballDontLieApi.getCurrentMLBSeason()
 
+    // 오프시즌 체크 (MLB: 4월~10월만 시즌)
+    const currentMonth = new Date().getMonth() + 1
+    const isOffSeason = currentMonth < 4 || currentMonth > 10
+
+    if (isOffSeason) {
+      console.log('[Baseball Cron] MLB is in off-season (Nov-Mar). Skipping data collection.')
+
+      const duration = Date.now() - startTime
+      await prisma.schedulerLog.create({
+        data: {
+          jobName: 'collect-baseball',
+          result: 'success',
+          details: {
+            message: 'Off-season - no games to collect',
+            season: currentSeason,
+            ...results
+          },
+          duration,
+          apiCalls: totalApiCalls,
+        },
+      })
+
+      return NextResponse.json({
+        success: true,
+        offSeason: true,
+        message: 'MLB is in off-season (Nov-Mar). No games to collect.',
+        duration,
+        apiCalls: totalApiCalls,
+        results,
+      })
+    }
+
     console.log(`[Baseball Cron] Fetching games from ${yesterday} to ${nextWeek}...`)
     const games = await ballDontLieApi.getBaseballGames({
       season: currentSeason,
