@@ -33,11 +33,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { path: '/terms', priority: 0.3, changeFrequency: 'monthly' as const },
       ]
     : [
+        // Home
         { path: '/', priority: 1, changeFrequency: 'daily' as const },
-        { path: '/matches/today', priority: 0.9, changeFrequency: 'hourly' as const },
-        { path: '/matches', priority: 0.7, changeFrequency: 'daily' as const },
-        { path: '/teams', priority: 0.7, changeFrequency: 'weekly' as const },
-        { path: '/leagues', priority: 0.8, changeFrequency: 'weekly' as const },
+        // Football
+        { path: '/football/matches', priority: 0.9, changeFrequency: 'hourly' as const },
+        { path: '/football/leagues', priority: 0.8, changeFrequency: 'weekly' as const },
+        { path: '/football/teams', priority: 0.7, changeFrequency: 'weekly' as const },
+        // Basketball
+        { path: '/basketball/matches', priority: 0.9, changeFrequency: 'hourly' as const },
+        { path: '/basketball/leagues', priority: 0.8, changeFrequency: 'weekly' as const },
+        { path: '/basketball/teams', priority: 0.7, changeFrequency: 'weekly' as const },
+        // Baseball
+        { path: '/baseball/matches', priority: 0.9, changeFrequency: 'hourly' as const },
+        { path: '/baseball/leagues', priority: 0.8, changeFrequency: 'weekly' as const },
+        { path: '/baseball/teams', priority: 0.7, changeFrequency: 'weekly' as const },
+        // Other
         { path: '/news', priority: 0.8, changeFrequency: 'hourly' as const },
         { path: '/about', priority: 0.5, changeFrequency: 'monthly' as const },
         { path: '/privacy', priority: 0.3, changeFrequency: 'monthly' as const },
@@ -52,65 +62,80 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return staticPages
   }
 
+  // 스포츠 타입 매핑
+  const sportTypeToPath: Record<string, string> = {
+    FOOTBALL: 'football',
+    BASKETBALL: 'basketball',
+    BASEBALL: 'baseball',
+  }
+
   // DB 연결이 없을 때는 정적 페이지만 반환
   try {
-    // 동적 페이지: 리그
+    // 동적 페이지: 리그 (스포츠별)
     const leagues = await prisma.league.findMany({
       where: { isActive: true },
-      select: { code: true, updatedAt: true },
+      select: { code: true, updatedAt: true, sportType: true },
     })
 
-    const leaguePages: MetadataRoute.Sitemap = leagues.flatMap((league) => 
-      getLocalizedUrls(baseUrl, `/league/${league.code?.toLowerCase() || 'epl'}`, 0.7, 'weekly' as const, league.updatedAt)
-    )
+    const leaguePages: MetadataRoute.Sitemap = leagues.flatMap((league) => {
+      const sportPath = sportTypeToPath[league.sportType] || 'football'
+      return getLocalizedUrls(baseUrl, `/${sportPath}/league/${league.code?.toLowerCase() || 'epl'}`, 0.7, 'weekly' as const, league.updatedAt)
+    })
 
-    // 동적 페이지: 팀
+    // 동적 페이지: 팀 (스포츠별)
     const teams = await prisma.team.findMany({
-      select: { id: true, updatedAt: true },
-      take: 250, // 언어별로 생성되므로 개수 조절 (500 -> 250 * 2 locales)
+      select: { id: true, updatedAt: true, sportType: true },
+      take: 250,
     })
 
-    const teamPages: MetadataRoute.Sitemap = teams.flatMap((team) => 
-      getLocalizedUrls(baseUrl, `/team/${team.id}`, 0.6, 'weekly' as const, team.updatedAt)
-    )
+    const teamPages: MetadataRoute.Sitemap = teams.flatMap((team) => {
+      const sportPath = sportTypeToPath[team.sportType] || 'football'
+      return getLocalizedUrls(baseUrl, `/${sportPath}/team/${team.id}`, 0.6, 'weekly' as const, team.updatedAt)
+    })
 
-    // 동적 페이지: 경기 (분석이 있는 것만)
+    // 동적 페이지: 경기 (분석이 있는 것만, 스포츠별)
     const matches = await prisma.match.findMany({
       where: {
         slug: { not: null },
         matchAnalysis: { isNot: null },
       },
-      select: { slug: true, updatedAt: true },
+      select: { slug: true, updatedAt: true, sportType: true },
       orderBy: { kickoffAt: 'desc' },
-      take: 500, // 언어별로 생성되므로 개수 조절
+      take: 500,
     })
 
     const matchPages: MetadataRoute.Sitemap = matches
       .filter((m) => m.slug)
-      .flatMap((match) => 
-        getLocalizedUrls(baseUrl, `/match/${match.slug}`, 0.8, 'daily' as const, match.updatedAt)
-      )
+      .flatMap((match) => {
+        const sportPath = sportTypeToPath[match.sportType] || 'football'
+        return getLocalizedUrls(baseUrl, `/${sportPath}/match/${match.slug}`, 0.8, 'daily' as const, match.updatedAt)
+      })
 
-    // 동적 페이지: 데일리 리포트 (최근 30일)
+    // 동적 페이지: 데일리 리포트 (최근 30일, 스포츠별)
     const dailyReports = await prisma.dailyReport.findMany({
-      select: { date: true, updatedAt: true },
+      select: { date: true, updatedAt: true, sportType: true },
       orderBy: { date: 'desc' },
-      take: 30,
+      take: 90, // 30일 x 3 스포츠
     })
 
     const dailyPages: MetadataRoute.Sitemap = dailyReports.flatMap((report) => {
       const dateStr = new Date(report.date).toISOString().split('T')[0]
-      return getLocalizedUrls(baseUrl, `/daily/${dateStr}`, 0.9, 'daily' as const, report.updatedAt)
+      const sportPath = sportTypeToPath[report.sportType] || 'football'
+      return getLocalizedUrls(baseUrl, `/${sportPath}/daily/${dateStr}`, 0.9, 'daily' as const, report.updatedAt)
     })
 
-    // 오늘 날짜 데일리 페이지 추가
+    // 오늘 날짜 데일리 페이지 추가 (모든 스포츠)
     const today = new Date().toISOString().split('T')[0]
-    const hasTodayReport = dailyReports.some(
-      (r) => new Date(r.date).toISOString().split('T')[0] === today
-    )
-    if (!hasTodayReport) {
-      const todayPages = getLocalizedUrls(baseUrl, `/daily/${today}`, 1, 'hourly' as const)
-      dailyPages.unshift(...todayPages)
+    const sports = ['football', 'basketball', 'baseball']
+    for (const sport of sports) {
+      const hasTodayReport = dailyReports.some(
+        (r) => new Date(r.date).toISOString().split('T')[0] === today &&
+               sportTypeToPath[r.sportType] === sport
+      )
+      if (!hasTodayReport) {
+        const todayPages = getLocalizedUrls(baseUrl, `/${sport}/daily/${today}`, 1, 'hourly' as const)
+        dailyPages.unshift(...todayPages)
+      }
     }
 
     return [...staticPages, ...dailyPages, ...leaguePages, ...teamPages, ...matchPages]

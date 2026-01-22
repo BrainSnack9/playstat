@@ -1,7 +1,7 @@
 import createMiddleware from 'next-intl/middleware'
 import { type NextRequest, NextResponse } from 'next/server'
 import { routing } from './i18n/routing'
-import { DEFAULT_SPORT, SPORT_COOKIE, type SportId } from './lib/sport'
+import { type SportId } from './lib/sport'
 
 const intlMiddleware = createMiddleware(routing)
 
@@ -65,15 +65,7 @@ export default function middleware(request: NextRequest) {
   }
 
   // intlMiddleware 호출
-  const response = intlMiddleware(request)
-
-  // 스포츠 쿠키 설정 - 기본값 football
-  response.cookies.set(SPORT_COOKIE, DEFAULT_SPORT, {
-    path: '/',
-    sameSite: 'lax',
-  })
-
-  return response
+  return intlMiddleware(request)
 }
 
 export const config = {

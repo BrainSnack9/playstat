@@ -8,8 +8,7 @@ import { cookies } from 'next/headers'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { format } from 'date-fns'
-import { getSportFromCookie, sportIdToEnum, SPORT_COOKIE } from '@/lib/sport'
-import type { SportId } from '@/lib/sport'
+import { sportIdToEnum, type SportId } from '@/lib/sport'
 import { SportType } from '@prisma/client'
 
 // 서버 공유 캐시 적용: 홈 화면 오늘 경기
@@ -83,24 +82,17 @@ const getCachedUpcomingMatches = (sportType: SportType) => unstable_cache(
 )()
 
 export interface TodayMatchesProps {
-  locale?: string
-  sport?: string
+  locale: string
+  sport: string
 }
 
 export async function TodayMatches({ locale, sport }: TodayMatchesProps) {
   const cookieStore = await cookies()
-  const resolvedLocale = locale || cookieStore.get('NEXT_LOCALE')?.value || 'ko'
   const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
-  // sport prop이 있으면 사용, 없으면 쿠키에서 가져옴
-  const sportType = sport
-    ? sportIdToEnum(sport as SportId) as SportType
-    : sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value)) as SportType
+  const sportType = sportIdToEnum(sport as SportId) as SportType
   const dateStr = format(new Date(), 'yyyy-MM-dd')
   const todayMatches = await getCachedTodayMatches(dateStr, timezone, sportType)
   const home = await getTranslations('home')
-
-  // sport prop이 있으면 사용, 없으면 sportType에서 변환
-  const sportId = sport || (sportType === 'FOOTBALL' ? 'football' : sportType === 'BASKETBALL' ? 'basketball' : 'baseball')
 
   // 오늘 경기가 없으면 다가오는 경기 조회
   if (todayMatches.length === 0) {
@@ -133,8 +125,8 @@ export async function TodayMatches({ locale, sport }: TodayMatchesProps) {
                 slug: (match as any).slug || match.id
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
               } as any}
-              sport={sportId}
-              locale={resolvedLocale}
+              sport={sport}
+              locale={locale}
             />
           ))}
         </div>
@@ -153,8 +145,8 @@ export async function TodayMatches({ locale, sport }: TodayMatchesProps) {
             slug: (match as any).slug || match.id
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any}
-          sport={sportId}
-          locale={resolvedLocale}
+          sport={sport}
+          locale={locale}
         />
       ))}
     </div>

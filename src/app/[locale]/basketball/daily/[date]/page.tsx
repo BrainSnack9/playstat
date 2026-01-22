@@ -16,7 +16,7 @@ import {
 import { Link } from '@/i18n/routing'
 import { format, parse, isValid, addDays } from 'date-fns'
 import { prisma } from '@/lib/prisma'
-import { getDayRangeInTimezone, getTimezoneFromCookies, getTimezoneOffsetAtDate } from '@/lib/timezone'
+import { getTimezoneFromCookies, getTimezoneOffsetAtDate } from '@/lib/timezone'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
@@ -68,35 +68,34 @@ function getTitleKey(sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL'): string 
   }
 }
 
-const getCachedDailyReport = (dateStr: string, timezone: string, sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL') => unstable_cache(
+const getCachedDailyReport = (dateStr: string, sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL') => unstable_cache(
   async () => {
     try {
-      const { start } = getDayRangeInTimezone(dateStr === 'today' ? format(new Date(), 'yyyy-MM-dd') : dateStr, timezone)
+      // DailyReport의 date 컬럼은 @db.Date 타입 (날짜만 저장)
+      // URL의 dateStr을 그대로 UTC 자정으로 변환하여 조회
+      const actualDateStr = dateStr === 'today' ? format(new Date(), 'yyyy-MM-dd') : dateStr
+      const dateOnly = new Date(actualDateStr + 'T00:00:00Z')
 
       return await prisma.dailyReport.findFirst({
-        where: { date: start, sportType },
+        where: { date: dateOnly, sportType },
       })
     } catch {
       return null
     }
   },
-  [`daily-report-${dateStr}-${timezone}-${sportType}`],
+  [`daily-report-${dateStr}-${sportType}`],
   { revalidate: DAILY_REPORT_REVALIDATE, tags: ['daily-report'] }
 )()
 
-// 서버 공유 캐시 적용: 경기 목록 데이터
-const getCachedMatches = (dateStr: string, timezone: string, sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL') => unstable_cache(
+// 서버 공유 캐시 적용: 경기 목록 데이터 (리포트의 matchIds 기반)
+const getCachedMatchesByIds = (matchIds: string[]) => unstable_cache(
   async () => {
     try {
-      const { start, end } = getDayRangeInTimezone(dateStr === 'today' ? format(new Date(), 'yyyy-MM-dd') : dateStr, timezone)
+      if (matchIds.length === 0) return []
 
       return await prisma.match.findMany({
         where: {
-          kickoffAt: {
-            gte: start,
-            lte: end,
-          },
-          sportType,
+          id: { in: matchIds },
         },
         include: {
           league: true,
@@ -110,7 +109,37 @@ const getCachedMatches = (dateStr: string, timezone: string, sportType: 'FOOTBAL
       return []
     }
   },
-  [`daily-matches-lookup-${dateStr}-${timezone}-${sportType}`],
+  [`daily-matches-by-ids-${matchIds.slice(0, 5).join('-')}-${matchIds.length}`],
+  { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
+)()
+
+// 폴백: matchIds가 없는 기존 리포트용 날짜 범위 조회
+const getCachedMatchesByDateRange = (dateStr: string, sportType: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL') => unstable_cache(
+  async () => {
+    try {
+      const actualDateStr = dateStr === 'today' ? format(new Date(), 'yyyy-MM-dd') : dateStr
+      const dateOnly = new Date(actualDateStr + 'T00:00:00Z')
+      const dayStart = dateOnly
+      const dayEnd = new Date(dateOnly.getTime() + 24 * 60 * 60 * 1000 - 1)
+
+      return await prisma.match.findMany({
+        where: {
+          sportType,
+          kickoffAt: { gte: dayStart, lte: dayEnd },
+        },
+        include: {
+          league: true,
+          homeTeam: { include: { seasonStats: true } },
+          awayTeam: { include: { seasonStats: true } },
+          matchAnalysis: true,
+        },
+        orderBy: { kickoffAt: 'asc' },
+      })
+    } catch {
+      return []
+    }
+  },
+  [`daily-matches-fallback-${dateStr}-${sportType}`],
   { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
 )()
 
@@ -135,7 +164,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
-  const report = await getCachedDailyReport(dateStr, timezone, SPORT_TYPE)
+  const report = await getCachedDailyReport(dateStr, SPORT_TYPE)
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
   const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
   const offsetMinutes = getTimezoneOffsetAtDate(timezone, utcBase)
@@ -353,10 +382,18 @@ export default async function DailyReportPage({ params }: Props) {
     notFound()
   }
 
-  const [initialReport, matches] = await Promise.all([
-    getCachedDailyReport(dateStr, timezone, SPORT_TYPE),
-    getCachedMatches(dateStr, timezone, SPORT_TYPE),
-  ])
+  // 먼저 리포트 조회
+  const initialReport = await getCachedDailyReport(dateStr, SPORT_TYPE)
+
+  // 리포트에서 matchIds 추출하여 경기 조회 (타임존 독립적)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const reportTranslationsRaw = (initialReport?.translations as any) || {}
+  const matchIdsFromReport: string[] = reportTranslationsRaw?.en?.matchIds || reportTranslationsRaw?.ko?.matchIds || []
+
+  // matchIds가 있으면 ID 기반 조회, 없으면 날짜 범위 폴백
+  const matches = matchIdsFromReport.length > 0
+    ? await getCachedMatchesByIds(matchIdsFromReport)
+    : await getCachedMatchesByDateRange(dateStr, SPORT_TYPE)
 
   // 번역은 생성 시점에 완료된 데이터만 사용 (렌더링 중 생성하지 않음)
   const report = initialReport || null
@@ -553,6 +590,7 @@ export default async function DailyReportPage({ params }: Props) {
                             <Card className="h-full transition-all hover:shadow-md hover:border-primary/50">
                               <CardContent className="p-4">
                                 <div className="flex items-center gap-2 mb-2">
+                                  <LeagueLogo logoUrl={match.league.logoUrl} name={match.league.name} size="xs" />
                                   <Badge variant="secondary" className="text-xs">
                                     {match.league.name}
                                   </Badge>
@@ -564,8 +602,7 @@ export default async function DailyReportPage({ params }: Props) {
                                 <p className="text-sm text-muted-foreground mb-2 text-start line-clamp-2">
                                   {hot.preview}
                                 </p>
-                                <p className="text-xs text-primary flex items-center gap-1 text-start font-bold">
-                                  <TrendingUp className="h-3 w-3" />
+                                <p className="text-xs text-primary text-start font-bold">
                                   {hot.keyPoint}
                                 </p>
                               </CardContent>
@@ -771,21 +808,36 @@ export default async function DailyReportPage({ params }: Props) {
 
               {/* AI Deep Analysis Sections */}
               {content?.sections && content.sections.length > 0 ? (
-                content.sections.map((section, i) => (
-                  <Card key={i} className="border-none shadow-sm bg-muted/30">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-primary" />
-                        {section.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line text-start">
-                        {section.content}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))
+                content.sections.map((section, i) => {
+                  // 섹션 타입별 아이콘 매핑
+                  const sectionIcons: Record<string, React.ReactNode> = {
+                    highlight_matches: <Star className="h-4 w-4 text-yellow-500" />,
+                    statistical_edges: <TrendingUp className="h-4 w-4 text-green-500" />,
+                    streak_watch: <Sparkles className="h-4 w-4 text-orange-500" />,
+                    standings_impact: <Trophy className="h-4 w-4 text-blue-500" />,
+                    // 기존 타입 호환
+                    league_overview: <Calendar className="h-4 w-4 text-purple-500" />,
+                    key_storylines: <Sparkles className="h-4 w-4 text-pink-500" />,
+                    team_focus: <TrendingUp className="h-4 w-4 text-cyan-500" />,
+                  }
+                  const icon = sectionIcons[section.type] || <Sparkles className="h-4 w-4 text-primary" />
+
+                  return (
+                    <Card key={i} className="border-none shadow-sm bg-muted/30">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          {icon}
+                          {section.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line text-start">
+                          {section.content}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )
+                })
               ) : (
                 <Card className="border-none shadow-sm bg-muted/10 border-dashed border-2">
                   <CardContent className="p-8 text-center text-muted-foreground italic">

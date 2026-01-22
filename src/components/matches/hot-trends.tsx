@@ -10,8 +10,7 @@ import { cookies } from 'next/headers'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { format } from 'date-fns'
-import { getSportFromCookie, sportIdToEnum, SPORT_COOKIE } from '@/lib/sport'
-import type { SportId } from '@/lib/sport'
+import { sportIdToEnum, type SportId } from '@/lib/sport'
 import { SportType } from '@prisma/client'
 import { LeagueLogo } from '@/components/ui/league-logo'
 import { TeamLogo } from '@/components/ui/team-logo'
@@ -86,21 +85,17 @@ const getCachedTrendingMatches = (dateStr: string, timezone: string, sportType: 
 )()
 
 interface HotTrendsProps {
-  locale?: string
-  sport?: string
+  locale: string
+  sport: string
 }
 
 export async function HotTrends({ locale, sport }: HotTrendsProps) {
   const cookieStore = await cookies()
-  const resolvedLocale = locale || cookieStore.get('NEXT_LOCALE')?.value || 'ko'
-  const t = await getTranslations({ locale: resolvedLocale, namespace: 'home' })
-  const tt = await getTranslations({ locale: resolvedLocale, namespace: 'trends' })
+  const t = await getTranslations({ locale, namespace: 'home' })
+  const tt = await getTranslations({ locale, namespace: 'trends' })
 
   const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
-  // sport prop이 있으면 사용, 없으면 쿠키에서 가져옴
-  const sportType = sport
-    ? sportIdToEnum(sport as SportId) as SportType
-    : sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value)) as SportType
+  const sportType = sportIdToEnum(sport as SportId) as SportType
   const dateStr = format(new Date(), 'yyyy-MM-dd')
   const trendingMatches = await getCachedTrendingMatches(dateStr, timezone, sportType)
 
