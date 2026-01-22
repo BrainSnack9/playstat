@@ -12,28 +12,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
+      - name: Collect NBA Stats via Railway API
         run: |
-          pip install -r scripts/requirements.txt
+          RESPONSE=$(curl -X POST "${{ secrets.RAILWAY_NBA_API_URL }}/collect-nba-stats" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail --show-error --max-time 120)
+          echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
 
-      - name: Run NBA stats collector
-        env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          python scripts/collect-nba-stats.py
+          # Check success
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success // false')
+          if [ "$SUCCESS" = "true" ]; then
+            INSERTED=$(echo "$RESPONSE" | jq -r '.inserted // 0')
+            UPDATED=$(echo "$RESPONSE" | jq -r '.updated // 0')
+            echo "✅ Successfully collected NBA stats: $INSERTED inserted, $UPDATED updated"
+          else
+            echo "❌ Failed to collect NBA stats"
+            exit 1
+          fi
 
       - name: Summary
+        if: always()
         run: |
           echo "# 🏀 NBA Advanced Stats Collection" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Status**: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "**Method**: Railway API" >> $GITHUB_STEP_SUMMARY
           echo "**Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
