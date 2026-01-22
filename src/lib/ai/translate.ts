@@ -11,8 +11,105 @@ const LANG_MAP: Record<string, string> = {
   de: 'de',
 }
 
+// 스포츠 팀 이름 목록 (번역하지 않고 원문 유지)
+
+// NBA 팀 이름
+const NBA_TEAM_NAMES = [
+  'Atlanta Hawks', 'Boston Celtics', 'Brooklyn Nets', 'Charlotte Hornets',
+  'Chicago Bulls', 'Cleveland Cavaliers', 'Dallas Mavericks', 'Denver Nuggets',
+  'Detroit Pistons', 'Golden State Warriors', 'Houston Rockets', 'Indiana Pacers',
+  'LA Clippers', 'Los Angeles Clippers', 'Los Angeles Lakers', 'LA Lakers',
+  'Memphis Grizzlies', 'Miami Heat', 'Milwaukee Bucks', 'Minnesota Timberwolves',
+  'New Orleans Pelicans', 'New York Knicks', 'Oklahoma City Thunder', 'Orlando Magic',
+  'Philadelphia 76ers', 'Phoenix Suns', 'Portland Trail Blazers', 'Sacramento Kings',
+  'San Antonio Spurs', 'Toronto Raptors', 'Utah Jazz', 'Washington Wizards',
+  // 짧은 이름
+  'Hawks', 'Celtics', 'Nets', 'Hornets', 'Bulls', 'Cavaliers', 'Cavs',
+  'Mavericks', 'Mavs', 'Nuggets', 'Pistons', 'Warriors', 'Dubs', 'Rockets',
+  'Pacers', 'Clippers', 'Lakers', 'Grizzlies', 'Heat', 'Bucks', 'Timberwolves',
+  'Wolves', 'Pelicans', 'Pels', 'Knicks', 'Thunder', 'Magic', '76ers', 'Sixers',
+  'Suns', 'Trail Blazers', 'Blazers', 'Kings', 'Spurs', 'Raptors', 'Jazz', 'Wizards'
+]
+
+// 축구 팀 이름 (Premier League, La Liga, Bundesliga, Serie A, Ligue 1)
+const FOOTBALL_TEAM_NAMES = [
+  // Premier League
+  'Arsenal', 'Aston Villa', 'AFC Bournemouth', 'Bournemouth', 'Brentford',
+  'Brighton & Hove Albion', 'Brighton', 'Chelsea', 'Crystal Palace',
+  'Everton', 'Fulham', 'Ipswich Town', 'Ipswich', 'Leicester City', 'Leicester',
+  'Liverpool', 'Manchester City', 'Man City', 'Manchester United', 'Man United', 'Man Utd',
+  'Newcastle United', 'Newcastle', 'Nottingham Forest', "Nott'm Forest",
+  'Southampton', 'Tottenham Hotspur', 'Tottenham', 'Spurs',
+  'West Ham United', 'West Ham', 'Wolverhampton Wanderers', 'Wolves',
+  // La Liga
+  'Real Madrid', 'Barcelona', 'Atletico Madrid', 'Atletico', 'Athletic Bilbao', 'Athletic Club',
+  'Real Sociedad', 'Real Betis', 'Betis', 'Villarreal', 'Sevilla',
+  'Valencia', 'Osasuna', 'Getafe', 'Celta Vigo', 'Celta', 'Mallorca',
+  'Las Palmas', 'Rayo Vallecano', 'Alaves', 'Girona', 'Leganes', 'Valladolid', 'Espanyol',
+  // Bundesliga
+  'Bayern Munich', 'Bayern', 'Borussia Dortmund', 'Dortmund', 'BVB',
+  'RB Leipzig', 'Leipzig', 'Bayer Leverkusen', 'Leverkusen',
+  'Eintracht Frankfurt', 'Frankfurt', 'VfB Stuttgart', 'Stuttgart',
+  'Borussia Monchengladbach', 'Monchengladbach', 'Gladbach',
+  'Werder Bremen', 'Bremen', 'VfL Wolfsburg', 'Wolfsburg',
+  'SC Freiburg', 'Freiburg', 'TSG Hoffenheim', 'Hoffenheim',
+  'FC Augsburg', 'Augsburg', 'Mainz 05', 'Mainz',
+  'Union Berlin', 'FC Koln', 'Koln', 'Heidenheim', 'Bochum', 'Darmstadt',
+  // Serie A
+  'Inter Milan', 'Inter', 'AC Milan', 'Milan', 'Juventus', 'Juve',
+  'Napoli', 'Roma', 'AS Roma', 'Lazio', 'Atalanta', 'Fiorentina',
+  'Bologna', 'Torino', 'Monza', 'Genoa', 'Lecce', 'Empoli',
+  'Cagliari', 'Verona', 'Hellas Verona', 'Udinese', 'Sassuolo', 'Salernitana', 'Frosinone',
+  // Ligue 1
+  'Paris Saint-Germain', 'PSG', 'Marseille', 'Olympique Marseille', 'OM',
+  'Monaco', 'AS Monaco', 'Lyon', 'Olympique Lyon', 'OL',
+  'Lille', 'LOSC Lille', 'Nice', 'OGC Nice', 'Lens', 'RC Lens',
+  'Rennes', 'Stade Rennais', 'Strasbourg', 'Nantes', 'Montpellier',
+  'Reims', 'Toulouse', 'Brest', 'Le Havre', 'Metz', 'Lorient', 'Clermont'
+]
+
+// 모든 팀 이름 통합
+const ALL_TEAM_NAMES = [...NBA_TEAM_NAMES, ...FOOTBALL_TEAM_NAMES]
+
+/**
+ * 팀 이름을 플레이스홀더로 대체하고 번역 후 복원합니다.
+ */
+function protectTeamNames(text: string): { protected: string; replacements: Map<string, string> } {
+  const replacements = new Map<string, string>()
+  let protected_text = text
+  let index = 0
+
+  // 긴 이름부터 처리 (Los Angeles Lakers가 Lakers보다 먼저 처리되도록)
+  const sortedTeams = [...ALL_TEAM_NAMES].sort((a, b) => b.length - a.length)
+
+  for (const teamName of sortedTeams) {
+    // 대소문자 구분 없이 매칭, 단어 경계 고려
+    const regex = new RegExp(`\\b${teamName}\\b`, 'gi')
+    const matches = protected_text.match(regex)
+    if (matches) {
+      for (const match of matches) {
+        const placeholder = `__TEAM_${index}__`
+        replacements.set(placeholder, match)
+        protected_text = protected_text.replace(match, placeholder)
+        index++
+      }
+    }
+  }
+
+  return { protected: protected_text, replacements }
+}
+
+function restoreTeamNames(text: string, replacements: Map<string, string>): string {
+  let restored = text
+  for (const [placeholder, original] of replacements) {
+    restored = restored.replace(placeholder, original)
+  }
+  return restored
+}
+
 /**
  * Google Translate (비공식 무료 API)를 사용하여 텍스트를 번역합니다.
+ * 팀 이름은 원문 그대로 유지됩니다.
  */
 async function translateWithGoogle(
   text: string,
@@ -25,14 +122,19 @@ async function translateWithGoogle(
   const source = LANG_MAP[sourceLang] || sourceLang
   const target = LANG_MAP[targetLang] || targetLang
 
+  // 팀 이름 보호
+  const { protected: protectedText, replacements } = protectTeamNames(text)
+
   try {
-    const result = await translate(text, {
+    const result = await translate(protectedText, {
       from: source,
       to: target,
       autoCorrect: false,
     })
 
-    return result.text || text
+    // 팀 이름 복원
+    const translatedText = result.text || text
+    return restoreTeamNames(translatedText, replacements)
   } catch (error) {
     console.error(`[Translate] Google Translate failed:`, error)
     return text

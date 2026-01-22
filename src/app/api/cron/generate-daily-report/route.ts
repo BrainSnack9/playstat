@@ -3,9 +3,7 @@ import { openai, AI_MODELS, TOKEN_LIMITS } from '@/lib/openai'
 import type { PrismaClient, SportType } from '@prisma/client'
 import { format, addDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { getDayRangeInTimezone } from '@/lib/timezone'
 import { getSportFromRequest, sportIdToEnum } from '@/lib/sport'
-
 import { revalidateTag } from 'next/cache'
 
 const CRON_SECRET = process.env.CRON_SECRET
@@ -21,21 +19,23 @@ async function getPrisma(): Promise<PrismaClient> {
 async function generateReportForDate(
   prisma: PrismaClient,
   dateStr: string,
-  timezone: string,
   sportTypeEnum: SportType,
   sportLabel: string,
   sportLabelEn: string
 ): Promise<{ success: boolean; reportId?: string; matchCount: number; message?: string }> {
-  const { start: dayStart, end: dayEnd } = getDayRangeInTimezone(dateStr, timezone)
+  // UTC 기준 날짜 범위 (전세계 일관성)
+  const dateOnly = new Date(dateStr + 'T00:00:00Z')
+  const dayStart = dateOnly
+  const dayEnd = new Date(dateOnly.getTime() + 24 * 60 * 60 * 1000 - 1)
 
-  // 표시용 날짜 (타임존 기준)
+  // 표시용 날짜
   const displayDate = new Date(dateStr + 'T00:00:00')
   const dateKo = format(displayDate, 'yyyy년 M월 d일 (EEEE)', { locale: ko })
   const dateEn = format(displayDate, 'EEEE, MMMM do, yyyy')
 
-  // 이미 리포트가 있는지 확인
+  // 이미 리포트가 있는지 확인 (date 컬럼은 @db.Date 타입)
   const existingReport = await prisma.dailyReport.findFirst({
-    where: { date: dayStart, sportType: sportTypeEnum },
+    where: { date: dateOnly, sportType: sportTypeEnum },
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,7 +48,7 @@ async function generateReportForDate(
     }
   }
 
-  // 해당 날짜의 경기 조회
+  // 해당 날짜의 경기 조회 (팀 통계 포함)
   const matches = await prisma.match.findMany({
     where: {
       sportType: sportTypeEnum,
@@ -61,34 +61,116 @@ async function generateReportForDate(
     include: {
       league: true,
       homeTeam: {
-        include: { seasonStats: true },
+        include: {
+          seasonStats: true,
+          recentMatches: true,
+        },
       },
       awayTeam: {
-        include: { seasonStats: true },
+        include: {
+          seasonStats: true,
+          recentMatches: true,
+        },
       },
       matchAnalysis: true,
     },
     orderBy: { kickoffAt: 'asc' },
   })
 
+  // NBA Advanced Stats 조회 (농구인 경우만)
+  const advancedStatsMap = new Map<string, {
+    offRating: number | null
+    defRating: number | null
+    netRating: number | null
+    pace: number | null
+    fgPct: number | null
+    fg3Pct: number | null
+    avgPts: number | null
+    avgReb: number | null
+    avgAst: number | null
+  }>()
+
+  if (sportTypeEnum === 'BASKETBALL') {
+    const teamIds = [...new Set(matches.flatMap(m => [m.homeTeamId, m.awayTeamId]))]
+    if (teamIds.length > 0) {
+      const advancedStats = await prisma.teamAdvancedStats.findMany({
+        where: {
+          teamId: { in: teamIds },
+          sportType: 'BASKETBALL',
+        },
+        orderBy: { updatedAt: 'desc' },
+      })
+      for (const stat of advancedStats) {
+        if (!advancedStatsMap.has(stat.teamId)) {
+          advancedStatsMap.set(stat.teamId, {
+            offRating: stat.offRating,
+            defRating: stat.defRating,
+            netRating: stat.netRating,
+            pace: stat.pace,
+            fgPct: stat.fgPct,
+            fg3Pct: stat.fg3Pct,
+            avgPts: stat.avgPts,
+            avgReb: stat.avgReb,
+            avgAst: stat.avgAst,
+          })
+        }
+      }
+    }
+  }
+
+  // H2H 데이터 조회 (각 경기별)
+  const h2hMap = new Map<string, { teamAWins: number; teamBWins: number; draws: number; recentResults: string[] }>()
+  for (const match of matches) {
+    const h2h = await prisma.headToHead.findFirst({
+      where: {
+        OR: [
+          { teamAId: match.homeTeamId, teamBId: match.awayTeamId },
+          { teamAId: match.awayTeamId, teamBId: match.homeTeamId },
+        ],
+      },
+    })
+    if (h2h) {
+      const matchesJson = h2h.matchesJson as Array<{ homeScore: number; awayScore: number; homeTeamId: string }>
+      let homeWins = 0, awayWins = 0, draws = 0
+      const recentResults: string[] = []
+
+      for (const m of matchesJson.slice(0, 5)) {
+        const isHomeTeamA = m.homeTeamId === match.homeTeamId
+        if (m.homeScore === m.awayScore) {
+          draws++
+          recentResults.push('D')
+        } else if ((m.homeScore > m.awayScore && isHomeTeamA) || (m.homeScore < m.awayScore && !isHomeTeamA)) {
+          homeWins++
+          recentResults.push('H')
+        } else {
+          awayWins++
+          recentResults.push('A')
+        }
+      }
+      h2hMap.set(match.id, { teamAWins: homeWins, teamBWins: awayWins, draws, recentResults })
+    }
+  }
+
   if (matches.length === 0) {
-    // 경기가 없으면 간단한 리포트 생성 (translations만 사용)
+    // 경기가 없으면 간단한 리포트 생성 (날짜 제외 - 타임존 독립적)
     const emptyReportKo = {
-      title: `${dateKo} ${sportLabel} 경기 일정`,
-      summary: `오늘은 ${sportLabel} 경기가 예정되어 있지 않습니다.`,
+      title: `${sportLabel} 경기 일정`,
+      summary: `${sportLabel} 경기가 예정되어 있지 않습니다.`,
       sections: [],
       hotMatches: [],
+      matchIds: [],
     }
     const emptyReportEn = {
-      title: `${dateEn} ${sportLabelEn} Schedule`,
-      summary: `No ${sportLabelEn} matches scheduled for today.`,
+      title: `${sportLabelEn} Schedule`,
+      summary: `No ${sportLabelEn} matches scheduled.`,
       sections: [],
       hotMatches: [],
+      matchIds: [],
     }
 
     await prisma.dailyReport.create({
       data: {
-        date: dayStart,
+        date: dateOnly,
         sportType: sportTypeEnum,
         translations: {
           ko: emptyReportKo,
@@ -104,27 +186,95 @@ async function generateReportForDate(
     }
   }
 
-  // AI 입력 데이터 구성
-  const matchData = matches.map((match) => ({
-    id: match.id,
-    league: match.league.name,
-    leagueCode: match.league.code,
-    kickoffAt: format(match.kickoffAt, 'HH:mm'),
-    homeTeam: {
-      name: match.homeTeam.name,
-      rank: match.homeTeam.seasonStats?.rank,
-      form: match.homeTeam.seasonStats?.form,
-      points: match.homeTeam.seasonStats?.points,
-    },
-    awayTeam: {
-      name: match.awayTeam.name,
-      rank: match.awayTeam.seasonStats?.rank,
-      form: match.awayTeam.seasonStats?.form,
-      points: match.awayTeam.seasonStats?.points,
-    },
-    hasAnalysis: !!match.matchAnalysis,
-    matchday: match.matchday,
-  }))
+  // 연승/연패 계산 헬퍼
+  const calculateStreak = (form: string | null | undefined): string => {
+    if (!form) return '-'
+    const matches = form.split('')
+    let streak = 0
+    const firstResult = matches[0]
+    for (const result of matches) {
+      if (result === firstResult) streak++
+      else break
+    }
+    const label = firstResult === 'W' ? 'W' : firstResult === 'L' ? 'L' : 'D'
+    return `${label}${streak}`
+  }
+
+  // AI 입력 데이터 구성 (보강된 버전 + Advanced Stats)
+  const matchData = matches.map((match) => {
+    const homeStats = match.homeTeam.seasonStats
+    const awayStats = match.awayTeam.seasonStats
+    const h2h = h2hMap.get(match.id)
+    const homeAdvanced = advancedStatsMap.get(match.homeTeamId)
+    const awayAdvanced = advancedStatsMap.get(match.awayTeamId)
+
+    return {
+      id: match.id,
+      league: match.league.name,
+      leagueCode: match.league.code,
+      kickoffAt: format(match.kickoffAt, 'HH:mm'),
+      homeTeam: {
+        name: match.homeTeam.name,
+        rank: homeStats?.rank,
+        form: homeStats?.form,
+        streak: calculateStreak(homeStats?.form),
+        record: homeStats ? `${homeStats.wins}-${homeStats.losses}${homeStats.draws != null ? `-${homeStats.draws}` : ''}` : null,
+        // 득실점 (농구: pointsScored/Allowed, 축구: goalsFor/Against)
+        avgScored: homeStats?.pointsScored ?? (homeStats?.goalsFor && homeStats.gamesPlayed ? (homeStats.goalsFor / homeStats.gamesPlayed).toFixed(1) : null),
+        avgAllowed: homeStats?.pointsAllowed ?? (homeStats?.goalsAgainst && homeStats.gamesPlayed ? (homeStats.goalsAgainst / homeStats.gamesPlayed).toFixed(1) : null),
+        // 홈 성적
+        homeRecord: homeStats ? `${homeStats.homeWins}-${homeStats.homeLosses ?? 0}${homeStats.homeDraws != null ? `-${homeStats.homeDraws}` : ''}` : null,
+        homeAvgScored: homeStats?.homeAvgFor,
+        homeAvgAllowed: homeStats?.homeAvgAgainst,
+        // NBA Advanced Stats (농구 전용)
+        ...(homeAdvanced ? {
+          offRating: homeAdvanced.offRating,
+          defRating: homeAdvanced.defRating,
+          netRating: homeAdvanced.netRating,
+          pace: homeAdvanced.pace,
+          fgPct: homeAdvanced.fgPct ? (homeAdvanced.fgPct * 100).toFixed(1) : null,
+          fg3Pct: homeAdvanced.fg3Pct ? (homeAdvanced.fg3Pct * 100).toFixed(1) : null,
+          ppg: homeAdvanced.avgPts,
+          rpg: homeAdvanced.avgReb,
+          apg: homeAdvanced.avgAst,
+        } : {}),
+      },
+      awayTeam: {
+        name: match.awayTeam.name,
+        rank: awayStats?.rank,
+        form: awayStats?.form,
+        streak: calculateStreak(awayStats?.form),
+        record: awayStats ? `${awayStats.wins}-${awayStats.losses}${awayStats.draws != null ? `-${awayStats.draws}` : ''}` : null,
+        avgScored: awayStats?.pointsScored ?? (awayStats?.goalsFor && awayStats.gamesPlayed ? (awayStats.goalsFor / awayStats.gamesPlayed).toFixed(1) : null),
+        avgAllowed: awayStats?.pointsAllowed ?? (awayStats?.goalsAgainst && awayStats.gamesPlayed ? (awayStats.goalsAgainst / awayStats.gamesPlayed).toFixed(1) : null),
+        // 원정 성적
+        awayRecord: awayStats ? `${awayStats.awayWins}-${awayStats.awayLosses ?? 0}${awayStats.awayDraws != null ? `-${awayStats.awayDraws}` : ''}` : null,
+        awayAvgScored: awayStats?.awayAvgFor,
+        awayAvgAllowed: awayStats?.awayAvgAgainst,
+        // NBA Advanced Stats (농구 전용)
+        ...(awayAdvanced ? {
+          offRating: awayAdvanced.offRating,
+          defRating: awayAdvanced.defRating,
+          netRating: awayAdvanced.netRating,
+          pace: awayAdvanced.pace,
+          fgPct: awayAdvanced.fgPct ? (awayAdvanced.fgPct * 100).toFixed(1) : null,
+          fg3Pct: awayAdvanced.fg3Pct ? (awayAdvanced.fg3Pct * 100).toFixed(1) : null,
+          ppg: awayAdvanced.avgPts,
+          rpg: awayAdvanced.avgReb,
+          apg: awayAdvanced.avgAst,
+        } : {}),
+      },
+      // 상대전적
+      h2h: h2h ? {
+        homeWins: h2h.teamAWins,
+        awayWins: h2h.teamBWins,
+        draws: h2h.draws,
+        recentResults: h2h.recentResults.join(''), // "HHADH" 형식
+      } : null,
+      hasAnalysis: !!match.matchAnalysis,
+      matchday: match.matchday,
+    }
+  })
 
   // 리그별 그룹핑
   const matchesByLeague: Record<string, typeof matchData> = {}
@@ -161,7 +311,8 @@ async function generateReportForDate(
 
   const parsed = JSON.parse(content)
 
-  // DB에 저장
+  // DB에 저장 (경기 ID 목록 포함)
+  const matchIds = matches.map((m) => m.id)
   const reportData = {
     title: parsed.title,
     metaDescription: parsed.metaDescription,
@@ -169,6 +320,7 @@ async function generateReportForDate(
     sections: parsed.sections,
     keywords: parsed.keywords,
     hotMatches: parsed.hotMatches || [],
+    matchIds, // 리포트 생성에 사용된 경기 ID 목록
   }
 
   let report
@@ -182,7 +334,7 @@ async function generateReportForDate(
   } else {
     report = await prisma.dailyReport.create({
       data: {
-        date: dayStart,
+        date: dateOnly,
         sportType: sportTypeEnum,
         translations: { en: reportData },
       },
@@ -229,19 +381,17 @@ export async function GET(request: Request) {
   const sportLabelEn = sportId === 'basketball' ? 'NBA' : sportId === 'baseball' ? 'MLB' : 'Football'
 
   try {
-    const url = new URL(request.url)
-    const timezone = url.searchParams.get('timezone') || 'Asia/Seoul'
-
-    // 오늘과 내일 날짜 계산 (타임존 기준)
-    const todayStr = format(new Date(), 'yyyy-MM-dd')
-    const tomorrowStr = format(addDays(new Date(), 1), 'yyyy-MM-dd')
+    // UTC 기준 오늘/내일 날짜 계산 (전세계 일관성)
+    const now = new Date()
+    const todayStr = format(now, 'yyyy-MM-dd')
+    const tomorrowStr = format(addDays(now, 1), 'yyyy-MM-dd')
 
     const results = []
 
-    // 오늘 리포트 확인
-    const { start: todayStart } = getDayRangeInTimezone(todayStr, timezone)
+    // 오늘 리포트 확인 (UTC 날짜 기준)
+    const todayDateOnly = new Date(todayStr + 'T00:00:00Z')
     const todayReport = await prisma.dailyReport.findFirst({
-      where: { date: todayStart, sportType: sportTypeEnum },
+      where: { date: todayDateOnly, sportType: sportTypeEnum },
     })
 
     // 오늘 리포트가 없으면 생성
@@ -250,7 +400,6 @@ export async function GET(request: Request) {
       const todayResult = await generateReportForDate(
         prisma,
         todayStr,
-        timezone,
         sportTypeEnum,
         sportLabel,
         sportLabelEn
@@ -266,7 +415,6 @@ export async function GET(request: Request) {
     const tomorrowResult = await generateReportForDate(
       prisma,
       tomorrowStr,
-      timezone,
       sportTypeEnum,
       sportLabel,
       sportLabelEn
@@ -285,7 +433,6 @@ export async function GET(request: Request) {
         result: 'success',
         details: {
           sportType: sportId,
-          timezone,
           results,
         },
         duration,

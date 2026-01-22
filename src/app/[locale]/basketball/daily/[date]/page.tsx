@@ -815,6 +815,7 @@ export default async function DailyReportPage({ params }: Props) {
                     statistical_edges: <TrendingUp className="h-4 w-4 text-green-500" />,
                     streak_watch: <Sparkles className="h-4 w-4 text-orange-500" />,
                     standings_impact: <Trophy className="h-4 w-4 text-blue-500" />,
+                    other_matches: <Calendar className="h-4 w-4 text-gray-500" />,
                     // 기존 타입 호환
                     league_overview: <Calendar className="h-4 w-4 text-purple-500" />,
                     key_storylines: <Sparkles className="h-4 w-4 text-pink-500" />,
