@@ -283,18 +283,18 @@ export default async function LeaguePageContent({ params, sport }: { params: Pro
                       Eastern Conference
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="px-2 sm:px-6">
                     <div className="overflow-x-auto">
-                      <table className="w-full">
+                      <table className="w-full text-xs sm:text-sm">
                         <thead>
-                          <tr className="border-b text-left text-sm text-muted-foreground">
-                            <th className="pb-3 pr-4 text-center">{tLeague('rank')}</th>
-                            <th className="pb-3 pr-4">{tMatch('team')}</th>
-                            <th className="pb-3 pr-4 text-center">{tMatch('games')}</th>
-                            <th className="pb-3 pr-4 text-center">{tMatch('win')}</th>
-                            <th className="pb-3 pr-4 text-center">{tMatch('loss')}</th>
-                            <th className="pb-3 pr-4 text-center">PCT</th>
-                            <th className="pb-3 pr-4 text-center">{tMatch('recent_form')}</th>
+                          <tr className="border-b text-left text-muted-foreground">
+                            <th className="pb-2 pr-1 sm:pr-4 text-center">{tLeague('rank')}</th>
+                            <th className="pb-2 pr-1 sm:pr-4">{tMatch('team')}</th>
+                            <th className="pb-2 pr-1 sm:pr-4 text-center">{tMatch('games')}</th>
+                            <th className="pb-2 pr-1 sm:pr-4 text-center">{tMatch('win')}</th>
+                            <th className="pb-2 pr-1 sm:pr-4 text-center">{tMatch('loss')}</th>
+                            <th className="pb-2 pr-1 sm:pr-4 text-center">PCT</th>
+                            <th className="pb-2 text-center hidden sm:table-cell">{tMatch('recent_form')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -308,26 +308,27 @@ export default async function LeaguePageContent({ params, sport }: { params: Pro
 
                             return (
                               <tr key={team.id} className="border-b last:border-0 hover:bg-muted/50">
-                                <td className="py-3 pr-4 text-center font-medium">{rankDisplay}</td>
-                                <td className="py-3 pr-4">
-                                  <div className="flex items-center gap-2">
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4 text-center font-medium">{rankDisplay}</td>
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4">
+                                  <Link href={`/basketball/team/${team.id}`} className="flex items-center gap-1 sm:gap-2 hover:text-primary">
                                     {team.logoUrl ? (
-                                      <Image src={team.logoUrl} alt={team.name} width={28} height={28} className="rounded" />
+                                      <Image src={team.logoUrl} alt={team.name} width={28} height={28} className="rounded h-5 w-5 sm:h-7 sm:w-7" />
                                     ) : (
-                                      <div className="flex h-7 w-7 items-center justify-center rounded bg-muted">
-                                        <span className="text-xs font-bold">{team.tla || team.shortName}</span>
+                                      <div className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded bg-muted">
+                                        <span className="text-[10px] sm:text-xs font-bold">{team.tla || team.shortName}</span>
                                       </div>
                                     )}
-                                    <span className="font-medium">{team.name}</span>
-                                  </div>
+                                    <span className="sm:hidden font-medium truncate max-w-[80px]">{team.shortName || team.name}</span>
+                                    <span className="hidden sm:inline font-medium">{team.name}</span>
+                                  </Link>
                                 </td>
-                                <td className="py-3 pr-4 text-center">{stats.gamesPlayed}</td>
-                                <td className="py-3 pr-4 text-center text-green-600">{stats.wins}</td>
-                                <td className="py-3 pr-4 text-center text-red-600">{stats.losses}</td>
-                                <td className="py-3 pr-4 text-center font-medium">{winPct}</td>
-                                <td className="py-3 pr-4">
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4 text-center">{stats.gamesPlayed}</td>
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4 text-center text-green-600">{stats.wins}</td>
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4 text-center text-red-600">{stats.losses}</td>
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4 text-center font-medium">{winPct}</td>
+                                <td className="py-2 sm:py-3 hidden sm:table-cell">
                                   <div className="flex justify-center">
-                                    <FormBadge form={stats.form} />
+                                    <FormBadge form={stats.form} size="sm" />
                                   </div>
                                 </td>
                               </tr>
@@ -349,18 +350,18 @@ export default async function LeaguePageContent({ params, sport }: { params: Pro
                       Western Conference
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="px-2 sm:px-6">
                     <div className="overflow-x-auto">
-                      <table className="w-full">
+                      <table className="w-full text-xs sm:text-sm">
                         <thead>
-                          <tr className="border-b text-left text-sm text-muted-foreground">
-                            <th className="pb-3 pr-4 text-center">{tLeague('rank')}</th>
-                            <th className="pb-3 pr-4">{tMatch('team')}</th>
-                            <th className="pb-3 pr-4 text-center">{tMatch('games')}</th>
-                            <th className="pb-3 pr-4 text-center">{tMatch('win')}</th>
-                            <th className="pb-3 pr-4 text-center">{tMatch('loss')}</th>
-                            <th className="pb-3 pr-4 text-center">PCT</th>
-                            <th className="pb-3 pr-4 text-center">{tMatch('recent_form')}</th>
+                          <tr className="border-b text-left text-muted-foreground">
+                            <th className="pb-2 pr-1 sm:pr-4 text-center">{tLeague('rank')}</th>
+                            <th className="pb-2 pr-1 sm:pr-4">{tMatch('team')}</th>
+                            <th className="pb-2 pr-1 sm:pr-4 text-center">{tMatch('games')}</th>
+                            <th className="pb-2 pr-1 sm:pr-4 text-center">{tMatch('win')}</th>
+                            <th className="pb-2 pr-1 sm:pr-4 text-center">{tMatch('loss')}</th>
+                            <th className="pb-2 pr-1 sm:pr-4 text-center">PCT</th>
+                            <th className="pb-2 text-center hidden sm:table-cell">{tMatch('recent_form')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -374,26 +375,27 @@ export default async function LeaguePageContent({ params, sport }: { params: Pro
 
                             return (
                               <tr key={team.id} className="border-b last:border-0 hover:bg-muted/50">
-                                <td className="py-3 pr-4 text-center font-medium">{rankDisplay}</td>
-                                <td className="py-3 pr-4">
-                                  <div className="flex items-center gap-2">
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4 text-center font-medium">{rankDisplay}</td>
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4">
+                                  <Link href={`/basketball/team/${team.id}`} className="flex items-center gap-1 sm:gap-2 hover:text-primary">
                                     {team.logoUrl ? (
-                                      <Image src={team.logoUrl} alt={team.name} width={28} height={28} className="rounded" />
+                                      <Image src={team.logoUrl} alt={team.name} width={28} height={28} className="rounded h-5 w-5 sm:h-7 sm:w-7" />
                                     ) : (
-                                      <div className="flex h-7 w-7 items-center justify-center rounded bg-muted">
-                                        <span className="text-xs font-bold">{team.tla || team.shortName}</span>
+                                      <div className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded bg-muted">
+                                        <span className="text-[10px] sm:text-xs font-bold">{team.tla || team.shortName}</span>
                                       </div>
                                     )}
-                                    <span className="font-medium">{team.name}</span>
-                                  </div>
+                                    <span className="sm:hidden font-medium truncate max-w-[80px]">{team.shortName || team.name}</span>
+                                    <span className="hidden sm:inline font-medium">{team.name}</span>
+                                  </Link>
                                 </td>
-                                <td className="py-3 pr-4 text-center">{stats.gamesPlayed}</td>
-                                <td className="py-3 pr-4 text-center text-green-600">{stats.wins}</td>
-                                <td className="py-3 pr-4 text-center text-red-600">{stats.losses}</td>
-                                <td className="py-3 pr-4 text-center font-medium">{winPct}</td>
-                                <td className="py-3 pr-4">
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4 text-center">{stats.gamesPlayed}</td>
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4 text-center text-green-600">{stats.wins}</td>
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4 text-center text-red-600">{stats.losses}</td>
+                                <td className="py-2 sm:py-3 pr-1 sm:pr-4 text-center font-medium">{winPct}</td>
+                                <td className="py-2 sm:py-3 hidden sm:table-cell">
                                   <div className="flex justify-center">
-                                    <FormBadge form={stats.form} />
+                                    <FormBadge form={stats.form} size="sm" />
                                   </div>
                                 </td>
                               </tr>
@@ -516,48 +518,51 @@ export default async function LeaguePageContent({ params, sport }: { params: Pro
 
                 return (
                   <Card key={match.id} className="transition-all hover:shadow-md hover:border-primary/50">
-                    <CardContent className="p-4">
+                    <CardContent className="p-2 sm:p-4">
                       <Link href={`/${sport}/match/${match.slug}`} className="block">
                         <div className="flex items-center justify-between">
                           {/* 홈팀 */}
-                          <div className="flex flex-1 items-center justify-end gap-3">
-                            <span className={`font-medium text-right ${homeWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                          <div className="flex flex-1 items-center justify-end gap-1 sm:gap-3 min-w-0">
+                            <span className={`sm:hidden text-xs font-medium text-right truncate ${homeWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                              {match.homeTeam.shortName || match.homeTeam.name}
+                            </span>
+                            <span className={`hidden sm:inline text-base font-medium text-right ${homeWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
                               {match.homeTeam.name}
                             </span>
-                            {homeWins && <Trophy className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
+                            {homeWins && <Trophy className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 fill-yellow-500 shrink-0" />}
                             {match.homeTeam.logoUrl ? (
                               <Image
                                 src={match.homeTeam.logoUrl}
                                 alt={match.homeTeam.name}
                                 width={32}
                                 height={32}
-                                className={`rounded ${isFinished && !homeWins ? 'grayscale opacity-70' : ''}`}
+                                className={`rounded h-6 w-6 sm:h-8 sm:w-8 shrink-0 ${isFinished && !homeWins ? 'grayscale opacity-70' : ''}`}
                               />
                             ) : (
-                              <div className="flex h-8 w-8 items-center justify-center rounded bg-muted">
-                                <span className="text-xs font-bold">{match.homeTeam.tla}</span>
+                              <div className="flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded bg-muted shrink-0">
+                                <span className="text-[10px] sm:text-xs font-bold">{match.homeTeam.tla}</span>
                               </div>
                             )}
                           </div>
 
                           {/* 스코어/시간 */}
-                          <div className="mx-6 flex flex-col items-center min-w-[100px]">
+                          <div className="mx-2 sm:mx-6 flex flex-col items-center min-w-[60px] sm:min-w-[100px] shrink-0">
                             {match.status === 'FINISHED' ? (
-                              <span className="text-2xl font-bold">
+                              <span className="text-lg sm:text-2xl font-bold">
                                 <span className={homeWins ? 'text-foreground' : 'text-muted-foreground'}>{match.homeScore}</span>
                                 <span className="mx-1 text-muted-foreground">-</span>
                                 <span className={awayWins ? 'text-foreground' : 'text-muted-foreground'}>{match.awayScore}</span>
                               </span>
                             ) : match.status === 'LIVE' ? (
-                              <span className="text-2xl font-bold text-red-500">
+                              <span className="text-lg sm:text-2xl font-bold text-red-500">
                                 {match.homeScore ?? 0} - {match.awayScore ?? 0}
                               </span>
                             ) : (
-                              <span className="text-lg font-medium">
+                              <span className="text-base sm:text-lg font-medium">
                                 {format(new Date(match.kickoffAt), 'HH:mm')}
                               </span>
                             )}
-                            <span className="text-xs text-muted-foreground mt-1">
+                            <span className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                               {(() => {
                                 try {
                                   const mediumFormat = tCommon('date_medium_format')
@@ -571,38 +576,43 @@ export default async function LeaguePageContent({ params, sport }: { params: Pro
                               })()}
                             </span>
                             {match.matchAnalysis && (
-                              <Badge variant="outline" className="mt-1 text-xs">
+                              <Badge variant="outline" className="mt-2 text-[10px] sm:text-xs bg-primary/10 text-primary border-primary/30">
                                 {tMatch('ai_analysis')}
                               </Badge>
                             )}
                           </div>
 
                           {/* 원정팀 */}
-                          <div className="flex flex-1 items-center gap-3">
+                          <div className="flex flex-1 items-center gap-1 sm:gap-3 min-w-0">
                             {match.awayTeam.logoUrl ? (
                               <Image
                                 src={match.awayTeam.logoUrl}
                                 alt={match.awayTeam.name}
                                 width={32}
                                 height={32}
-                                className={`rounded ${isFinished && !awayWins ? 'grayscale opacity-70' : ''}`}
+                                className={`rounded h-6 w-6 sm:h-8 sm:w-8 shrink-0 ${isFinished && !awayWins ? 'grayscale opacity-70' : ''}`}
                               />
                             ) : (
-                              <div className="flex h-8 w-8 items-center justify-center rounded bg-muted">
-                                <span className="text-xs font-bold">{match.awayTeam.tla}</span>
+                              <div className="flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded bg-muted shrink-0">
+                                <span className="text-[10px] sm:text-xs font-bold">{match.awayTeam.tla}</span>
                               </div>
                             )}
-                            {awayWins && <Trophy className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
-                            <span className={`font-medium ${awayWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                            {awayWins && <Trophy className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 fill-yellow-500 shrink-0" />}
+                            <span className={`sm:hidden text-xs font-medium truncate ${awayWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                              {match.awayTeam.shortName || match.awayTeam.name}
+                            </span>
+                            <span className={`hidden sm:inline text-base font-medium ${awayWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
                               {match.awayTeam.name}
                             </span>
                           </div>
 
-                          <MatchStatusBadge
-                            status={match.status}
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            label={tMatch(MATCH_STATUS_KEYS[match.status] as any)}
-                          />
+                          <div className="hidden sm:block">
+                            <MatchStatusBadge
+                              status={match.status}
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              label={tMatch(MATCH_STATUS_KEYS[match.status] as any)}
+                            />
+                          </div>
                         </div>
                       </Link>
                     </CardContent>
@@ -615,7 +625,7 @@ export default async function LeaguePageContent({ params, sport }: { params: Pro
 
         {/* Teams */}
         <TabsContent value="teams">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2 sm:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {league.teams.length === 0 ? (
               <Card className="col-span-full">
                 <CardContent className="flex flex-col items-center justify-center p-8 text-center">
@@ -626,30 +636,31 @@ export default async function LeaguePageContent({ params, sport }: { params: Pro
             ) : (
               league.teams.map((team: TeamWithStats) => (
                 <Card key={team.id} className="transition-all hover:shadow-md hover:border-primary/50">
-                  <CardContent className="flex items-center p-4">
+                  <CardContent className="flex items-center p-2 sm:p-4">
                     {team.logoUrl ? (
                       <Image
                         src={team.logoUrl}
                         alt={team.name}
                         width={48}
                         height={48}
-                        className="mr-4 rounded"
+                        className="mr-2 sm:mr-4 rounded h-8 w-8 sm:h-12 sm:w-12"
                       />
                     ) : (
-                      <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                        <span className="font-bold">{team.tla || team.shortName}</span>
+                      <div className="mr-2 sm:mr-4 flex h-8 w-8 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-muted">
+                        <span className="text-xs sm:text-base font-bold">{team.tla || team.shortName}</span>
                       </div>
                     )}
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{team.name}</h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="sm:hidden text-xs font-semibold truncate">{team.shortName || team.name}</h3>
+                      <h3 className="hidden sm:block font-semibold">{team.name}</h3>
                       {team.seasonStats && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-[10px] sm:text-sm text-muted-foreground">
                           {team.seasonStats.rank}{tMatch('rank')} • {team.seasonStats.points}{tMatch('points')}
                         </p>
                       )}
                     </div>
                     {team.seasonStats?.form && (
-                      <FormBadge form={team.seasonStats.form} />
+                      <FormBadge form={team.seasonStats.form} size="sm" className="hidden sm:flex" />
                     )}
                   </CardContent>
                 </Card>

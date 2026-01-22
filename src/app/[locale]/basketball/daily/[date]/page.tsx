@@ -477,7 +477,7 @@ export default async function DailyReportPage({ params }: Props) {
     <>
       <JsonLd report={report} dateStr={dateStr} matches={matches} locale={locale} sportType={SPORT_TYPE} />
 
-      <div className="container px-6 py-8 md:px-8">
+      <div className="container px-4 py-8 md:px-8 overflow-x-hidden">
         {/* 스포츠 선택 탭 */}
         <div className="max-w-6xl mx-auto">
           <SportTabs currentSport={SPORT_ID} basePath={`/daily/${dateStr}`} />
@@ -688,17 +688,17 @@ export default async function DailyReportPage({ params }: Props) {
                               isLive ? 'border-red-500 shadow-sm shadow-red-100 dark:shadow-red-900/20' :
                               'hover:border-primary/30'
                             }`}>
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-3 flex-1">
+                              <CardContent className="p-2 sm:p-4">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                                     {/* Time */}
-                                    <div className={`text-sm font-bold w-12 text-center ${isLive ? 'text-red-500 animate-pulse' : ''}`}>
+                                    <div className={`text-xs sm:text-sm font-bold w-10 sm:w-12 text-center shrink-0 ${isLive ? 'text-red-500 animate-pulse' : ''}`}>
                                       {format(new Date(match.kickoffAt), 'HH:mm')}
                                     </div>
 
                                     {/* Teams */}
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-1">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1 sm:gap-2 mb-1">
                                         <TeamLogo
                                           logoUrl={match.homeTeam.logoUrl}
                                           name={match.homeTeam.name}
@@ -707,23 +707,23 @@ export default async function DailyReportPage({ params }: Props) {
                                           size="xs"
                                           grayscale={isFinished && !homeWins}
                                         />
-                                        <span className={`font-medium text-sm ${homeWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
-                                          {match.homeTeam.name}
+                                        <span className={`font-medium text-xs sm:text-sm truncate ${homeWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                                          <span className="sm:hidden">{match.homeTeam.shortName || match.homeTeam.name}</span>
+                                          <span className="hidden sm:inline">{match.homeTeam.name}</span>
                                         </span>
-                                        {homeWins && <Trophy className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
-                                        {match.homeTeam.seasonStats?.rank && (
-                                          <span className="text-[10px] text-muted-foreground opacity-70">
-                                            {tMatch('rank_value', { rank: match.homeTeam.seasonStats.rank })}
-                                          </span>
-                                        )}
+                                        {homeWins && <Trophy className="h-3 w-3 text-yellow-500 fill-yellow-500 shrink-0" />}
+                                        <span className="hidden sm:inline text-[10px] text-muted-foreground opacity-70">
+                                          {match.homeTeam.seasonStats?.rank && tMatch('rank_value', { rank: match.homeTeam.seasonStats.rank })}
+                                        </span>
                                         {!isFinished && (
                                           <FormBadge
                                             form={match.homeTeam.seasonStats?.form || null}
                                             size="sm"
+                                            className="hidden sm:flex"
                                           />
                                         )}
                                       </div>
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-1 sm:gap-2">
                                         <TeamLogo
                                           logoUrl={match.awayTeam.logoUrl}
                                           name={match.awayTeam.name}
@@ -732,19 +732,19 @@ export default async function DailyReportPage({ params }: Props) {
                                           size="xs"
                                           grayscale={isFinished && !awayWins}
                                         />
-                                        <span className={`font-medium text-sm ${awayWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
-                                          {match.awayTeam.name}
+                                        <span className={`font-medium text-xs sm:text-sm truncate ${awayWins ? 'font-bold text-foreground' : isFinished ? 'text-muted-foreground' : ''}`}>
+                                          <span className="sm:hidden">{match.awayTeam.shortName || match.awayTeam.name}</span>
+                                          <span className="hidden sm:inline">{match.awayTeam.name}</span>
                                         </span>
-                                        {awayWins && <Trophy className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
-                                        {match.awayTeam.seasonStats?.rank && (
-                                          <span className="text-[10px] text-muted-foreground opacity-70">
-                                            {tMatch('rank_value', { rank: match.awayTeam.seasonStats.rank })}
-                                          </span>
-                                        )}
+                                        {awayWins && <Trophy className="h-3 w-3 text-yellow-500 fill-yellow-500 shrink-0" />}
+                                        <span className="hidden sm:inline text-[10px] text-muted-foreground opacity-70">
+                                          {match.awayTeam.seasonStats?.rank && tMatch('rank_value', { rank: match.awayTeam.seasonStats.rank })}
+                                        </span>
                                         {!isFinished && (
                                           <FormBadge
                                             form={match.awayTeam.seasonStats?.form || null}
                                             size="sm"
+                                            className="hidden sm:flex"
                                           />
                                         )}
                                       </div>
@@ -752,24 +752,24 @@ export default async function DailyReportPage({ params }: Props) {
                                   </div>
 
                                   {/* Score or Status */}
-                                  <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                                     {(isFinished || isLive) && (
-                                      <div className={`text-xl font-black px-3 py-1 rounded bg-muted/50 min-w-[60px] text-center ${isLive ? 'text-red-500' : ''}`}>
+                                      <div className={`text-base sm:text-xl font-black px-2 sm:px-3 py-1 rounded bg-muted/50 min-w-[50px] sm:min-w-[60px] text-center ${isLive ? 'text-red-500' : ''}`}>
                                         {match.homeScore ?? 0} : {match.awayScore ?? 0}
                                       </div>
                                     )}
-                                    
-                                    <div className="flex flex-col items-end gap-1.5">
-                                      <MatchStatusBadge 
-                                        status={match.status} 
+
+                                    <div className="flex flex-col items-end gap-1">
+                                      <MatchStatusBadge
+                                        status={match.status}
                                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                        label={tMatch(MATCH_STATUS_KEYS[match.status] as any)} 
+                                        label={tMatch(MATCH_STATUS_KEYS[match.status] as any)}
                                       />
-                                      
+
                                       {match.matchAnalysis && !isFinished && (
                                         <Badge
                                           variant="secondary"
-                                          className="text-[10px] py-0 h-5 bg-primary/10 text-primary border-none"
+                                          className="text-[10px] py-0 h-5 bg-primary/10 text-primary border-none whitespace-nowrap"
                                         >
                                           {tMatch('ai_analysis')}
                                         </Badge>

@@ -3,9 +3,10 @@ import React from 'react'
 interface FormBadgeProps {
   form: string | null
   size?: 'sm' | 'md' | 'lg'
+  className?: string
 }
 
-export function FormBadge({ form, size = 'md' }: FormBadgeProps) {
+export function FormBadge({ form, size = 'md', className }: FormBadgeProps) {
   if (!form) return null
 
   // form이 "W,W,D,L,W" 형식이면 쉼표로 분리, 아니면 문자별로 분리
@@ -18,7 +19,7 @@ export function FormBadge({ form, size = 'md' }: FormBadgeProps) {
   }
 
   return (
-    <div className="flex gap-1">
+    <div className={`flex gap-1 ${className || ''}`}>
       {formArray.slice(0, 5).map((result, i) => (
         <span
           key={i}

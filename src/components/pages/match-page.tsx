@@ -363,77 +363,71 @@ export default async function MatchPageContent({ params, searchParams, sport }: 
 
           <div className="flex items-center justify-between">
             {/* Home Team */}
-            <div className="flex flex-1 flex-col items-center">
-              <div className="flex flex-col items-center">
+            <div className="flex flex-1 flex-col items-center min-w-0">
+              <div className="flex flex-col items-center w-full">
                 {match.homeTeam.logoUrl ? (
                   <Image
                     src={match.homeTeam.logoUrl}
                     alt={match.homeTeam.name}
                     width={80}
                     height={80}
-                    className="mb-2 rounded"
+                    className="mb-2 rounded h-12 w-12 sm:h-20 sm:w-20"
                   />
                 ) : (
-                  <div className="mb-2 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-                    <span className="text-xl font-bold">{match.homeTeam.tla || match.homeTeam.shortName}</span>
+                  <div className="mb-2 flex h-12 w-12 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-muted">
+                    <span className="text-sm sm:text-xl font-bold">{match.homeTeam.tla || match.homeTeam.shortName}</span>
                   </div>
                 )}
-                <h2 className="text-xl font-bold text-center">{match.homeTeam.name}</h2>
+                <h2 className="text-sm sm:text-xl font-bold text-center break-words w-full">{match.homeTeam.name}</h2>
               </div>
-              <FormBadge form={match.homeTeam.seasonStats?.form || null} />
+              <FormBadge form={match.homeTeam.seasonStats?.form || null} className="mt-2" />
             </div>
 
             {/* Score / Time */}
-            <div className="flex flex-col items-center px-8">
+            <div className="flex flex-col items-center px-2 sm:px-8 shrink-0">
               {match.status === 'SCHEDULED' || match.status === 'TIMED' ? (
                 <>
-                  <span className="text-4xl font-bold">VS</span>
-                  <div className="mt-2 flex items-center text-sm text-muted-foreground">
-                    <Clock className="mr-1 h-4 w-4" />
+                  <span className="text-2xl sm:text-4xl font-bold">VS</span>
+                  <div className="mt-2 flex items-center text-xs sm:text-sm text-muted-foreground">
+                    <Clock className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
                     {kickoffTime}
                   </div>
                 </>
               ) : (
-                <span className="text-5xl font-bold">
+                <span className="text-3xl sm:text-5xl font-bold">
                   {match.homeScore ?? 0} - {match.awayScore ?? 0}
                 </span>
               )}
             </div>
 
             {/* Away Team */}
-            <div className="flex flex-1 flex-col items-center">
-              <div className="flex flex-col items-center">
+            <div className="flex flex-1 flex-col items-center min-w-0">
+              <div className="flex flex-col items-center w-full">
                 {match.awayTeam.logoUrl ? (
                   <Image
                     src={match.awayTeam.logoUrl}
                     alt={match.awayTeam.name}
                     width={80}
                     height={80}
-                    className="mb-2 rounded"
+                    className="mb-2 rounded h-12 w-12 sm:h-20 sm:w-20"
                   />
                 ) : (
-                  <div className="mb-2 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-                    <span className="text-xl font-bold">{match.awayTeam.tla || match.awayTeam.shortName}</span>
+                  <div className="mb-2 flex h-12 w-12 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-muted">
+                    <span className="text-sm sm:text-xl font-bold">{match.awayTeam.tla || match.awayTeam.shortName}</span>
                   </div>
                 )}
-                <h2 className="text-xl font-bold text-center">{match.awayTeam.name}</h2>
+                <h2 className="text-sm sm:text-xl font-bold text-center break-words w-full">{match.awayTeam.name}</h2>
               </div>
-              <FormBadge form={match.awayTeam.seasonStats?.form || null} />
+              <FormBadge form={match.awayTeam.seasonStats?.form || null} className="mt-2" />
             </div>
           </div>
 
           <Separator className="my-4" />
 
           <div className="flex justify-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center">
-              <Calendar className="mr-1 h-4 w-4" />
-              {kickoffDate}
-            </div>
+            <div>{kickoffDate}</div>
             {match.matchAnalysis && (
-              <div className="flex items-center text-primary">
-                <Sparkles className="mr-1 h-4 w-4" />
-                {t('ai_analysis_completed')}
-              </div>
+              <div className="text-primary">{t('ai_analysis_completed')}</div>
             )}
           </div>
         </CardContent>

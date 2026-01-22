@@ -51,16 +51,14 @@ function NewsCard({ news, locale }: { news: NewsItem; locale: string }) {
                 {news.description}
               </p>
             )}
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                  {news.source}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-1">
+            <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 w-fit">
+                {news.source}
+              </Badge>
+              <span className="flex items-center gap-1 text-[10px]">
                 <Clock className="h-3 w-3" />
-                <span>{timeAgo}</span>
-              </div>
+                {timeAgo}
+              </span>
             </div>
           </div>
         </CardContent>
