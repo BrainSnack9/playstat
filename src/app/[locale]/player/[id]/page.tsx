@@ -112,7 +112,7 @@ export default async function PlayerPage({ params }: Props) {
 
             <div className="flex-1 text-center md:text-left">
               <Link
-                href={`/team/${player.team.id}`}
+                href={`/football/team/${player.team.id}`}
                 className="text-sm text-muted-foreground hover:text-primary"
               >
                 <Trophy className="mr-1 inline h-4 w-4" />

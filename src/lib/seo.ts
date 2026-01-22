@@ -213,17 +213,18 @@ export function generateMatchJsonLd(match: {
   homeScore?: number
   awayScore?: number
 }) {
+  // location은 필수 필드이므로 venue가 없으면 홈팀 기반 장소 또는 리그명 사용
+  const locationName = match.venue || `${match.homeTeam.name} Home Stadium`
+
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
     name: `${match.homeTeam.name} vs ${match.awayTeam.name}`,
     startDate: match.kickoffAt,
-    location: match.venue
-      ? {
-          '@type': 'Place',
-          name: match.venue,
-        }
-      : undefined,
+    location: {
+      '@type': 'Place',
+      name: locationName,
+    },
     homeTeam: {
       '@type': 'SportsTeam',
       name: match.homeTeam.name,

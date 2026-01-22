@@ -117,7 +117,7 @@ function TeamCard({
   const stats = team.seasonStats
 
   return (
-    <Link href={`/team/${team.id}`}>
+    <Link href={`/${SPORT_ID}/team/${team.id}`}>
       <Card className="group transition-all hover:shadow-lg">
         <CardContent className="p-6">
           <div className="flex items-start justify-between">

@@ -19,10 +19,11 @@ interface TeamCardProps {
       country: string | null
     }
   }
-  locale: string
+  sport: string
+  locale?: string
 }
 
-export function TeamCard({ team }: Omit<TeamCardProps, 'locale'>) {
+export function TeamCard({ team, sport }: TeamCardProps) {
   const { favoriteTeamIds, toggleFavoriteTeam } = useFavoriteTeams()
   const isFavorite = favoriteTeamIds.includes(team.id)
 
@@ -33,7 +34,7 @@ export function TeamCard({ team }: Omit<TeamCardProps, 'locale'>) {
   }
 
   return (
-    <Link href={`/team/${team.id}`}>
+    <Link href={`/${sport}/team/${team.id}`}>
       <Card
         className={`transition-all hover:shadow-md hover:border-primary/50 ${
           isFavorite ? 'ring-2 ring-yellow-500/50 bg-yellow-500/5' : ''
