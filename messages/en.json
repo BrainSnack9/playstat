@@ -32,8 +32,8 @@
   "home": {
     "title": "PlayStat - AI Sports Analysis Platform",
     "description": "AI-powered analysis and insights for Football, NBA, and MLB",
-    "hero_description": "Skip the noise, focus on what matters. Enhance your game night with AI-powered match previews and daily reports.",
-    "hero_title": "Data Driven Victory, AI Sports Insights",
+    "hero_description": "We simplify complex stats and highlight only the key insights you need.",
+    "hero_title": "AI-powered game analysis",
     "hero_subtitle": "AI-powered match analysis and insights",
     "today_matches": "Today's Matches",
     "todays_matches": "Today's Matches",
@@ -295,6 +295,7 @@
   },
   "news": {
     "latest": "Latest News",
+    "news_label": "News",
     "football": "Football",
     "basketball": "Basketball",
     "baseball": "Baseball",
@@ -303,7 +304,8 @@
     "source": "Source",
     "published_at": "Published",
     "no_news": "Could not load latest news.",
-    "try_again": "Please try again later."
+    "try_again": "Please try again later.",
+    "error": "Could not load news"
   },
   "daily_report": {
     "title": "Daily Report",
@@ -441,5 +443,19 @@
     "title": "Leagues",
     "subtitle": "Explore all leagues",
     "description": "Football leagues worldwide with AI-powered match analysis"
+  },
+  "matches": {
+    "title": "Matches",
+    "subtitle": "View upcoming matches",
+    "description": "All sports match schedules and results",
+    "upcoming_matches": "Upcoming Matches",
+    "past_matches": "Past Matches",
+    "no_upcoming_matches": "No upcoming matches",
+    "no_past_matches": "No past matches"
+  },
+  "teams": {
+    "title": "Teams",
+    "subtitle": "All teams",
+    "description": "Team details and statistics"
   }
 }

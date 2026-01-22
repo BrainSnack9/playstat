@@ -24,17 +24,17 @@ import { spaceGrotesk } from '@/lib/fonts'
 const mainNav = [
   {
     key: 'matches',
-    href: '/matches/today',
+    href: '/football/matches',
     icon: Calendar,
   },
   {
     key: 'leagues',
-    href: '/leagues',
+    href: '/football/leagues',
     icon: Trophy,
   },
   {
     key: 'teams',
-    href: '/teams',
+    href: '/football/teams',
     icon: Users,
   },
   {
@@ -44,7 +44,7 @@ const mainNav = [
   },
   {
     key: 'daily_report',
-    href: '/daily/today',
+    href: '/football/daily/today',
     icon: ChartBar,
   },
 ]
@@ -116,7 +116,7 @@ export function Header({ variant = 'default' }: { variant?: 'default' | 'landing
                 </Button>
               </SheetTrigger>
             <SheetContent side="right" className={cn(isNeon && 'bg-[#0b0f14] text-white')}>
-                <nav className="flex flex-col gap-4 mt-8">
+                <nav className="flex flex-col gap-6 mt-8">
                   {mainNav.map((item) => (
                     <Link
                       key={item.key}
@@ -132,6 +132,20 @@ export function Header({ variant = 'default' }: { variant?: 'default' | 'landing
                     </Link>
                   ))}
                 </nav>
+
+                {/* Footer section */}
+                <div className="absolute bottom-8 left-6 right-6">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+                    <Image
+                      src="/app-icon-512.png"
+                      alt="PlayStat"
+                      width={16}
+                      height={16}
+                      className="rounded opacity-60"
+                    />
+                    <span>© {new Date().getFullYear()} PlayStat</span>
+                  </div>
+                </div>
               </SheetContent>
             </Sheet>
           )}

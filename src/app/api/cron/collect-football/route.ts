@@ -429,6 +429,12 @@ export async function GET(request: Request) {
                 },
               })
 
+              // TeamSeasonStats의 form도 업데이트
+              await prisma.teamSeasonStats.update({
+                where: { teamId: teamDbId },
+                data: { form: recentForm },
+              })
+
               results.recentMatchesUpdated++
             } catch (error) {
               results.errors.push(`${leagueInfo.name} Recent matches ${entry.team.id}: ${String(error)}`)

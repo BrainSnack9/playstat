@@ -10,8 +10,7 @@ import { Footer } from '@/components/layout/footer'
 import { TimezoneDetector } from '@/components/timezone-detector'
 import { AdsenseScript } from '@/components/adsense'
 import { Analytics } from '@vercel/analytics/next'
-import { getSportFromCookie, isApexHost, SPORT_COOKIE } from '@/lib/sport'
-import { spaceGrotesk } from '@/lib/fonts'
+import { SPORT_COOKIE } from '@/lib/sport'
 import { generateOrganizationJsonLd, generateWebsiteJsonLd, resolveBaseUrl } from '@/lib/seo'
 import '../globals.css'
 
@@ -62,11 +61,9 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
   setRequestLocale(locale)
   const messages = await getMessages()
   const direction = locale === 'ar' ? 'rtl' : 'ltr'
-  const sport = getSportFromCookie(cookies().get(SPORT_COOKIE)?.value)
+  const cookieStore = await cookies()
+  const sport = cookieStore.get(SPORT_COOKIE)?.value || 'football'
   const host = headers().get('host')
-  const isApex = isApexHost(host)
-  // 모든 스포츠 서브도메인에 네온 테마 적용 (CSS 변수로 스포츠별 색상 구분)
-  const isNeon = !isApex
   const baseUrl = resolveBaseUrl(host)
 
   return (
@@ -84,13 +81,13 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
           }}
         />
       </head>
-      <body className={`${inter.className} ${isNeon ? spaceGrotesk.className : ''} bg-background text-foreground`}>
+      <body className={`${inter.className} bg-background text-foreground`}>
         <NextIntlClientProvider messages={messages}>
           <TimezoneDetector />
           <div className="flex min-h-screen flex-col">
-            {!isApex && <Header variant={isNeon ? 'neon' : 'default'} />}
+            <Header variant="default" />
             <main className="flex-1">{children}</main>
-            <Footer variant={isApex ? 'landing' : isNeon ? 'neon' : 'default'} />
+            <Footer variant="default" />
           </div>
         </NextIntlClientProvider>
         <Analytics />

@@ -10,13 +10,12 @@ import { spaceGrotesk } from '@/lib/fonts'
 export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing' | 'neon' }) {
   const t = useTranslations('common')
   const footer = useTranslations('footer')
-  const sports = useTranslations('sports')
   const pathname = usePathname()
   const isNeon = variant !== 'default'
 
   // Hydration 에러 방지: 클라이언트에서만 계산
   const [mounted, setMounted] = useState(false)
-  const [currentSport, setCurrentSport] = useState<string | null>(null)
+  const [currentSport, setCurrentSport] = useState<string>('football')
   const [legalBase, setLegalBase] = useState('')
 
   useEffect(() => {
@@ -30,18 +29,11 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
         : window.location.origin
     )
 
-    // 스포츠 타입 감지
-    if (hostname.startsWith('football.')) {
-      setCurrentSport('football')
-    } else if (hostname.startsWith('basketball.')) {
-      setCurrentSport('basketball')
-    } else if (hostname.startsWith('baseball.')) {
-      setCurrentSport('baseball')
-    } else if (hostname === 'localhost' || hostname.includes('localhost')) {
-      if (pathname.includes('/football')) setCurrentSport('football')
-      else if (pathname.includes('/basketball')) setCurrentSport('basketball')
-      else if (pathname.includes('/baseball')) setCurrentSport('baseball')
-    }
+    // 스포츠 타입 감지 (경로 기반)
+    if (pathname.includes('/football')) setCurrentSport('football')
+    else if (pathname.includes('/basketball')) setCurrentSport('basketball')
+    else if (pathname.includes('/baseball')) setCurrentSport('baseball')
+    else setCurrentSport('football') // 기본값
   }, [pathname])
 
   return (
@@ -64,12 +56,7 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
               height={24}
               className="rounded"
             />
-            <span className="font-semibold flex items-center gap-2">
-              PlayStat
-              {mounted && currentSport && (
-                <span className="text-primary text-sm">[{sports(currentSport)}]</span>
-              )}
-            </span>
+            <span className="font-semibold">PlayStat</span>
           </Link>
 
           {/* Main Navigation */}
@@ -77,13 +64,13 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
             'flex flex-wrap items-center justify-center gap-4 text-sm',
             isNeon ? 'text-white/70' : 'text-muted-foreground'
           )}>
-            <Link href="/matches/today" className="hover:text-primary transition-colors">
+            <Link href={`/${currentSport}/matches`} className="hover:text-primary transition-colors">
               {t('matches')}
             </Link>
-            <Link href="/leagues" className="hover:text-primary transition-colors">
+            <Link href={`/${currentSport}/leagues`} className="hover:text-primary transition-colors">
               {t('leagues')}
             </Link>
-            <Link href="/daily/today" className="hover:text-primary transition-colors">
+            <Link href={`/${currentSport}/daily/today`} className="hover:text-primary transition-colors">
               {t('daily_report')}
             </Link>
           </nav>
@@ -95,9 +82,9 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
               isNeon ? 'text-white/60' : 'text-muted-foreground'
             )}
           >
-            <a href="https://playstat.space" className="hover:text-primary transition-colors">
+            <Link href="/" className="hover:text-primary transition-colors">
               {footer('main_hub')}
-            </a>
+            </Link>
             <span className={cn(isNeon ? 'text-white/30' : 'text-muted-foreground/50')}>|</span>
             <a href={mounted ? `${legalBase}/privacy` : '/privacy'} className="hover:text-primary transition-colors">
               {footer('privacy')}

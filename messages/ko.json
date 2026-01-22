@@ -32,8 +32,8 @@
   "home": {
     "title": "PlayStat - AI 스포츠 분석 플랫폼",
     "description": "AI가 분석하는 축구, NBA, MLB 경기 분석과 인사이트",
-    "hero_description": "복잡한 기록 대신 핵심만 짚어드립니다. AI가 분석한 오늘의 경기와 데일리 리포트로 더 깊이 있는 직관을 즐기세요.",
-    "hero_title": "승리를 위한 데이터, AI 스포츠 분석",
+    "hero_description": "복잡한 기록 대신, 핵심만 쉽게 읽을 수 있게 정리했습니다.",
+    "hero_title": "AI가 정리해주는 경기 분석",
     "hero_subtitle": "AI가 분석한 오늘의 경기와 인사이트",
     "today_matches": "오늘의 경기",
     "todays_matches": "오늘의 경기",
@@ -295,6 +295,7 @@
   },
   "news": {
     "latest": "최신 뉴스",
+    "news_label": "뉴스",
     "football": "축구",
     "basketball": "농구",
     "baseball": "야구",
@@ -303,7 +304,8 @@
     "source": "출처",
     "published_at": "발행일",
     "no_news": "최신 뉴스를 불러올 수 없습니다.",
-    "try_again": "잠시 후 다시 시도해주세요."
+    "try_again": "잠시 후 다시 시도해주세요.",
+    "error": "뉴스를 불러올 수 없습니다"
   },
   "daily_report": {
     "title": "데일리 리포트",
@@ -441,5 +443,19 @@
     "title": "리그",
     "subtitle": "모든 리그 탐색",
     "description": "AI 분석을 활용한 전 세계 축구 리그"
+  },
+  "matches": {
+    "title": "경기 일정",
+    "subtitle": "예정된 경기를 확인하세요",
+    "description": "모든 스포츠 경기 일정 및 결과",
+    "upcoming_matches": "예정 경기",
+    "past_matches": "지난 경기",
+    "no_upcoming_matches": "예정된 경기가 없습니다",
+    "no_past_matches": "지난 경기가 없습니다"
+  },
+  "teams": {
+    "title": "팀",
+    "subtitle": "전체 팀 목록",
+    "description": "팀별 상세 정보 및 통계"
   }
 }

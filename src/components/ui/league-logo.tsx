@@ -29,13 +29,21 @@ export function LeagueLogo({
 
   if (logoUrl) {
     return (
-      <Image
-        src={logoUrl}
-        alt={name}
-        width={config.dimension}
-        height={config.dimension}
-        className={cn('object-contain', className)}
-      />
+      <div
+        className={cn(
+          'flex items-center justify-center rounded-md bg-white/80 dark:bg-white/70 p-1',
+          className
+        )}
+        style={{ width: config.dimension + 8, height: config.dimension + 8 }}
+      >
+        <Image
+          src={logoUrl}
+          alt={name}
+          width={config.dimension}
+          height={config.dimension}
+          className="object-contain"
+        />
+      </div>
     )
   }
 

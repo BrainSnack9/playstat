@@ -32,8 +32,8 @@
   "home": {
     "title": "PlayStat - KI Sportanalyseplattform",
     "description": "KI-gestützte Analysen und Einblicke für Fußball, NBA und MLB",
-    "hero_description": "Überspringen Sie das Rauschen, konzentrieren Sie sich auf das Wesentliche. Verbessern Sie Ihren Spielabend mit KI-gestützten Spielvorschauen und Tagesberichten.",
-    "hero_title": "Datengetriebener Sieg, KI Sport-Einblicke",
+    "hero_description": "Komplexe Statistiken reduzieren wir auf das Wesentliche und zeigen dir nur die wichtigsten Punkte.",
+    "hero_title": "KI-gestützte Spielanalyse",
     "hero_subtitle": "KI-gestützte Spielanalysen und Einblicke",
     "today_matches": "Heutige Spiele",
     "todays_matches": "Heutige Spiele",
@@ -293,6 +293,7 @@
   },
   "news": {
     "latest": "Neueste Nachrichten",
+    "news_label": "Nachrichten",
     "football": "Fußball",
     "basketball": "Basketball",
     "baseball": "Baseball",
@@ -301,7 +302,8 @@
     "source": "Quelle",
     "published_at": "Veröffentlicht",
     "no_news": "Neueste Nachrichten konnten nicht geladen werden.",
-    "try_again": "Bitte versuchen Sie es später erneut."
+    "try_again": "Bitte versuchen Sie es später erneut.",
+    "error": "Nachrichten konnten nicht geladen werden"
   },
   "daily_report": {
     "title": "Tagesbericht",
@@ -439,5 +441,19 @@
     "title": "Ligen",
     "subtitle": "Alle Ligen erkunden",
     "description": "Fußballligen weltweit mit KI-gestützter Spielanalyse"
+  },
+  "matches": {
+    "title": "Spiele",
+    "subtitle": "Anstehende Spiele anzeigen",
+    "description": "Spielpläne und Ergebnisse aller Sportarten",
+    "upcoming_matches": "Anstehende Spiele",
+    "past_matches": "Vergangene Spiele",
+    "no_upcoming_matches": "Keine anstehenden Spiele",
+    "no_past_matches": "Keine vergangenen Spiele"
+  },
+  "teams": {
+    "title": "Teams",
+    "subtitle": "Alle Teams",
+    "description": "Teamdetails und Statistiken"
   }
 }

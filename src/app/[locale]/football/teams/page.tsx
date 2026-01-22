@@ -8,6 +8,7 @@ import { CACHE_REVALIDATE } from '@/lib/cache'
 import Image from 'next/image'
 import { Link } from '@/i18n/routing'
 import { Trophy } from 'lucide-react'
+import { SportTabs } from '@/components/sport-tabs'
 
 const SPORT_ID = 'football'
 
@@ -47,66 +48,70 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function BaseballTeamsPage({ params }: Props) {
+export default async function FootballTeamsPage({ params }: Props) {
   const { locale } = await params
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'teams' })
-  const common = await getTranslations({ locale, namespace: 'common' })
+  const sports = await getTranslations({ locale, namespace: 'sports' })
 
   const teams = await getCachedTeams()
 
-  // Group by league (AL/NL)
-  const alTeams = teams.filter((t) => t.name.includes('AL') || t.externalId?.includes('american'))
-  const nlTeams = teams.filter((t) => t.name.includes('NL') || t.externalId?.includes('national'))
-  const otherTeams = teams.filter(
-    (t) => !alTeams.includes(t) && !nlTeams.includes(t)
+  // 리그별로 그룹화
+  const teamsByLeague = teams.reduce((acc, team) => {
+    const leagueName = team.league?.name || 'Other'
+    if (!acc[leagueName]) {
+      acc[leagueName] = {
+        league: team.league,
+        teams: [],
+      }
+    }
+    acc[leagueName].teams.push(team)
+    return acc
+  }, {} as Record<string, { league: typeof teams[0]['league']; teams: typeof teams }>)
+
+  // 리그 순서 정렬 (팀 수가 많은 순)
+  const sortedLeagues = Object.entries(teamsByLeague).sort(
+    (a, b) => b[1].teams.length - a[1].teams.length
   )
 
   return (
     <div className="container space-y-8 py-8">
+      {/* 스포츠 선택 탭 */}
+      <SportTabs currentSport={SPORT_ID} basePath="/teams" />
+
       <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600">
-            <span className="text-2xl">⚽</span>
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Football {t('title')}</h1>
-            <p className="text-muted-foreground">{t('subtitle')}</p>
-          </div>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight">{sports('football')} {t('title')}</h1>
+        <p className="text-muted-foreground">{t('subtitle')}</p>
       </div>
 
-      <div className="grid gap-8">
-        {alTeams.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold">American League</h2>
+      <div className="space-y-10">
+        {sortedLeagues.map(([leagueName, { league, teams: leagueTeams }]) => (
+          <div key={leagueName} className="space-y-4">
+            <div className="flex items-center gap-3">
+              {league?.logoUrl && (
+                <Image
+                  src={league.logoUrl}
+                  alt={leagueName}
+                  width={32}
+                  height={32}
+                  className="rounded bg-white p-0.5"
+                />
+              )}
+              <h2 className="text-xl font-bold">{leagueName}</h2>
+              <span className="text-sm text-muted-foreground">
+                ({leagueTeams.length} teams)
+              </span>
+            </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {alTeams.map((team) => (
-                <TeamCard key={team.id} team={team} />
-              ))}
+              {leagueTeams
+                .sort((a, b) => (a.seasonStats?.rank || 999) - (b.seasonStats?.rank || 999))
+                .map((team) => (
+                  <TeamCard key={team.id} team={team} />
+                ))}
             </div>
           </div>
-        )}
-
-        {nlTeams.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold">National League</h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {nlTeams.map((team) => (
-                <TeamCard key={team.id} team={team} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {otherTeams.length > 0 && (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {otherTeams.map((team) => (
-              <TeamCard key={team.id} team={team} />
-            ))}
-          </div>
-        )}
+        ))}
       </div>
     </div>
   )
@@ -138,7 +143,9 @@ function TeamCard({
                 <h3 className="font-semibold group-hover:text-primary">
                   {team.shortName || team.name}
                 </h3>
-                <p className="text-xs text-muted-foreground">{team.league.name}</p>
+                {team.tla && (
+                  <p className="text-xs text-muted-foreground">{team.tla}</p>
+                )}
               </div>
             </div>
             {stats?.rank && stats.rank <= 3 && (

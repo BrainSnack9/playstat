@@ -32,8 +32,8 @@
   "home": {
     "title": "PlayStat - Plataforma de Análisis Deportivo con IA",
     "description": "Análisis y conocimientos impulsados por IA para Fútbol, NBA y MLB",
-    "hero_description": "Evite el ruido, concéntrese en lo que importa. Mejore su noche de partido con vistas previas de partidos y reportes diarios impulsados por IA.",
-    "hero_title": "Victoria Impulsada por Datos, Conocimientos Deportivos con IA",
+    "hero_description": "Simplificamos las estadísticas complejas y te mostramos solo los puntos clave.",
+    "hero_title": "Análisis de partidos con IA",
     "hero_subtitle": "Análisis de partidos e información impulsados por IA",
     "today_matches": "Partidos de Hoy",
     "todays_matches": "Partidos de Hoy",
@@ -294,6 +294,7 @@
   },
   "news": {
     "latest": "Últimas Noticias",
+    "news_label": "Noticias",
     "football": "Fútbol",
     "basketball": "Baloncesto",
     "baseball": "Béisbol",
@@ -302,7 +303,8 @@
     "source": "Fuente",
     "published_at": "Publicado",
     "no_news": "No se pudieron cargar las últimas noticias.",
-    "try_again": "Por favor, inténtelo de nuevo más tarde."
+    "try_again": "Por favor, inténtelo de nuevo más tarde.",
+    "error": "No se pudieron cargar las noticias"
   },
   "daily_report": {
     "title": "Reporte Diario",
@@ -427,5 +429,19 @@
     "title": "Ligas",
     "subtitle": "Explorar todas las ligas",
     "description": "Ligas de fútbol en todo el mundo con análisis de partidos impulsados por IA"
+  },
+  "matches": {
+    "title": "Partidos",
+    "subtitle": "Ver próximos partidos",
+    "description": "Calendario y resultados de partidos de todos los deportes",
+    "upcoming_matches": "Próximos partidos",
+    "past_matches": "Partidos anteriores",
+    "no_upcoming_matches": "No hay próximos partidos",
+    "no_past_matches": "No hay partidos anteriores"
+  },
+  "teams": {
+    "title": "Equipos",
+    "subtitle": "Todos los equipos",
+    "description": "Detalles y estadísticas de equipos"
   }
 }

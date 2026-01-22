@@ -40,11 +40,12 @@ interface MatchCardProps {
     }
     matchAnalysis?: { id: string } | null
   }
+  sport?: string
   locale?: string
   showDate?: boolean
 }
 
-export function MatchCard({ match, showDate = false }: MatchCardProps) {
+export function MatchCard({ match, sport = 'football', showDate = false }: MatchCardProps) {
   const { favoriteTeamIds } = useFavoriteTeams()
   const t = useTranslations('match')
 
@@ -57,7 +58,7 @@ export function MatchCard({ match, showDate = false }: MatchCardProps) {
   const awayWins = isFinished && (match.awayScore ?? 0) > (match.homeScore ?? 0)
 
   return (
-    <Link href={`/match/${match.slug}`}>
+    <Link href={`/${sport}/match/${match.slug}`}>
       <Card
         className={`match-card relative transition-all hover:shadow-md hover:border-primary/50 ${
           hasFavorite ? 'ring-2 ring-yellow-500/50 bg-yellow-500/5' : ''

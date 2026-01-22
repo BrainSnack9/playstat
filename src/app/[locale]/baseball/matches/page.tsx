@@ -7,6 +7,7 @@ import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { MatchCard } from '@/components/match-card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SportTabs } from '@/components/sport-tabs'
 import { format, addDays, subDays } from 'date-fns'
 
 const SPORT_ID = 'baseball'
@@ -45,6 +46,9 @@ const getCachedMatches = (dateRange: 'past' | 'upcoming') =>
           league: true,
           homeTeam: true,
           awayTeam: true,
+          matchAnalysis: {
+            select: { id: true },
+          },
         },
         orderBy: {
           kickoffAt: dateRange === 'past' ? 'desc' : 'asc',
@@ -61,7 +65,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = await getTranslations({ locale, namespace: 'matches' })
 
   return {
-    title: `MLB ${t('title')} - PlayStat`,
+    title: `${t('title')} - PlayStat`,
     description: t('description'),
   }
 }
@@ -71,20 +75,16 @@ export default async function BaseballMatchesPage({ params }: Props) {
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'matches' })
-  const common = await getTranslations({ locale, namespace: 'common' })
+  const sports = await getTranslations({ locale, namespace: 'sports' })
 
   return (
     <div className="container space-y-8 py-8">
+      {/* 스포츠 선택 탭 */}
+      <SportTabs currentSport={SPORT_ID} basePath="/matches" />
+
       <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600">
-            <span className="text-2xl">⚾</span>
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">MLB {t('title')}</h1>
-            <p className="text-muted-foreground">{t('subtitle')}</p>
-          </div>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight">{sports('baseball')} {t('title')}</h1>
+        <p className="text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       <Tabs defaultValue="upcoming" className="space-y-6">
@@ -127,11 +127,12 @@ export default async function BaseballMatchesPage({ params }: Props) {
 
 async function UpcomingMatches() {
   const matches = await getCachedMatches('upcoming')
+  const t = await getTranslations({ namespace: 'matches' })
 
   if (matches.length === 0) {
     return (
       <Card className="p-12 text-center">
-        <p className="text-muted-foreground">No upcoming matches</p>
+        <p className="text-muted-foreground">{t('no_upcoming_matches')}</p>
       </Card>
     )
   }
@@ -152,7 +153,7 @@ async function UpcomingMatches() {
       {Object.entries(groupedByDate).map(([date, dateMatches]) => (
         <div key={date} className="space-y-4">
           <h3 className="text-lg font-semibold">
-            {format(new Date(date), 'MMMM d, yyyy')}
+            {format(new Date(date), 'yyyy/MM/dd')}
           </h3>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {dateMatches.map((match) => (
@@ -167,11 +168,12 @@ async function UpcomingMatches() {
 
 async function PastMatches() {
   const matches = await getCachedMatches('past')
+  const t = await getTranslations({ namespace: 'matches' })
 
   if (matches.length === 0) {
     return (
       <Card className="p-12 text-center">
-        <p className="text-muted-foreground">No past matches</p>
+        <p className="text-muted-foreground">{t('no_past_matches')}</p>
       </Card>
     )
   }

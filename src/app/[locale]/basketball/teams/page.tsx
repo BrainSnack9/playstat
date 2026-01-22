@@ -8,6 +8,7 @@ import { CACHE_REVALIDATE } from '@/lib/cache'
 import Image from 'next/image'
 import { Link } from '@/i18n/routing'
 import { Trophy } from 'lucide-react'
+import { SportTabs } from '@/components/sport-tabs'
 
 const SPORT_ID = 'basketball'
 
@@ -47,12 +48,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function BaseballTeamsPage({ params }: Props) {
+export default async function BasketballTeamsPage({ params }: Props) {
   const { locale } = await params
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'teams' })
-  const common = await getTranslations({ locale, namespace: 'common' })
+  const sports = await getTranslations({ locale, namespace: 'sports' })
 
   const teams = await getCachedTeams()
 
@@ -65,16 +66,12 @@ export default async function BaseballTeamsPage({ params }: Props) {
 
   return (
     <div className="container space-y-8 py-8">
+      {/* 스포츠 선택 탭 */}
+      <SportTabs currentSport={SPORT_ID} basePath="/teams" />
+
       <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600">
-            <span className="text-2xl">🏀</span>
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">NBA {t('title')}</h1>
-            <p className="text-muted-foreground">{t('subtitle')}</p>
-          </div>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight">{sports('basketball')} {t('title')}</h1>
+        <p className="text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       <div className="grid gap-8">

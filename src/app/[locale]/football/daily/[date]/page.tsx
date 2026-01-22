@@ -17,16 +17,19 @@ import { Link } from '@/i18n/routing'
 import { format, parse, isValid, addDays } from 'date-fns'
 import { prisma } from '@/lib/prisma'
 import { getDayRangeInTimezone, getTimezoneFromCookies, getTimezoneOffsetAtDate } from '@/lib/timezone'
-import { ensureDailyReportTranslations } from '@/lib/ai/translate'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
 import { CACHE_REVALIDATE, DAILY_REPORT_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
 import { getDateLocale } from '@/lib/utils'
-import { SPORT_COOKIE, getSportFromCookie, sportIdToEnum } from '@/lib/sport'
+import { sportIdToEnum } from '@/lib/sport'
 import { LeagueLogo } from '@/components/ui/league-logo'
 import { TeamLogo } from '@/components/ui/team-logo'
+import { SportTabs } from '@/components/sport-tabs'
+
+const SPORT_ID = 'football'
+const SPORT_TYPE = sportIdToEnum(SPORT_ID)
 
 export const revalidate = DAILY_REPORT_REVALIDATE
 
@@ -117,8 +120,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const tCommon = await getTranslations({ locale, namespace: 'common' })
 
   const cookieStore = await cookies()
-  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value))
-  const titleKey = getTitleKey(sportType)
+  const titleKey = getTitleKey(SPORT_TYPE)
 
   // today는 실제 날짜로 리다이렉트 (UTC 기준)
   if (dateStr === 'today') {
@@ -127,13 +129,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       title: tDaily(titleKey as any, { date: tCommon('home') }),
       alternates: {
-        canonical: `/daily/${today}`,
+        canonical: `/${SPORT_ID}/daily/${today}`,
       },
     }
   }
 
   const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
-  const report = await getCachedDailyReport(dateStr, timezone, sportType)
+  const report = await getCachedDailyReport(dateStr, timezone, SPORT_TYPE)
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
   const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
   const offsetMinutes = getTimezoneOffsetAtDate(timezone, utcBase)
@@ -204,7 +206,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       modifiedTime: new Date(report.updatedAt).toISOString(),
     },
     alternates: {
-      canonical: `/daily/${dateStr}`,
+      canonical: `/${SPORT_ID}/daily/${dateStr}`,
     },
   }
 }
@@ -337,15 +339,14 @@ export default async function DailyReportPage({ params }: Props) {
   // today는 실제 날짜로 리다이렉트 (UTC 기준)
   if (dateStr === 'today') {
     const today = new Date().toISOString().slice(0, 10)
-    redirect(`/daily/${today}`)
+    redirect(`/${SPORT_ID}/daily/${today}`)
   }
 
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
   const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
   const cookieStore = await cookies()
   const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
-  const sportType = sportIdToEnum(getSportFromCookie(cookieStore.get(SPORT_COOKIE)?.value))
-  const titleKey = getTitleKey(sportType)
+  const titleKey = getTitleKey(SPORT_TYPE)
   const offsetMinutes = getTimezoneOffsetAtDate(timezone, utcBase)
   const displayDate = new Date(utcBase.getTime() + offsetMinutes * 60 * 1000)
   if (!isValid(parsed)) {
@@ -353,8 +354,8 @@ export default async function DailyReportPage({ params }: Props) {
   }
 
   const [initialReport, matches] = await Promise.all([
-    getCachedDailyReport(dateStr, timezone, sportType),
-    getCachedMatches(dateStr, timezone, sportType),
+    getCachedDailyReport(dateStr, timezone, SPORT_TYPE),
+    getCachedMatches(dateStr, timezone, SPORT_TYPE),
   ])
 
   // 번역은 생성 시점에 완료된 데이터만 사용 (렌더링 중 생성하지 않음)
@@ -437,9 +438,14 @@ export default async function DailyReportPage({ params }: Props) {
 
   return (
     <>
-      <JsonLd report={report} dateStr={dateStr} matches={matches} locale={locale} sportType={sportType} />
+      <JsonLd report={report} dateStr={dateStr} matches={matches} locale={locale} sportType={SPORT_TYPE} />
 
       <div className="container px-6 py-8 md:px-8">
+        {/* 스포츠 선택 탭 */}
+        <div className="max-w-6xl mx-auto">
+          <SportTabs currentSport={SPORT_ID} basePath={`/daily/${dateStr}`} />
+        </div>
+
         {/* Breadcrumb */}
         <nav className="mb-6 text-sm text-muted-foreground max-w-6xl mx-auto">
           <ol className="flex items-center justify-start gap-1">
@@ -450,7 +456,7 @@ export default async function DailyReportPage({ params }: Props) {
             </li>
             <ChevronRight className="h-3 w-3 opacity-50 rtl:-scale-x-100" />
             <li>
-              <Link href="/daily/today" className="hover:text-primary transition-colors">
+              <Link href={`/${SPORT_ID}/daily/today`} className="hover:text-primary transition-colors">
                 {tCommon('daily_report')}
               </Link>
             </li>
@@ -538,11 +544,11 @@ export default async function DailyReportPage({ params }: Props) {
                       {validHotMatches.map((hot, i) => {
                         const match = matches.find((m) => m.id === hot.matchId)!;
 
-                        const fromDaily = `/daily/${dateStr}`
+                        const fromDaily = `/${SPORT_ID}/daily/${dateStr}`
                         return (
                           <Link
                             key={i}
-                            href={`/match/${match.slug || match.id}?from=${encodeURIComponent(fromDaily)}`}
+                            href={`/${SPORT_ID}/match/${match.slug || match.id}?from=${encodeURIComponent(fromDaily)}`}
                           >
                             <Card className="h-full transition-all hover:shadow-md hover:border-primary/50">
                               <CardContent className="p-4">
@@ -597,7 +603,7 @@ export default async function DailyReportPage({ params }: Props) {
                             return (
                               <Link
                                 key={offset}
-                                href={`/daily/${dStr}`}
+                                href={`/${SPORT_ID}/daily/${dStr}`}
                                 className={`flex min-w-[40px] flex-col items-center py-1.5 px-2 rounded-lg transition-all ${
                                   isCurrent
                                     ? 'bg-primary text-primary-foreground shadow-md'
@@ -634,11 +640,11 @@ export default async function DailyReportPage({ params }: Props) {
                         const homeWins = isFinished && (match.homeScore ?? 0) > (match.awayScore ?? 0)
                         const awayWins = isFinished && (match.awayScore ?? 0) > (match.homeScore ?? 0)
 
-                        const fromDaily = `/daily/${dateStr}`
+                        const fromDaily = `/${SPORT_ID}/daily/${dateStr}`
                         return (
                           <Link
                             key={match.id}
-                            href={`/match/${match.slug || match.id}?from=${encodeURIComponent(fromDaily)}`}
+                            href={`/${SPORT_ID}/match/${match.slug || match.id}?from=${encodeURIComponent(fromDaily)}`}
                           >
                             <Card className={`transition-all hover:shadow-sm ${
                               isFinished ? 'opacity-60 bg-muted/20' : 

@@ -1,13 +1,13 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Metadata } from 'next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { Link } from '@/i18n/routing'
-import { Trophy, Users, Calendar } from 'lucide-react'
+import { Users, Calendar } from 'lucide-react'
 import { LeagueLogo } from '@/components/ui/league-logo'
+import { SportTabs } from '@/components/sport-tabs'
 
 const SPORT_ID = 'football'
 
@@ -46,39 +46,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = await getTranslations({ locale, namespace: 'leagues' })
 
   return {
-    title: `Football ${t('title')} - PlayStat`,
+    title: `${t('title')} - PlayStat`,
     description: t('description'),
   }
 }
 
-export default async function BaseballLeaguesPage({ params }: Props) {
+export default async function FootballLeaguesPage({ params }: Props) {
   const { locale } = await params
   setRequestLocale(locale)
 
   const t = await getTranslations({ locale, namespace: 'leagues' })
-  const common = await getTranslations({ locale, namespace: 'common' })
+  const sports = await getTranslations({ locale, namespace: 'sports' })
 
   const leagues = await getCachedLeagues()
 
   return (
     <div className="container space-y-8 py-8">
+      {/* 스포츠 선택 탭 */}
+      <SportTabs currentSport={SPORT_ID} basePath="/leagues" />
+
       <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600">
-            <span className="text-2xl">⚽</span>
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Football {t('title')}</h1>
-            <p className="text-muted-foreground">{t('subtitle')}</p>
-          </div>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight">{sports('football')} {t('title')}</h1>
+        <p className="text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {leagues.map((league) => (
-          <Link key={league.id} href={`/league/${league.id}`}>
+          <Link key={league.id} href={`/${SPORT_ID}/league/${league.code?.toLowerCase()}`}>
             <Card className="group h-full transition-all hover:shadow-lg">
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <LeagueLogo logoUrl={league.logoUrl} name={league.name} size="xl" className="rounded-lg" />
@@ -91,32 +87,24 @@ export default async function BaseballLeaguesPage({ params }: Props) {
                       </p>
                     </div>
                   </div>
-                  <Trophy className="h-5 w-5 text-yellow-500" />
+                  {league.season && (
+                    <span className="text-sm text-muted-foreground">
+                      {league.season}
+                    </span>
+                  )}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <div className="text-sm">
-                      <p className="font-semibold">{league._count.teams}</p>
-                      <p className="text-muted-foreground">Teams</p>
-                    </div>
+              <CardContent className="pt-0">
+                <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="h-4 w-4" />
+                    <span>{league._count.teams} Teams</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <div className="text-sm">
-                      <p className="font-semibold">{league._count.matches}</p>
-                      <p className="text-muted-foreground">Matches</p>
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-4 w-4" />
+                    <span>{league._count.matches} Matches</span>
                   </div>
                 </div>
-
-                {league.season && (
-                  <div>
-                    <Badge variant="secondary">Season {league.season}</Badge>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </Link>

@@ -32,8 +32,8 @@
   "home": {
     "title": "PlayStat - AIスポーツ分析プラットフォーム",
     "description": "サッカー、NBA、MLBのAI駆動型分析とインサイト",
-    "hero_description": "ノイズを排除し、重要なことに集中しましょう。AI駆動の試合プレビューとデイリーレポートで、試合観戦をより楽しみましょう。",
-    "hero_title": "データ主導の勝利、AIスポーツインサイト",
+    "hero_description": "複雑なデータは省き、重要なポイントだけを分かりやすくお伝えします。",
+    "hero_title": "AIがまとめる試合分析",
     "hero_subtitle": "AI分析による試合プレビューとインサイト",
     "today_matches": "今日の試合",
     "todays_matches": "今日の試合",
@@ -296,6 +296,7 @@
   },
   "news": {
     "latest": "最新ニュース",
+    "news_label": "ニュース",
     "football": "サッカー",
     "basketball": "バスケットボール",
     "baseball": "野球",
@@ -304,7 +305,8 @@
     "source": "ソース",
     "published_at": "公開日",
     "no_news": "最新ニュースを読み込むことができません。",
-    "try_again": "しばらくしてから再度お試しください。"
+    "try_again": "しばらくしてから再度お試しください。",
+    "error": "ニュースを読み込めません"
   },
   "daily_report": {
     "title": "デイリーレポート",
@@ -429,5 +431,19 @@
     "title": "リーグ",
     "subtitle": "すべてのリーグを探す",
     "description": "AI分析を活用した世界のサッカーリーグ"
+  },
+  "matches": {
+    "title": "試合日程",
+    "subtitle": "予定されている試合を確認",
+    "description": "全スポーツの試合日程と結果",
+    "upcoming_matches": "予定試合",
+    "past_matches": "過去の試合",
+    "no_upcoming_matches": "予定されている試合はありません",
+    "no_past_matches": "過去の試合はありません"
+  },
+  "teams": {
+    "title": "チーム",
+    "subtitle": "全チーム一覧",
+    "description": "チームの詳細と統計"
   }
 }
