@@ -173,6 +173,46 @@ model TeamSeasonStats {
   @@index([season])
 }
 
+model TeamAdvancedStats {
+  id              String    @id @default(cuid())
+  teamId          String
+  sportType       SportType @default(BASKETBALL)
+  season          String    // e.g., "2024-25"
+  // Offensive stats
+  offRating       Float?    // Offensive Rating (points per 100 possessions)
+  pace            Float?    // Pace (possessions per game)
+  fgPct           Float?    // Field Goal %
+  fg3Pct          Float?    // 3-Point %
+  ftPct           Float?    // Free Throw %
+  astPct          Float?    // Assist %
+  tovPct          Float?    // Turnover %
+  // Defensive stats
+  defRating       Float?    // Defensive Rating
+  rebPct          Float?    // Rebound %
+  drebPct         Float?    // Defensive Rebound %
+  orebPct         Float?    // Offensive Rebound %
+  stlPct          Float?    // Steal %
+  blkPct          Float?    // Block %
+  // Net stats
+  netRating       Float?    // Net Rating (Off - Def)
+  // Per game averages
+  avgPts          Float?    // Points per game
+  avgReb          Float?    // Rebounds per game
+  avgAst          Float?    // Assists per game
+  avgStl          Float?    // Steals per game
+  avgBlk          Float?    // Blocks per game
+  avgTov          Float?    // Turnovers per game
+  // Additional raw data
+  rawData         Json?     // Full API response for future use
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([teamId, sportType, season])
+  @@index([sportType])
+  @@index([season])
+  @@index([teamId])
+}
+
 model TeamRecentMatches {
   id          String    @id @default(cuid())
   teamId      String    @unique

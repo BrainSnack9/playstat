@@ -1,0 +1,39 @@
+name: Collect NBA Advanced Stats
+
+on:
+  schedule:
+    # 매일 00:30 UTC (KST 09:30) - data-collection 전에 실행
+    - cron: '30 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  collect-nba-stats:
+    name: Collect NBA Advanced Stats
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+
+      - name: Run NBA stats collector
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python scripts/collect-nba-stats.py
+
+      - name: Summary
+        run: |
+          echo "# 🏀 NBA Advanced Stats Collection" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status**: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
