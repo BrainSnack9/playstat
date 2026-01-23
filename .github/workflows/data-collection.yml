@@ -150,19 +150,26 @@ jobs:
       - name: Wait for rate limit
         run: sleep 15
 
-      - name: Generate Football Analysis
+      - name: Generate Football Analysis (batch calls)
         run: |
-          RESPONSE=$(curl -X GET "${{ secrets.SITE_URL }}/api/cron/generate-analysis?sport=football" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json" \
-            --fail --show-error)
-          echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
-          GENERATED=$(echo "$RESPONSE" | jq -r '.analysesGenerated // 0')
-          if [ "$GENERATED" = "0" ]; then
-            echo "ℹ️ No matches requiring analysis in next 48 hours"
-          else
-            echo "✅ Generated $GENERATED analyses"
-          fi
+          TOTAL=0
+          for i in 1 2 3 4 5; do
+            echo "🔄 Batch $i/5..."
+            RESPONSE=$(curl -X GET "${{ secrets.SITE_URL }}/api/cron/generate-analysis?sport=football" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              -H "Content-Type: application/json" \
+              --fail --show-error --max-time 120) || true
+            echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+            GENERATED=$(echo "$RESPONSE" | jq -r '.analysesGenerated // 0')
+            TOTAL=$((TOTAL + GENERATED))
+            if [ "$GENERATED" = "0" ]; then
+              echo "✅ No more matches to analyze"
+              break
+            fi
+            echo "✅ Batch $i: Generated $GENERATED analyses"
+            sleep 5
+          done
+          echo "📊 Total analyses generated: $TOTAL"
 
   football-generate-daily-report:
     name: Football - Generate Daily Report
@@ -237,21 +244,27 @@ jobs:
       - name: Wait for rate limit
         run: sleep 15
 
-      - name: Generate Basketball Analysis
+      - name: Generate Basketball Analysis (batch calls)
         id: analysis
         run: |
-          RESPONSE=$(curl -X GET "${{ secrets.SITE_URL }}/api/cron/generate-analysis?sport=basketball" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json" \
-            --fail --show-error)
-          echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
-          # 분석 대상 경기가 없으면 메시지 출력
-          GENERATED=$(echo "$RESPONSE" | jq -r '.analysesGenerated // 0')
-          if [ "$GENERATED" = "0" ]; then
-            echo "ℹ️ No matches requiring analysis in next 48 hours"
-          else
-            echo "✅ Generated $GENERATED analyses"
-          fi
+          TOTAL=0
+          for i in 1 2 3 4 5; do
+            echo "🔄 Batch $i/5..."
+            RESPONSE=$(curl -X GET "${{ secrets.SITE_URL }}/api/cron/generate-analysis?sport=basketball" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              -H "Content-Type: application/json" \
+              --fail --show-error --max-time 120) || true
+            echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+            GENERATED=$(echo "$RESPONSE" | jq -r '.analysesGenerated // 0')
+            TOTAL=$((TOTAL + GENERATED))
+            if [ "$GENERATED" = "0" ]; then
+              echo "✅ No more matches to analyze"
+              break
+            fi
+            echo "✅ Batch $i: Generated $GENERATED analyses"
+            sleep 5
+          done
+          echo "📊 Total analyses generated: $TOTAL"
 
   basketball-generate-daily-report:
     name: Basketball - Generate Daily Report
