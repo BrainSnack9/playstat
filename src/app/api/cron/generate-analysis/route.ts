@@ -81,7 +81,7 @@ export async function GET(request: Request) {
           },
         },
       },
-      take: 5,
+      take: 2, // Vercel 타임아웃 방지 (분석+번역 시간 고려)
     })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
