@@ -354,9 +354,9 @@ async function generateReportForDate(
 
 /**
  * GET /api/cron/generate-daily-report
- * 오늘 + 내일 데일리 리포트 생성
- * - 오늘 리포트가 없으면 오늘 + 내일 생성
- * - 오늘 리포트가 있으면 내일만 생성
+ * 데일리 리포트 생성
+ * - date 파라미터: 특정 날짜만 생성 (YYYY-MM-DD 형식)
+ * - date 파라미터 없으면: 오늘 또는 내일 중 하나만 생성 (타임아웃 방지)
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -380,46 +380,60 @@ export async function GET(request: Request) {
   const sportLabel = sportId === 'basketball' ? 'NBA' : sportId === 'baseball' ? 'MLB' : '축구'
   const sportLabelEn = sportId === 'basketball' ? 'NBA' : sportId === 'baseball' ? 'MLB' : 'Football'
 
-  try {
-    // UTC 기준 오늘/내일 날짜 계산 (전세계 일관성)
-    const now = new Date()
-    const todayStr = format(now, 'yyyy-MM-dd')
-    const tomorrowStr = format(addDays(now, 1), 'yyyy-MM-dd')
+  // date 파라미터 확인 (특정 날짜만 생성)
+  const { searchParams } = new URL(request.url)
+  const dateParam = searchParams.get('date')
 
+  try {
     const results = []
 
-    // 오늘 리포트 확인 (UTC 날짜 기준)
-    const todayDateOnly = new Date(todayStr + 'T00:00:00Z')
-    const todayReport = await prisma.dailyReport.findFirst({
-      where: { date: todayDateOnly, sportType: sportTypeEnum },
-    })
-
-    // 오늘 리포트가 없으면 생성
-    if (!todayReport) {
-      console.log(`[Cron] Generating today's report (${todayStr})...`)
-      const todayResult = await generateReportForDate(
+    if (dateParam) {
+      // 특정 날짜만 생성
+      console.log(`[Cron] Generating report for specific date: ${dateParam}...`)
+      const result = await generateReportForDate(
         prisma,
-        todayStr,
+        dateParam,
         sportTypeEnum,
         sportLabel,
         sportLabelEn
       )
-      results.push({ date: todayStr, ...todayResult })
+      results.push({ date: dateParam, ...result })
     } else {
-      console.log(`[Cron] Today's report (${todayStr}) already exists`)
-      results.push({ date: todayStr, success: true, message: 'Already exists', matchCount: 0 })
-    }
+      // date 파라미터 없으면: 오늘 없으면 오늘 생성, 있으면 내일 생성 (하나만)
+      const now = new Date()
+      const todayStr = format(now, 'yyyy-MM-dd')
+      const tomorrowStr = format(addDays(now, 1), 'yyyy-MM-dd')
 
-    // 내일 리포트 생성
-    console.log(`[Cron] Generating tomorrow's report (${tomorrowStr})...`)
-    const tomorrowResult = await generateReportForDate(
-      prisma,
-      tomorrowStr,
-      sportTypeEnum,
-      sportLabel,
-      sportLabelEn
-    )
-    results.push({ date: tomorrowStr, ...tomorrowResult })
+      // 오늘 리포트 확인
+      const todayDateOnly = new Date(todayStr + 'T00:00:00Z')
+      const todayReport = await prisma.dailyReport.findFirst({
+        where: { date: todayDateOnly, sportType: sportTypeEnum },
+      })
+
+      if (!todayReport) {
+        // 오늘 리포트가 없으면 오늘 생성
+        console.log(`[Cron] Generating today's report (${todayStr})...`)
+        const todayResult = await generateReportForDate(
+          prisma,
+          todayStr,
+          sportTypeEnum,
+          sportLabel,
+          sportLabelEn
+        )
+        results.push({ date: todayStr, ...todayResult })
+      } else {
+        // 오늘 리포트가 있으면 내일 생성
+        console.log(`[Cron] Today's report exists, generating tomorrow's (${tomorrowStr})...`)
+        const tomorrowResult = await generateReportForDate(
+          prisma,
+          tomorrowStr,
+          sportTypeEnum,
+          sportLabel,
+          sportLabelEn
+        )
+        results.push({ date: tomorrowStr, ...tomorrowResult })
+      }
+    }
 
     const duration = Date.now() - startTime
 

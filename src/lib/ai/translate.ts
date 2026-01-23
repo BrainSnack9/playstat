@@ -71,6 +71,12 @@ const FOOTBALL_TEAM_NAMES = [
 // 모든 팀 이름 통합
 const ALL_TEAM_NAMES = [...NBA_TEAM_NAMES, ...FOOTBALL_TEAM_NAMES]
 
+// 스포츠 용어 번역 매핑 (Google Translate 오번역 방지)
+const SPORTS_TERM_TRANSLATIONS: Record<string, Record<string, string>> = {
+  'Fixtures': { ko: '경기', ja: '試合', de: 'Spiele', es: 'Partidos' },
+  'Other Fixtures': { ko: '기타 경기', ja: 'その他の試合', de: 'Andere Spiele', es: 'Otros Partidos' },
+}
+
 /**
  * 팀 이름을 플레이스홀더로 대체하고 번역 후 복원합니다.
  */
@@ -108,6 +114,22 @@ function restoreTeamNames(text: string, replacements: Map<string, string>): stri
 }
 
 /**
+ * 스포츠 용어를 올바른 번역으로 교체합니다.
+ */
+function applySportsTermTranslations(text: string, targetLang: string): string {
+  let result = text
+  for (const [term, translations] of Object.entries(SPORTS_TERM_TRANSLATIONS)) {
+    const correctTranslation = translations[targetLang]
+    if (correctTranslation) {
+      // 대소문자 구분 없이 매칭
+      const regex = new RegExp(term, 'gi')
+      result = result.replace(regex, correctTranslation)
+    }
+  }
+  return result
+}
+
+/**
  * Google Translate (비공식 무료 API)를 사용하여 텍스트를 번역합니다.
  * 팀 이름은 원문 그대로 유지됩니다.
  */
@@ -122,8 +144,11 @@ async function translateWithGoogle(
   const source = LANG_MAP[sourceLang] || sourceLang
   const target = LANG_MAP[targetLang] || targetLang
 
+  // 스포츠 용어를 미리 올바른 번역으로 교체 (Google Translate 오번역 방지)
+  const preProcessedText = applySportsTermTranslations(text, target)
+
   // 팀 이름 보호
-  const { protected: protectedText, replacements } = protectTeamNames(text)
+  const { protected: protectedText, replacements } = protectTeamNames(preProcessedText)
 
   try {
     const result = await translate(protectedText, {

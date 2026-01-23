@@ -199,11 +199,15 @@ export async function GET(request: Request) {
         const kickoffAt = parseGameTime(game.date, game.status)
 
         if (existingMatch) {
-          // 진행 중이거나 예정된 경기만 업데이트
+          // 기존 경기 업데이트 - kickoffAt은 유효한 시간일 때만 업데이트
+          // (LIVE/FINISHED 상태에서는 status가 "Final" 등이라 00:00으로 잘못 파싱됨)
+          const hasValidTime = game.status.includes('T') && game.status.includes('Z')
+
           await prisma.match.update({
             where: { id: existingMatch.id },
             data: {
-              kickoffAt,
+              // 유효한 시간이 있을 때만 kickoffAt 업데이트
+              ...(hasValidTime ? { kickoffAt } : {}),
               status: matchStatus,
               homeScore: game.home_team_score || null,
               awayScore: game.visitor_team_score || null,

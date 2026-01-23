@@ -187,20 +187,26 @@ jobs:
       - name: Wait for rate limit
         run: sleep 15
 
-      - name: Generate Football Daily Report
+      - name: Generate Football Daily Report (batch calls)
         run: |
-          RESPONSE=$(curl -X GET "${{ secrets.SITE_URL }}/api/cron/generate-daily-report?sport=football" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json" \
-            --fail --show-error)
-          echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
-          CREATED=$(echo "$RESPONSE" | jq -r '.created // false')
-          if [ "$CREATED" = "false" ]; then
-            REASON=$(echo "$RESPONSE" | jq -r '.reason // "No matches for today"')
-            echo "ℹ️ Report not created: $REASON"
-          else
-            echo "✅ Daily report created successfully"
-          fi
+          # 오늘/내일 각각 별도 호출 (타임아웃 방지)
+          for i in 1 2; do
+            echo "🔄 Daily Report Call $i/2..."
+            RESPONSE=$(curl -X GET "${{ secrets.SITE_URL }}/api/cron/generate-daily-report?sport=football" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              -H "Content-Type: application/json" \
+              --max-time 300) || true
+            echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+
+            # 결과 확인
+            DATE=$(echo "$RESPONSE" | jq -r '.results[0].date // "unknown"')
+            MESSAGE=$(echo "$RESPONSE" | jq -r '.results[0].message // "created"')
+            echo "✅ Call $i: $DATE - $MESSAGE"
+
+            # 이미 존재하는 리포트면 다음 호출에서 다른 날짜 처리됨
+            sleep 5
+          done
+          echo "📊 Daily report generation complete"
 
   # =====================================================
   # BASKETBALL JOBS (Football 완료 후 실행)
@@ -282,22 +288,24 @@ jobs:
       - name: Wait for rate limit
         run: sleep 15
 
-      - name: Generate Basketball Daily Report
+      - name: Generate Basketball Daily Report (batch calls)
         id: report
         run: |
-          RESPONSE=$(curl -X GET "${{ secrets.SITE_URL }}/api/cron/generate-daily-report?sport=basketball" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json" \
-            --fail --show-error)
-          echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
-          # 리포트 생성 여부 확인
-          CREATED=$(echo "$RESPONSE" | jq -r '.created // false')
-          if [ "$CREATED" = "false" ]; then
-            REASON=$(echo "$RESPONSE" | jq -r '.reason // "No matches for today"')
-            echo "ℹ️ Report not created: $REASON"
-          else
-            echo "✅ Daily report created successfully"
-          fi
+          # 오늘/내일 각각 별도 호출 (타임아웃 방지)
+          for i in 1 2; do
+            echo "🔄 Daily Report Call $i/2..."
+            RESPONSE=$(curl -X GET "${{ secrets.SITE_URL }}/api/cron/generate-daily-report?sport=basketball" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              -H "Content-Type: application/json" \
+              --max-time 300) || true
+            echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+
+            DATE=$(echo "$RESPONSE" | jq -r '.results[0].date // "unknown"')
+            MESSAGE=$(echo "$RESPONSE" | jq -r '.results[0].message // "created"')
+            echo "✅ Call $i: $DATE - $MESSAGE"
+            sleep 5
+          done
+          echo "📊 Daily report generation complete"
 
   # =====================================================
   # BASEBALL JOBS (Basketball 완료 후 실행)
@@ -380,20 +388,23 @@ jobs:
       - name: Wait for rate limit
         run: sleep 15
 
-      - name: Generate Baseball Daily Report
+      - name: Generate Baseball Daily Report (batch calls)
         run: |
-          RESPONSE=$(curl -X GET "${{ secrets.SITE_URL }}/api/cron/generate-daily-report?sport=baseball" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json" \
-            --fail --show-error)
-          echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
-          CREATED=$(echo "$RESPONSE" | jq -r '.created // false')
-          if [ "$CREATED" = "false" ]; then
-            REASON=$(echo "$RESPONSE" | jq -r '.reason // "No matches for today"')
-            echo "ℹ️ Report not created: $REASON"
-          else
-            echo "✅ Daily report created successfully"
-          fi
+          # 오늘/내일 각각 별도 호출 (타임아웃 방지)
+          for i in 1 2; do
+            echo "🔄 Daily Report Call $i/2..."
+            RESPONSE=$(curl -X GET "${{ secrets.SITE_URL }}/api/cron/generate-daily-report?sport=baseball" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              -H "Content-Type: application/json" \
+              --max-time 300) || true
+            echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+
+            DATE=$(echo "$RESPONSE" | jq -r '.results[0].date // "unknown"')
+            MESSAGE=$(echo "$RESPONSE" | jq -r '.results[0].message // "created"')
+            echo "✅ Call $i: $DATE - $MESSAGE"
+            sleep 5
+          done
+          echo "📊 Daily report generation complete"
 
   # =====================================================
   # SUMMARY

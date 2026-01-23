@@ -319,18 +319,31 @@ function mapFDStatus(status: FDMatch['status']): MatchStatus {
  * BallDontLie (Basketball/Baseball) 상태 매핑
  */
 function mapBDLStatus(apiStatus: string): MatchStatus {
+  // BallDontLie NBA API는 대문자로 반환 (Final, 1st Qtr 등)
   const statusMap: Record<string, MatchStatus> = {
-    'scheduled': 'SCHEDULED',
-    'in progress': 'LIVE',
-    'in_progress': 'LIVE',
+    'Final': 'FINISHED',
     'final': 'FINISHED',
     'finished': 'FINISHED',
+    '1st Qtr': 'LIVE',
+    '2nd Qtr': 'LIVE',
+    '3rd Qtr': 'LIVE',
+    '4th Qtr': 'LIVE',
+    'Halftime': 'LIVE',
+    'OT': 'LIVE',
+    'In Progress': 'LIVE',
+    'in progress': 'LIVE',
+    'in_progress': 'LIVE',
+    'scheduled': 'SCHEDULED',
     'postponed': 'POSTPONED',
     'cancelled': 'CANCELLED',
     'suspended': 'SUSPENDED',
   }
 
-  const normalized = apiStatus.toLowerCase().replace(/\s+/g, '_')
-  return statusMap[normalized] || statusMap[apiStatus.toLowerCase()] || 'SCHEDULED'
+  // ISO 형식인 경우 (예: "2026-01-21T00:00:00Z") → TIMED
+  if (apiStatus.includes('T') && apiStatus.includes('Z')) {
+    return 'TIMED'
+  }
+
+  return statusMap[apiStatus] || statusMap[apiStatus.toLowerCase()] || 'SCHEDULED'
 }
 
