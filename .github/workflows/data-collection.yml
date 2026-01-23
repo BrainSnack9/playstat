@@ -2,8 +2,9 @@ name: Data Collection Cron Jobs
 
 on:
   schedule:
-    # 매일 01:00 UTC (KST 10:00)
-    - cron: '0 1 * * *'
+    # 6시간마다 실행 (UTC 01:00, 07:00, 13:00, 19:00 = KST 10:00, 16:00, 22:00, 04:00)
+    # GitHub Actions 스케줄 신뢰성 문제로 더 자주 실행
+    - cron: '0 1,7,13,19 * * *'
   workflow_dispatch:
     inputs:
       sport:
