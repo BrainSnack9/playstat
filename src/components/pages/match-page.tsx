@@ -16,7 +16,10 @@ import {
 } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 import { format } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import { prisma } from '@/lib/prisma'
+import { cookies } from 'next/headers'
+import { getTimezoneFromCookies } from '@/lib/timezone'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { generateMetadata as buildMetadata, generateMatchSEO, generateMatchJsonLd, resolveBaseUrl } from '@/lib/seo'
@@ -118,6 +121,10 @@ export default async function MatchPageContent({ params, searchParams, sport }: 
 
   const match = initialMatch
 
+  // 타임존 가져오기
+  const cookieStore = await cookies()
+  const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
+
   let kickoffDate = format(new Date(match.kickoffAt), 'yyyy-MM-dd')
   try {
     const fullFormat = tCommon('date_full_format')
@@ -127,7 +134,7 @@ export default async function MatchPageContent({ params, searchParams, sport }: 
   } catch {
     // Fallback set above
   }
-  const kickoffTime = format(new Date(match.kickoffAt), 'HH:mm')
+  const kickoffTime = formatInTimeZone(new Date(match.kickoffAt), timezone, 'HH:mm')
 
   // Get status label
   const statusKey = MATCH_STATUS_KEYS[match.status] || 'upcoming'

@@ -107,9 +107,9 @@ function protectTeamNames(text: string): { protected: string; replacements: Map<
 
 function restoreTeamNames(text: string, replacements: Map<string, string>): string {
   let restored = text
-  for (const [placeholder, original] of replacements) {
+  replacements.forEach((original, placeholder) => {
     restored = restored.replace(placeholder, original)
-  }
+  })
   return restored
 }
 

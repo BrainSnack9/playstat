@@ -103,7 +103,7 @@ export default async function FootballMatchesPage({ params }: Props) {
               </div>
             }
           >
-            <UpcomingMatches />
+            <UpcomingMatches locale={locale} />
           </Suspense>
         </TabsContent>
 
@@ -117,7 +117,7 @@ export default async function FootballMatchesPage({ params }: Props) {
               </div>
             }
           >
-            <PastMatches />
+            <PastMatches locale={locale} />
           </Suspense>
         </TabsContent>
       </Tabs>
@@ -125,9 +125,9 @@ export default async function FootballMatchesPage({ params }: Props) {
   )
 }
 
-async function UpcomingMatches() {
+async function UpcomingMatches({ locale }: { locale: string }) {
   const matches = await getCachedMatches('upcoming')
-  const t = await getTranslations({ namespace: 'matches' })
+  const t = await getTranslations({ locale, namespace: 'matches' })
 
   if (matches.length === 0) {
     return (
@@ -157,7 +157,7 @@ async function UpcomingMatches() {
           </h3>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {dateMatches.map((match) => (
-              <MatchCard key={match.id} match={match} sport={SPORT_ID} />
+              <MatchCard key={match.id} match={{ ...match, slug: match.slug || match.id }} sport={SPORT_ID} locale={locale} />
             ))}
           </div>
         </div>
@@ -166,9 +166,9 @@ async function UpcomingMatches() {
   )
 }
 
-async function PastMatches() {
+async function PastMatches({ locale }: { locale: string }) {
   const matches = await getCachedMatches('past')
-  const t = await getTranslations({ namespace: 'matches' })
+  const t = await getTranslations({ locale, namespace: 'matches' })
 
   if (matches.length === 0) {
     return (
@@ -181,7 +181,7 @@ async function PastMatches() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {matches.map((match) => (
-        <MatchCard key={match.id} match={match} sport={SPORT_ID} />
+        <MatchCard key={match.id} match={{ ...match, slug: match.slug || match.id }} sport={SPORT_ID} locale={locale} />
       ))}
     </div>
   )

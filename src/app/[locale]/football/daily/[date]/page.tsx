@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 import { format, parse, isValid, addDays } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import { prisma } from '@/lib/prisma'
 import { getTimezoneFromCookies, getTimezoneOffsetAtDate } from '@/lib/timezone'
 import { FormBadge } from '@/components/form-badge'
@@ -595,7 +596,7 @@ export default async function DailyReportPage({ params }: Props) {
                                     {match.league.name}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground">
-                                    {format(match.kickoffAt, 'HH:mm')}
+                                    {formatInTimeZone(new Date(match.kickoffAt), timezone, 'HH:mm')}
                                   </span>
                                 </div>
                                 <h3 className="font-semibold mb-1 text-start">{hot.title}</h3>
@@ -693,7 +694,7 @@ export default async function DailyReportPage({ params }: Props) {
                                   <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                                     {/* Time */}
                                     <div className={`text-xs sm:text-sm font-bold w-10 sm:w-12 text-center shrink-0 ${isLive ? 'text-red-500 animate-pulse' : ''}`}>
-                                      {format(new Date(match.kickoffAt), 'HH:mm')}
+                                      {formatInTimeZone(new Date(match.kickoffAt), timezone, 'HH:mm')}
                                     </div>
 
                                     {/* Teams */}

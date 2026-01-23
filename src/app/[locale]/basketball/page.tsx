@@ -91,7 +91,7 @@ export default async function BasketballHomePage({ params }: Props) {
             </div>
           }
         >
-          <TodayMatches sport={SPORT_ID} />
+          <TodayMatches sport={SPORT_ID} locale={locale} />
         </Suspense>
       </section>
 
@@ -123,7 +123,7 @@ export default async function BasketballHomePage({ params }: Props) {
             </div>
           }
         >
-          <HotTrends sport={SPORT_ID} />
+          <HotTrends sport={SPORT_ID} locale={locale} />
         </Suspense>
       </section>
 

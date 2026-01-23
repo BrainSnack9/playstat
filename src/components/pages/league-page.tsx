@@ -7,7 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Trophy, Calendar, TrendingUp, TrendingDown, ChevronLeft } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 import { format } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import { prisma } from '@/lib/prisma'
+import { cookies } from 'next/headers'
+import { getTimezoneFromCookies } from '@/lib/timezone'
 import Image from 'next/image'
 import { CACHE_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
@@ -163,6 +166,10 @@ export async function generateLeagueMetadata({ params, sport }: { params: Props[
 export default async function LeaguePageContent({ params, sport }: { params: Props['params']; sport: SportId }) {
   const { locale, slug } = await params
   setRequestLocale(locale)
+
+  // 타임존 가져오기
+  const cookieStore = await cookies()
+  const timezone = getTimezoneFromCookies(cookieStore.get('timezone')?.value || null)
 
   const sportType = sportIdToEnum(sport)
 
@@ -559,7 +566,7 @@ export default async function LeaguePageContent({ params, sport }: { params: Pro
                               </span>
                             ) : (
                               <span className="text-base sm:text-lg font-medium">
-                                {format(new Date(match.kickoffAt), 'HH:mm')}
+                                {formatInTimeZone(new Date(match.kickoffAt), timezone, 'HH:mm')}
                               </span>
                             )}
                             <span className="text-[10px] sm:text-xs text-muted-foreground mt-1">

@@ -91,7 +91,7 @@ async function generateReportForDate(
   }>()
 
   if (sportTypeEnum === 'BASKETBALL') {
-    const teamIds = [...new Set(matches.flatMap(m => [m.homeTeamId, m.awayTeamId]))]
+    const teamIds = Array.from(new Set(matches.flatMap(m => [m.homeTeamId, m.awayTeamId])))
     if (teamIds.length > 0) {
       const advancedStats = await prisma.teamAdvancedStats.findMany({
         where: {

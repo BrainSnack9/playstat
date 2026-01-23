@@ -159,10 +159,10 @@ export async function GET(request: Request) {
         throw error
       }
 
-      const apiMatches = matchesResponse.data || []
+      const apiMatches = (matchesResponse.data || []) as Array<{ id: number; [key: string]: unknown }>
 
       // DB에 있는 해당 범위의 경기들을 한 번에 가져와서 메모리에서 비교
-      const externalIds = apiMatches.map((m: { id: number }) => String(m.id))
+      const externalIds = apiMatches.map((m) => String(m.id))
       const existingMatches = await prisma.match.findMany({
         where: {
           externalId: { in: externalIds },
