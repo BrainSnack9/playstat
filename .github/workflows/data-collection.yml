@@ -17,6 +17,10 @@ on:
           - basketball
           - baseball
 
+# schedule일 때는 inputs가 없으므로 'all'로 fallback
+env:
+  SPORT: ${{ github.event.inputs.sport || 'all' }}
+
 jobs:
   # =====================================================
   # FOOTBALL JOBS - 리그별 분리 (타임아웃 방지)
@@ -24,7 +28,7 @@ jobs:
   football-pl:
     name: Football - Premier League
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'football' || github.event.inputs.sport == 'all'))
+    if: env.SPORT == 'all' || env.SPORT == 'football'
     steps:
       - name: Collect Premier League
         run: |
@@ -41,7 +45,7 @@ jobs:
     if: |
       always() &&
       (needs.football-pl.result == 'success' || needs.football-pl.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'football' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'football')
     steps:
       - name: Wait for rate limit
         run: sleep 10
@@ -61,7 +65,7 @@ jobs:
     if: |
       always() &&
       (needs.football-laliga.result == 'success' || needs.football-laliga.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'football' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'football')
     steps:
       - name: Wait for rate limit
         run: sleep 10
@@ -81,7 +85,7 @@ jobs:
     if: |
       always() &&
       (needs.football-seriea.result == 'success' || needs.football-seriea.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'football' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'football')
     steps:
       - name: Wait for rate limit
         run: sleep 10
@@ -101,7 +105,7 @@ jobs:
     if: |
       always() &&
       (needs.football-bundesliga.result == 'success' || needs.football-bundesliga.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'football' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'football')
     steps:
       - name: Wait for rate limit
         run: sleep 10
@@ -121,7 +125,7 @@ jobs:
     if: |
       always() &&
       (needs.football-ligue1.result == 'success' || needs.football-ligue1.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'football' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'football')
     steps:
       - name: Wait for rate limit
         run: sleep 15
@@ -154,7 +158,7 @@ jobs:
     if: |
       always() &&
       (needs.football-generate-analysis.result == 'success' || needs.football-generate-analysis.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'football' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'football')
     steps:
       - name: Wait for rate limit
         run: sleep 15
@@ -190,7 +194,7 @@ jobs:
     if: |
       always() &&
       (needs.football-generate-daily-report.result == 'success' || needs.football-generate-daily-report.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'basketball' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'basketball')
     steps:
       - name: Collect Basketball Matches
         id: collect
@@ -209,7 +213,7 @@ jobs:
     if: |
       always() &&
       (needs.basketball-collect-matches.result == 'success' || needs.basketball-collect-matches.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'basketball' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'basketball')
     steps:
       - name: Wait for rate limit
         run: sleep 15
@@ -243,7 +247,7 @@ jobs:
     if: |
       always() &&
       (needs.basketball-generate-analysis.result == 'success' || needs.basketball-generate-analysis.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'basketball' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'basketball')
     steps:
       - name: Wait for rate limit
         run: sleep 15
@@ -277,7 +281,7 @@ jobs:
     if: |
       always() &&
       (needs.basketball-generate-daily-report.result == 'success' || needs.basketball-generate-daily-report.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'baseball' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'baseball')
     steps:
       - name: Collect Baseball Matches
         id: collect
@@ -305,7 +309,7 @@ jobs:
     if: |
       always() &&
       (needs.baseball-collect-matches.result == 'success' || needs.baseball-collect-matches.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'baseball' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'baseball')
     steps:
       - name: Wait for rate limit
         run: sleep 15
@@ -331,7 +335,7 @@ jobs:
     if: |
       always() &&
       (needs.baseball-generate-analysis.result == 'success' || needs.baseball-generate-analysis.result == 'skipped') &&
-      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.sport == 'baseball' || github.event.inputs.sport == 'all')))
+      (env.SPORT == 'all' || env.SPORT == 'baseball')
     steps:
       - name: Wait for rate limit
         run: sleep 15
