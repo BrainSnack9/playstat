@@ -49,6 +49,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { path: '/baseball/teams', priority: 0.7, changeFrequency: 'weekly' as const },
         // Other
         { path: '/news', priority: 0.8, changeFrequency: 'hourly' as const },
+        { path: '/blog', priority: 0.8, changeFrequency: 'daily' as const },
         { path: '/about', priority: 0.5, changeFrequency: 'monthly' as const },
         { path: '/privacy', priority: 0.3, changeFrequency: 'monthly' as const },
         { path: '/terms', priority: 0.3, changeFrequency: 'monthly' as const },
@@ -138,7 +139,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }
     }
 
-    return [...staticPages, ...dailyPages, ...leaguePages, ...teamPages, ...matchPages]
+    // 동적 페이지: 블로그 포스트
+    const blogPosts = await prisma.blogPost.findMany({
+      where: { status: 'PUBLISHED' },
+      select: { slug: true, updatedAt: true },
+      orderBy: { publishedAt: 'desc' },
+      take: 100,
+    })
+
+    const blogPages: MetadataRoute.Sitemap = blogPosts.flatMap((post) =>
+      getLocalizedUrls(baseUrl, `/blog/post/${post.slug}`, 0.7, 'weekly' as const, post.updatedAt)
+    )
+
+    return [...staticPages, ...dailyPages, ...leaguePages, ...teamPages, ...matchPages, ...blogPages]
   } catch (error) {
     console.warn('Sitemap: DB connection failed, returning static pages only', error)
     return staticPages

@@ -321,3 +321,41 @@ enum MatchStatus {
   TIMED
   SUSPENDED
 }
+
+// 블로그 포스트 카테고리
+enum PostCategory {
+  ANALYSIS     // 경기 분석
+  PREVIEW      // 경기 프리뷰
+  REVIEW       // 경기 리뷰
+  NEWS         // 뉴스
+  GUIDE        // 가이드/팁
+  ANNOUNCEMENT // 공지사항
+}
+
+// 블로그 포스트 상태
+enum PostStatus {
+  DRAFT     // 임시저장
+  PUBLISHED // 게시됨
+  ARCHIVED  // 보관됨
+}
+
+// 블로그 포스트
+model BlogPost {
+  id            String       @id @default(cuid())
+  slug          String       @unique
+  category      PostCategory
+  sportType     SportType?   // 특정 스포츠 관련 글인 경우 (null이면 전체)
+  featuredImage String?      // 대표 이미지 URL
+  authorId      String       // 작성자 ID (Supabase Auth UID)
+  status        PostStatus   @default(DRAFT)
+  publishedAt   DateTime?    // 게시일
+  viewCount     Int          @default(0)
+  translations  Json?        // 다국어 콘텐츠 { ko: {title, excerpt, content}, en: {...} }
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([category])
+  @@index([sportType])
+  @@index([slug])
+}

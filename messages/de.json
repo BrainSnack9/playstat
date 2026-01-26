@@ -27,7 +27,8 @@
     "date_medium": "{day}. {month} ({weekday})",
     "date_short": "{day}. {month}",
     "date_medium_format": "d. MMM (EEE)",
-    "date_full_format": "EEEE, d. MMMM yyyy"
+    "date_full_format": "EEEE, d. MMMM yyyy",
+    "blog": "Blog"
   },
   "home": {
     "title": "PlayStat - KI Sportanalyseplattform",
@@ -455,5 +456,17 @@
     "title": "Teams",
     "subtitle": "Alle Teams",
     "description": "Teamdetails und Statistiken"
+  },
+  "blog": {
+    "title": "Blog",
+    "description": "Sportanalysen, Vorschauen, Rezensionen und mehr",
+    "pageTitle": "Blog | PlayStat",
+    "pageDescription": "PlayStat Blog - Sportanalysen, Spielvorschauen, Rezensionen und mehr.",
+    "allPosts": "Alle",
+    "noPosts": "Noch keine Beiträge veröffentlicht.",
+    "backToBlog": "Zurück zum Blog",
+    "views": "Aufrufe",
+    "categoryDescription": "Alle Beiträge in der Kategorie {category}",
+    "categoryPostCount": "{count} Beiträge"
   }
 }

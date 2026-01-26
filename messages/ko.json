@@ -27,7 +27,8 @@
     "date_medium": "{month}월 {day}일 ({weekday})",
     "date_short": "{month}월 {day}일",
     "date_medium_format": "M월 d일 (EEE)",
-    "date_full_format": "yyyy년 MM월 dd일 (EEEE)"
+    "date_full_format": "yyyy년 MM월 dd일 (EEEE)",
+    "blog": "블로그"
   },
   "home": {
     "title": "PlayStat - AI 스포츠 분석 플랫폼",
@@ -457,5 +458,17 @@
     "title": "팀",
     "subtitle": "전체 팀 목록",
     "description": "팀별 상세 정보 및 통계"
+  },
+  "blog": {
+    "title": "블로그",
+    "description": "스포츠 분석, 프리뷰, 리뷰 등 다양한 콘텐츠",
+    "pageTitle": "블로그 | PlayStat",
+    "pageDescription": "PlayStat 블로그 - 스포츠 분석, 경기 프리뷰, 리뷰 등 다양한 콘텐츠를 확인하세요.",
+    "allPosts": "전체",
+    "noPosts": "아직 게시된 글이 없습니다.",
+    "backToBlog": "블로그로 돌아가기",
+    "views": "조회",
+    "categoryDescription": "{category} 카테고리의 모든 글",
+    "categoryPostCount": "{count}개의 글"
   }
 }

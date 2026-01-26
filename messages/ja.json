@@ -27,7 +27,8 @@
     "date_medium": "{month}月{day}日({weekday})",
     "date_short": "{month}月{day}日",
     "date_medium_format": "M月d日(EEE)",
-    "date_full_format": "yyyy'年'M'月'd'日'(EEEE)"
+    "date_full_format": "yyyy'年'M'月'd'日'(EEEE)",
+    "blog": "ブログ"
   },
   "home": {
     "title": "PlayStat - AIスポーツ分析プラットフォーム",
@@ -445,5 +446,17 @@
     "title": "チーム",
     "subtitle": "全チーム一覧",
     "description": "チームの詳細と統計"
+  },
+  "blog": {
+    "title": "ブログ",
+    "description": "スポーツ分析、プレビュー、レビューなど",
+    "pageTitle": "ブログ | PlayStat",
+    "pageDescription": "PlayStatブログ - スポーツ分析、試合プレビュー、レビューなどをご覧ください。",
+    "allPosts": "すべて",
+    "noPosts": "まだ投稿がありません。",
+    "backToBlog": "ブログに戻る",
+    "views": "閲覧",
+    "categoryDescription": "{category}カテゴリのすべての投稿",
+    "categoryPostCount": "{count}件の投稿"
   }
 }
