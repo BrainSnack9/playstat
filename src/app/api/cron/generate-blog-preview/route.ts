@@ -4,7 +4,6 @@ import { BLOG_PREVIEW_PROMPT, fillPrompt, formatMatchDataForAI, type MatchAnalys
 import { addHours } from 'date-fns'
 import { type PrismaClient, Prisma } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
-import { ensureBlogPostTranslations } from '@/lib/ai/translate'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -44,14 +43,15 @@ function isBigMatch(
 }
 
 /**
- * 슬러그 생성
+ * 슬러그 생성 (ASCII만 허용)
  */
 function generateSlug(homeTeam: string, awayTeam: string, leagueName: string): string {
   const normalize = (str: string) =>
     str
       .toLowerCase()
-      .replace(/[^a-z0-9가-힣\s]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
       .substring(0, 30)
 
   const home = normalize(homeTeam)
@@ -279,7 +279,7 @@ export async function GET(request: Request) {
         // 블로그 포스트 생성 (DRAFT 상태)
         const slug = generateSlug(homeTeamName, awayTeamName, leagueName)
 
-        const newPost = await prisma.blogPost.create({
+        await prisma.blogPost.create({
           data: {
             slug,
             category: 'PREVIEW',
@@ -297,11 +297,6 @@ export async function GET(request: Request) {
             } as Prisma.InputJsonValue,
             viewCount: 0,
           },
-        })
-
-        // 다국어 번역 (백그라운드로 실행 - 결과 기다리지 않음)
-        ensureBlogPostTranslations(newPost).catch((err) => {
-          console.error(`Failed to translate blog post ${slug}:`, err)
         })
 
         // 캐시 무효화

@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import Link from 'next/link'
+import { Link } from '@/i18n/routing'
 import { notFound } from 'next/navigation'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { prisma } from '@/lib/prisma'
@@ -139,7 +139,7 @@ export default async function BlogPostPage({ params }: Props) {
       <article className="container mx-auto px-4 py-8 max-w-3xl">
         {/* 뒤로가기 */}
         <Link
-          href={`/${locale}/blog`}
+          href={`/blog`}
           className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

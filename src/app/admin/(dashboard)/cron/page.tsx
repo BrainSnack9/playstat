@@ -13,7 +13,8 @@ import {
   Database,
   FileText,
   RefreshCw,
-  Newspaper
+  Newspaper,
+  Wrench
 } from 'lucide-react'
 
 interface CronJob {
@@ -22,14 +23,14 @@ interface CronJob {
   description: string
   endpoint: string
   icon: React.ReactNode
-  category: 'data' | 'content' | 'blog'
+  category: 'data' | 'content' | 'blog' | 'maintenance'
 }
 
 const cronJobs: CronJob[] = [
   // 데이터 수집
   {
     id: 'collect-football',
-    name: '축구 데이터 수집',
+    name: '⚽ 축구 데이터 수집',
     description: '유럽 5대 리그 경기 일정 및 결과 수집',
     endpoint: '/api/cron/collect-football',
     icon: <Database className="w-5 h-5" />,
@@ -37,7 +38,7 @@ const cronJobs: CronJob[] = [
   },
   {
     id: 'collect-basketball',
-    name: '농구 데이터 수집',
+    name: '🏀 농구 데이터 수집',
     description: 'NBA 경기 일정 및 결과 수집',
     endpoint: '/api/cron/collect-basketball',
     icon: <Database className="w-5 h-5" />,
@@ -45,7 +46,7 @@ const cronJobs: CronJob[] = [
   },
   {
     id: 'collect-baseball',
-    name: '야구 데이터 수집',
+    name: '⚾ 야구 데이터 수집',
     description: 'MLB/KBO 경기 일정 및 결과 수집',
     endpoint: '/api/cron/collect-baseball',
     icon: <Database className="w-5 h-5" />,
@@ -84,10 +85,10 @@ const cronJobs: CronJob[] = [
     icon: <Newspaper className="w-5 h-5" />,
     category: 'content',
   },
-  // 블로그
+  // 블로그 - 축구
   {
     id: 'generate-blog-preview',
-    name: '블로그 프리뷰 생성',
+    name: '⚽ 축구 프리뷰 생성',
     description: '빅매치(상위 15위 내 팀) 블로그 프리뷰 자동 생성 (DRAFT)',
     endpoint: '/api/cron/generate-blog-preview',
     icon: <FileText className="w-5 h-5" />,
@@ -95,7 +96,7 @@ const cronJobs: CronJob[] = [
   },
   {
     id: 'generate-blog-review',
-    name: '블로그 리뷰 생성',
+    name: '⚽ 축구 리뷰 생성',
     description: '최근 6시간 내 종료된 경기 리뷰 자동 생성 (DRAFT)',
     endpoint: '/api/cron/generate-blog-review',
     icon: <FileText className="w-5 h-5" />,
@@ -103,11 +104,45 @@ const cronJobs: CronJob[] = [
   },
   {
     id: 'generate-blog-analysis',
-    name: '블로그 분석 생성',
+    name: '⚽ 축구 분석 생성',
     description: '팀 비교, 리그 점검 등 심층 분석 글 생성 (DRAFT)',
     endpoint: '/api/cron/generate-blog-analysis',
     icon: <FileText className="w-5 h-5" />,
     category: 'blog',
+  },
+  // 블로그 - 농구
+  {
+    id: 'generate-blog-preview-basketball',
+    name: '🏀 농구 프리뷰 생성',
+    description: 'NBA 빅매치(상위 10위 내 팀) 프리뷰 자동 생성 (DRAFT)',
+    endpoint: '/api/cron/generate-blog-preview-basketball',
+    icon: <FileText className="w-5 h-5" />,
+    category: 'blog',
+  },
+  {
+    id: 'generate-blog-review-basketball',
+    name: '🏀 농구 리뷰 생성',
+    description: 'NBA 최근 종료 경기 리뷰 자동 생성 (DRAFT)',
+    endpoint: '/api/cron/generate-blog-review-basketball',
+    icon: <FileText className="w-5 h-5" />,
+    category: 'blog',
+  },
+  {
+    id: 'generate-blog-analysis-basketball',
+    name: '🏀 농구 분석 생성',
+    description: 'NBA 팀 비교, 컨퍼런스 점검 등 심층 분석 (DRAFT)',
+    endpoint: '/api/cron/generate-blog-analysis-basketball',
+    icon: <FileText className="w-5 h-5" />,
+    category: 'blog',
+  },
+  // 유지보수
+  {
+    id: 'fix-blog-slugs',
+    name: '블로그 슬러그 수정',
+    description: '한글이 포함된 슬러그를 ASCII로 변환',
+    endpoint: '/api/admin/posts/fix-slugs',
+    icon: <Wrench className="w-5 h-5" />,
+    category: 'maintenance',
   },
 ]
 
@@ -203,6 +238,7 @@ export default function CronPage() {
     { id: 'data', label: '데이터 수집', description: '경기 데이터 및 통계 수집' },
     { id: 'content', label: 'AI 콘텐츠 생성', description: '경기 분석 및 리포트 생성' },
     { id: 'blog', label: '블로그 자동화', description: '블로그 포스트 자동 생성' },
+    { id: 'maintenance', label: '유지보수', description: '데이터 정리 및 수정 작업' },
   ]
 
   return (

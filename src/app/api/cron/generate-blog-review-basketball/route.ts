@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { openai, AI_MODELS } from '@/lib/openai'
-import { BLOG_REVIEW_PROMPT, fillPrompt } from '@/lib/ai/prompts'
+import { BLOG_REVIEW_PROMPT_BASKETBALL, fillPrompt } from '@/lib/ai/prompts'
 import { subHours } from 'date-fns'
 import { type PrismaClient, Prisma } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
@@ -8,45 +8,21 @@ import { revalidateTag } from 'next/cache'
 const CRON_SECRET = process.env.CRON_SECRET
 const SYSTEM_AUTHOR_ID = 'system-auto-generator'
 
-// 리뷰 대상 리그 (유럽 5대 리그)
-const REVIEW_LEAGUES = ['PL', 'PD', 'SA', 'BL1', 'FL1']
-
-// 리뷰 대상 기준: 양 팀 중 하나라도 상위권
-const TOP_RANK_THRESHOLD = 10
-
 async function getPrisma(): Promise<PrismaClient> {
   const { prisma } = await import('@/lib/prisma')
   return prisma
 }
 
 /**
- * 리뷰 대상 경기 여부 판별
- */
-function isReviewWorthy(
-  homeRank: number | null | undefined,
-  awayRank: number | null | undefined,
-  leagueCode: string | null | undefined
-): boolean {
-  if (!leagueCode || !REVIEW_LEAGUES.includes(leagueCode)) {
-    return false
-  }
-  // 한 팀이라도 상위권이면 리뷰 대상
-  if (homeRank && homeRank <= TOP_RANK_THRESHOLD) return true
-  if (awayRank && awayRank <= TOP_RANK_THRESHOLD) return true
-  return false
-}
-
-/**
  * 슬러그 생성 (ASCII만 허용)
  */
-function generateSlug(homeTeam: string, awayTeam: string, leagueName: string): string {
+function generateSlug(homeTeam: string, awayTeam: string): string {
   const normalize = (str: string) =>
     str.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').substring(0, 30)
   const home = normalize(homeTeam)
   const away = normalize(awayTeam)
-  const league = normalize(leagueName)
   const timestamp = Date.now().toString(36)
-  return `${home}-vs-${away}-${league}-review-${timestamp}`
+  return `nba-${home}-vs-${away}-review-${timestamp}`
 }
 
 /**
@@ -56,9 +32,9 @@ function parseResponse(response: string) {
   try {
     let jsonStr = response.trim()
     if (jsonStr.includes('```json')) {
-      jsonStr = jsonStr.replace(/^```json\s*\n?/, '').replace(/\n?```\s*$/, '').trim()
-    } else if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.replace(/^```\s*\n?/, '').replace(/\n?```\s*$/, '').trim()
+      jsonStr = jsonStr.replace(/^[\s\S]*?```json\s*\n?/, '').replace(/\n?```[\s\S]*$/, '').trim()
+    } else if (jsonStr.includes('```')) {
+      jsonStr = jsonStr.replace(/^[\s\S]*?```\s*\n?/, '').replace(/\n?```[\s\S]*$/, '').trim()
     }
     const parsed = JSON.parse(jsonStr)
     return {
@@ -74,8 +50,8 @@ function parseResponse(response: string) {
 }
 
 /**
- * GET /api/cron/generate-blog-review
- * 크론: 최근 종료된 경기에 대한 리뷰 자동 생성 (DRAFT)
+ * GET /api/cron/generate-blog-review-basketball
+ * 크론: 최근 종료된 NBA 경기 리뷰 자동 생성 (DRAFT)
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -95,17 +71,14 @@ export async function GET(request: Request) {
     const now = new Date()
     const hours6Ago = subHours(now, 6)
 
-    // 최근 6시간 내 종료된 경기 조회
+    // 최근 6시간 내 종료된 NBA 경기 조회
     const finishedMatches = await prisma.match.findMany({
       where: {
-        sportType: 'FOOTBALL',
+        sportType: 'BASKETBALL',
         status: 'FINISHED',
         kickoffAt: {
           gte: hours6Ago,
           lte: now,
-        },
-        league: {
-          code: { in: REVIEW_LEAGUES },
         },
       },
       include: {
@@ -124,20 +97,24 @@ export async function GET(request: Request) {
         const homeRank = homeStats?.rank
         const awayRank = awayStats?.rank
 
-        if (!isReviewWorthy(homeRank, awayRank, match.league?.code)) {
+        // 한 팀이라도 상위권(10위 이내)이면 리뷰 대상
+        const isReviewWorthy =
+          (homeRank && homeRank <= 10) || (awayRank && awayRank <= 10)
+
+        if (!isReviewWorthy) {
           continue
         }
 
         const homeTeamName = match.homeTeam?.name || ''
         const awayTeamName = match.awayTeam?.name || ''
-        const leagueName = match.league?.name || ''
 
         // 이미 리뷰가 있는지 확인
         const existingPost = await prisma.blogPost.findFirst({
           where: {
+            sportType: 'BASKETBALL',
             category: 'REVIEW',
             slug: {
-              contains: `${homeTeamName.toLowerCase().replace(/\s+/g, '-')}-vs-${awayTeamName.toLowerCase().replace(/\s+/g, '-')}`.substring(0, 40),
+              contains: `${homeTeamName.toLowerCase().replace(/\s+/g, '-')}-vs-${awayTeamName.toLowerCase().replace(/\s+/g, '-')}`.substring(0, 30),
             },
             createdAt: { gte: hours6Ago },
           },
@@ -148,10 +125,10 @@ export async function GET(request: Request) {
           continue
         }
 
-        // 경기 결과 데이터 구성
+        // 경기 데이터 구성
         const matchData = {
           match: {
-            league: leagueName,
+            league: match.league?.name || 'NBA',
             home_team: homeTeamName,
             away_team: awayTeamName,
             home_score: match.homeScore ?? 0,
@@ -162,24 +139,20 @@ export async function GET(request: Request) {
             rank: homeRank,
             season: {
               wins: homeStats?.wins || 0,
-              draws: homeStats?.draws || 0,
               losses: homeStats?.losses || 0,
-              points: homeStats?.points || 0,
             },
           },
           away: {
             rank: awayRank,
             season: {
               wins: awayStats?.wins || 0,
-              draws: awayStats?.draws || 0,
               losses: awayStats?.losses || 0,
-              points: awayStats?.points || 0,
             },
           },
         }
 
         // AI 호출
-        const prompt = fillPrompt(BLOG_REVIEW_PROMPT, {
+        const prompt = fillPrompt(BLOG_REVIEW_PROMPT_BASKETBALL, {
           matchData: JSON.stringify(matchData, null, 2),
         })
 
@@ -202,13 +175,13 @@ export async function GET(request: Request) {
           continue
         }
 
-        const slug = generateSlug(homeTeamName, awayTeamName, leagueName)
+        const slug = generateSlug(homeTeamName, awayTeamName)
 
         await prisma.blogPost.create({
           data: {
             slug,
             category: 'REVIEW',
-            sportType: 'FOOTBALL',
+            sportType: 'BASKETBALL',
             authorId: SYSTEM_AUTHOR_ID,
             status: 'DRAFT',
             translations: {
@@ -241,12 +214,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Generated ${successCount} blog reviews`,
+      message: `Generated ${successCount} NBA blog reviews`,
       duration: `${duration}ms`,
       results,
     })
   } catch (error) {
-    console.error('Blog review generation failed:', error)
+    console.error('NBA blog review generation failed:', error)
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500 }

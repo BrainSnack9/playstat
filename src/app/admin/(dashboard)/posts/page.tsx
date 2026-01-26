@@ -1,12 +1,16 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { Button } from '@/components/ui/button'
+
+// 관리자 페이지는 항상 최신 데이터 표시
+export const dynamic = 'force-dynamic'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { PenSquare, Eye, Calendar, Edit, Trash2 } from 'lucide-react'
+import { PenSquare, Eye, Calendar, Edit } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { DeletePostButton } from '@/components/admin/delete-post-button'
+import { ArchivePostButton } from '@/components/admin/archive-post-button'
 
 const categoryLabels: Record<string, string> = {
   ANALYSIS: '분석',
@@ -105,6 +109,7 @@ export default async function AdminPostsPage() {
                           <Edit className="w-4 h-4" />
                         </Button>
                       </Link>
+                      <ArchivePostButton postId={post.id} currentStatus={post.status} />
                       <DeletePostButton postId={post.id} />
                     </div>
                   </div>

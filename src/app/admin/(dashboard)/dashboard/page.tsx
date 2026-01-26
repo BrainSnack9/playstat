@@ -2,6 +2,9 @@ import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FileText, Eye, Clock, CheckCircle } from 'lucide-react'
 
+// 관리자 페이지는 항상 최신 데이터 표시
+export const dynamic = 'force-dynamic'
+
 async function getDashboardStats() {
   try {
     const [totalPosts, publishedPosts, draftPosts, viewsResult] = await Promise.all([

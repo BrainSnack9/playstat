@@ -1,18 +1,19 @@
 import { Metadata } from 'next'
-import Link from 'next/link'
+import { Link } from '@/i18n/routing'
 import { notFound } from 'next/navigation'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Eye, ArrowRight, ArrowLeft } from 'lucide-react'
+import { Calendar, Eye, ArrowRight, ArrowLeft, BarChart3 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko, enUS, ja, de, es, Locale as DateLocale } from 'date-fns/locale'
-import { PostCategory } from '@prisma/client'
+import { PostCategory, SportType } from '@prisma/client'
 
 interface Props {
   params: Promise<{ locale: string; category: string }>
+  searchParams: Promise<{ sport?: string }>
 }
 
 const dateLocales: Record<string, DateLocale> = {
@@ -29,6 +30,37 @@ const categoryLabels: Record<string, Record<string, string>> = {
   REVIEW: { ko: '리뷰', en: 'Review', ja: 'レビュー', de: 'Rezension', es: 'Reseña' },
 }
 
+const categoryStyles: Record<string, string> = {
+  ANALYSIS: 'bg-purple-500/15 text-purple-400 border border-purple-500/20',
+  PREVIEW: 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/20',
+  REVIEW: 'bg-pink-500/15 text-pink-400 border border-pink-500/20',
+}
+
+// 스포츠별 스타일 설정
+const sportStyles = {
+  FOOTBALL: {
+    gradient: 'from-emerald-500/20 via-transparent to-transparent',
+    border: 'border-l-emerald-500',
+    badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    label: { ko: '축구', en: 'Football' },
+    color: 'emerald',
+  },
+  BASKETBALL: {
+    gradient: 'from-orange-500/20 via-transparent to-transparent',
+    border: 'border-l-orange-500',
+    badge: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    label: { ko: '농구', en: 'Basketball' },
+    color: 'orange',
+  },
+  BASEBALL: {
+    gradient: 'from-red-500/20 via-transparent to-transparent',
+    border: 'border-l-red-500',
+    badge: 'bg-red-500/20 text-red-400 border-red-500/30',
+    label: { ko: '야구', en: 'Baseball' },
+    color: 'red',
+  },
+}
+
 const validCategories = ['analysis', 'preview', 'review']
 
 function getCategoryFromSlug(slug: string): PostCategory | null {
@@ -40,10 +72,20 @@ function getCategoryFromSlug(slug: string): PostCategory | null {
   return mapping[slug.toLowerCase()] || null
 }
 
+function getSportTypeFilter(sport?: string): SportType | undefined {
+  if (sport === 'football') return 'FOOTBALL'
+  if (sport === 'basketball') return 'BASKETBALL'
+  return undefined
+}
+
 const getPostsByCategory = unstable_cache(
-  async (category: PostCategory) => {
+  async (category: PostCategory, sportType?: SportType) => {
     return prisma.blogPost.findMany({
-      where: { status: 'PUBLISHED', category },
+      where: {
+        status: 'PUBLISHED',
+        category,
+        ...(sportType && { sportType }),
+      },
       orderBy: { publishedAt: 'desc' },
       take: 20,
     })
@@ -69,8 +111,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function BlogCategoryPage({ params }: Props) {
+export default async function BlogCategoryPage({ params, searchParams }: Props) {
   const { locale, category } = await params
+  const { sport } = await searchParams
   setRequestLocale(locale)
   const t = await getTranslations({ locale, namespace: 'blog' })
 
@@ -79,71 +122,145 @@ export default async function BlogCategoryPage({ params }: Props) {
     notFound()
   }
 
-  const posts = await getPostsByCategory(categoryKey)
+  const sportTypeFilter = getSportTypeFilter(sport)
+  const posts = await getPostsByCategory(categoryKey, sportTypeFilter)
   const categoryName = categoryLabels[categoryKey][locale] || categoryLabels[categoryKey].en
 
+  const sportFilters = [
+    { key: 'all', label: locale === 'ko' ? '전체' : 'All' },
+    { key: 'football', label: locale === 'ko' ? '축구' : 'Football' },
+    { key: 'basketball', label: locale === 'ko' ? '농구' : 'Basketball' },
+  ]
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
+    <div className="container mx-auto px-3 sm:px-4 pt-4 sm:pt-8 pb-20 sm:pb-32 max-w-6xl">
       {/* 헤더 */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-10">
         <Link
-          href={`/${locale}/blog`}
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition-colors"
+          href={sport ? `/${locale}/blog?sport=${sport}` : `/blog`}
+          className="inline-flex items-center gap-1.5 sm:gap-2 text-gray-400 hover:text-white mb-3 sm:mb-4 transition-colors group text-sm"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:-translate-x-1 transition-transform" />
           {t('backToBlog')}
         </Link>
-        <h1 className="text-3xl font-bold text-white mb-2">{categoryName}</h1>
-        <p className="text-gray-400">{t('categoryPostCount', { count: posts.length })}</p>
+        <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+       
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">
+            {categoryName}
+          </h1>
+        </div>
+        <p className="text-gray-400 text-sm sm:text-lg">{t('categoryPostCount', { count: posts.length })}</p>
       </div>
 
-      {/* 카테고리 탭 */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        <Link
-          href={`/${locale}/blog`}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
-        >
-          {t('allPosts')}
-        </Link>
-        {validCategories.map((cat) => {
-          const catKey = getCategoryFromSlug(cat)!
-          const isActive = cat === category.toLowerCase()
-          return (
+      {/* 필터 영역 */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-x-6 mb-6 sm:mb-10 pb-4 sm:pb-6 border-b border-gray-800">
+        {/* 스포츠 타입 필터 */}
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500 text-xs sm:text-sm shrink-0">{locale === 'ko' ? '스포츠' : 'Sport'}</span>
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            {sportFilters.map((filter) => {
+              const isActive = (filter.key === 'all' && !sport) || sport === filter.key
+              const href = filter.key === 'all'
+                ? `/blog/${category}`
+                : `/${locale}/blog/${category}?sport=${filter.key}`
+
+              return (
+                <Link
+                  key={filter.key}
+                  href={href}
+                  className={`
+                    px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm transition-all duration-200
+                    ${isActive
+                      ? filter.key === 'football'
+                        ? 'bg-emerald-600/20 text-emerald-400 font-medium'
+                        : filter.key === 'basketball'
+                        ? 'bg-orange-600/20 text-orange-400 font-medium'
+                        : 'bg-gray-700 text-white font-medium'
+                      : 'text-gray-400 hover:text-white'
+                    }
+                  `}
+                >
+                  {filter.label}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="hidden sm:block w-px h-5 bg-gray-700" />
+
+        {/* 카테고리 필터 */}
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500 text-xs sm:text-sm shrink-0">{locale === 'ko' ? '카테고리' : 'Category'}</span>
+          <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
             <Link
-              key={cat}
-              href={`/${locale}/blog/${cat}`}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
+              href={sport ? `/${locale}/blog?sport=${sport}` : `/blog`}
+              className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm text-gray-400 hover:text-white transition-all"
             >
-              {categoryLabels[catKey][locale] || categoryLabels[catKey].en}
+              {t('allPosts')}
             </Link>
-          )
-        })}
+            {validCategories.map((cat) => {
+              const catKey = getCategoryFromSlug(cat)!
+              const isActive = cat === category.toLowerCase()
+              const activeStyle = catKey === 'ANALYSIS'
+                ? 'bg-purple-600/20 text-purple-400 font-medium'
+                : catKey === 'PREVIEW'
+                ? 'bg-cyan-600/20 text-cyan-400 font-medium'
+                : 'bg-pink-600/20 text-pink-400 font-medium'
+              const inactiveStyle = catKey === 'ANALYSIS'
+                ? 'text-purple-400 hover:bg-purple-500/10'
+                : catKey === 'PREVIEW'
+                ? 'text-cyan-400 hover:bg-cyan-500/10'
+                : 'text-pink-400 hover:bg-pink-500/10'
+              return (
+                <Link
+                  key={cat}
+                  href={sport
+                    ? `/${locale}/blog/${cat}?sport=${sport}`
+                    : `/blog/${cat}`
+                  }
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm transition-all ${isActive ? activeStyle : inactiveStyle}`}
+                >
+                  {categoryLabels[catKey][locale] || categoryLabels[catKey].en}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       {/* 포스트 목록 */}
       {posts.length === 0 ? (
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="py-16 text-center">
-            <p className="text-gray-400">{t('noPosts')}</p>
+        <Card className="bg-gray-900/50 border-gray-800">
+          <CardContent className="py-20 text-center">
+            <div className="text-6xl mb-4">📭</div>
+            <p className="text-gray-400 text-lg">{t('noPosts')}</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {posts.map((post) => {
             const translations = post.translations as Record<string, { title: string; excerpt?: string }> | null
             const content = translations?.[locale] || translations?.ko || translations?.en
             const title = content?.title || '(제목 없음)'
             const excerpt = content?.excerpt || ''
+            const style = post.sportType ? sportStyles[post.sportType] : null
 
             return (
-              <Link key={post.id} href={`/${locale}/blog/post/${post.slug}`}>
-                <Card className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-all h-full group">
+              <Link key={post.id} href={`/blog/post/${post.slug}`} className="group">
+                <Card className={`
+                  relative h-full overflow-hidden bg-gray-900/70 border-gray-800
+                  hover:border-gray-600 hover:bg-gray-900 transition-all duration-300
+                  hover:shadow-xl hover:-translate-y-1
+                  ${style ? `border-l-2 ${style.border}` : ''}
+                `}>
+                  {/* 미묘한 배경 그라데이션 */}
+                  {style && (
+                    <div className={`absolute inset-0 bg-gradient-to-br ${style.gradient} opacity-30`} />
+                  )}
+
                   {post.featuredImage && (
-                    <div className="relative h-48 overflow-hidden rounded-t-lg">
+                    <div className="relative h-40 overflow-hidden">
                       <img
                         src={post.featuredImage}
                         alt={title}
@@ -151,44 +268,47 @@ export default async function BlogCategoryPage({ params }: Props) {
                       />
                     </div>
                   )}
-                  <CardContent className={post.featuredImage ? 'pt-4' : 'pt-6'}>
+
+                  <CardContent className={`relative h-full flex flex-col ${post.featuredImage ? 'pt-4' : 'p-5'}`}>
                     <div className="flex items-center gap-2 mb-3">
-                      <Badge className="text-xs bg-blue-600 text-white">
+                      <Badge className={`text-xs ${categoryStyles[post.category] || 'bg-blue-500/15 text-blue-400 border border-blue-500/20'}`}>
                         {categoryLabels[post.category][locale] || categoryLabels[post.category].en}
                       </Badge>
-                      {post.sportType && (
-                        <Badge variant="outline" className="text-xs text-gray-400">
-                          {post.sportType}
+                      {style && (
+                        <Badge className={`text-xs ${style.badge}`}>
+                          {style.label[locale as 'ko' | 'en'] || style.label.en}
                         </Badge>
                       )}
                     </div>
 
-                    <h2 className="text-lg font-semibold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors">
+                    <h2 className="text-base font-semibold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors leading-snug">
                       {title}
                     </h2>
 
                     {excerpt && (
-                      <p className="text-sm text-gray-400 mb-4 line-clamp-2">
+                      <p className="text-sm text-gray-500 mb-4 line-clamp-2 leading-relaxed">
                         {excerpt}
                       </p>
                     )}
 
-                    <div className="flex items-center justify-between text-sm text-gray-500">
-                      <div className="flex items-center gap-4">
+                    <div className="flex-grow" />
+
+                    <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-800/50">
+                      <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
+                          <Calendar className="w-3.5 h-3.5" />
                           {format(
                             new Date(post.publishedAt || post.createdAt),
-                            'MMM d, yyyy',
+                            'MMM d',
                             { locale: dateLocales[locale] || enUS }
                           )}
                         </span>
                         <span className="flex items-center gap-1">
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                           {post.viewCount.toLocaleString()}
                         </span>
                       </div>
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
                     </div>
                   </CardContent>
                 </Card>

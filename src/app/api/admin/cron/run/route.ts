@@ -6,8 +6,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const CRON_SECRET = process.env.CRON_SECRET
 
-// 허용된 크론 엔드포인트 목록
-const ALLOWED_ENDPOINTS = [
+// 허용된 크론 엔드포인트 목록 (GET 요청)
+const ALLOWED_ENDPOINTS_GET = [
   '/api/cron/collect-football',
   '/api/cron/collect-basketball',
   '/api/cron/collect-baseball',
@@ -19,6 +19,14 @@ const ALLOWED_ENDPOINTS = [
   '/api/cron/generate-blog-preview',
   '/api/cron/generate-blog-review',
   '/api/cron/generate-blog-analysis',
+  '/api/cron/generate-blog-preview-basketball',
+  '/api/cron/generate-blog-review-basketball',
+  '/api/cron/generate-blog-analysis-basketball',
+]
+
+// 허용된 관리자 엔드포인트 목록 (POST 요청)
+const ALLOWED_ENDPOINTS_POST = [
+  '/api/admin/posts/fix-slugs',
 ]
 
 // 인증 확인
@@ -65,22 +73,26 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { endpoint } = body
 
-    // 엔드포인트 검증
-    if (!endpoint || !ALLOWED_ENDPOINTS.includes(endpoint)) {
+    // 엔드포인트 검증 및 메서드 결정
+    const isGetEndpoint = ALLOWED_ENDPOINTS_GET.includes(endpoint)
+    const isPostEndpoint = ALLOWED_ENDPOINTS_POST.includes(endpoint)
+
+    if (!endpoint || (!isGetEndpoint && !isPostEndpoint)) {
       return NextResponse.json(
         { error: '허용되지 않은 엔드포인트입니다.' },
         { status: 400 }
       )
     }
 
-    // 크론 작업 실행
+    // 작업 실행
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3030'
-    const cronUrl = `${baseUrl}${endpoint}`
+    const targetUrl = `${baseUrl}${endpoint}`
+    const method = isPostEndpoint ? 'POST' : 'GET'
 
-    console.log(`[Admin Cron] Running: ${cronUrl}`)
+    console.log(`[Admin Cron] Running (${method}): ${targetUrl}`)
 
-    const response = await fetch(cronUrl, {
-      method: 'GET',
+    const response = await fetch(targetUrl, {
+      method,
       headers: {
         'Authorization': `Bearer ${CRON_SECRET}`,
         'Content-Type': 'application/json',

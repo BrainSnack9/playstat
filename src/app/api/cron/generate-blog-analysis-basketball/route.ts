@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server'
 import { openai, AI_MODELS } from '@/lib/openai'
-import { BLOG_ANALYSIS_PROMPT, fillPrompt } from '@/lib/ai/prompts'
+import { BLOG_ANALYSIS_PROMPT_BASKETBALL, fillPrompt } from '@/lib/ai/prompts'
 import { type PrismaClient, Prisma } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
 
 const CRON_SECRET = process.env.CRON_SECRET
 const SYSTEM_AUTHOR_ID = 'system-auto-generator'
-
-// 분석 대상 리그
-const ANALYSIS_LEAGUES = ['PL', 'PD', 'SA', 'BL1', 'FL1']
 
 async function getPrisma(): Promise<PrismaClient> {
   const { prisma } = await import('@/lib/prisma')
@@ -22,7 +19,7 @@ function generateSlug(topic: string): string {
   const normalize = (str: string) =>
     str.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').substring(0, 50)
   const timestamp = Date.now().toString(36)
-  return `${normalize(topic)}-analysis-${timestamp}`
+  return `nba-${normalize(topic)}-analysis-${timestamp}`
 }
 
 /**
@@ -32,9 +29,9 @@ function parseResponse(response: string) {
   try {
     let jsonStr = response.trim()
     if (jsonStr.includes('```json')) {
-      jsonStr = jsonStr.replace(/^```json\s*\n?/, '').replace(/\n?```\s*$/, '').trim()
-    } else if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.replace(/^```\s*\n?/, '').replace(/\n?```\s*$/, '').trim()
+      jsonStr = jsonStr.replace(/^[\s\S]*?```json\s*\n?/, '').replace(/\n?```[\s\S]*$/, '').trim()
+    } else if (jsonStr.includes('```')) {
+      jsonStr = jsonStr.replace(/^[\s\S]*?```\s*\n?/, '').replace(/\n?```[\s\S]*$/, '').trim()
     }
     const parsed = JSON.parse(jsonStr)
     return {
@@ -50,17 +47,16 @@ function parseResponse(response: string) {
 }
 
 /**
- * 분석 주제 생성 (주간 자동 생성용)
+ * NBA 분석 주제 생성
  */
-async function generateWeeklyTopics(prisma: PrismaClient): Promise<{ topic: string; data: object }[]> {
+async function generateNBATopics(prisma: PrismaClient): Promise<{ topic: string; data: object }[]> {
   const topics: { topic: string; data: object }[] = []
 
-  // 1. 리그별 상위권 팀 분석
+  // NBA 상위권 팀 조회
   const topTeams = await prisma.team.findMany({
     where: {
-      sportType: 'FOOTBALL',
-      league: { code: { in: ANALYSIS_LEAGUES } },
-      seasonStats: { rank: { lte: 5 } },
+      sportType: 'BASKETBALL',
+      seasonStats: { rank: { lte: 10 } },
     },
     include: {
       league: true,
@@ -81,56 +77,54 @@ async function generateWeeklyTopics(prisma: PrismaClient): Promise<{ topic: stri
         type: 'team_comparison',
         team1: {
           name: team1.name,
-          league: team1.league?.name,
+          conference: team1.league?.name,
           rank: team1.seasonStats?.rank,
-          points: team1.seasonStats?.points,
           wins: team1.seasonStats?.wins,
-          draws: team1.seasonStats?.draws,
           losses: team1.seasonStats?.losses,
-          goalsFor: team1.seasonStats?.goalsFor,
-          goalsAgainst: team1.seasonStats?.goalsAgainst,
+          avgScored: team1.seasonStats?.avgScored,
+          avgAllowed: team1.seasonStats?.avgAllowed,
         },
         team2: {
           name: team2.name,
-          league: team2.league?.name,
+          conference: team2.league?.name,
           rank: team2.seasonStats?.rank,
-          points: team2.seasonStats?.points,
           wins: team2.seasonStats?.wins,
-          draws: team2.seasonStats?.draws,
           losses: team2.seasonStats?.losses,
-          goalsFor: team2.seasonStats?.goalsFor,
-          goalsAgainst: team2.seasonStats?.goalsAgainst,
+          avgScored: team2.seasonStats?.avgScored,
+          avgAllowed: team2.seasonStats?.avgAllowed,
         },
       },
     })
   }
 
-  // 2. 리그 시즌 중간 점검
-  const leagues = await prisma.league.findMany({
-    where: { code: { in: ANALYSIS_LEAGUES }, isActive: true },
+  // 컨퍼런스별 시즌 점검
+  const conferences = await prisma.league.findMany({
+    where: {
+      sportType: 'BASKETBALL',
+      isActive: true,
+    },
     include: {
       teams: {
         include: { seasonStats: true },
         orderBy: { seasonStats: { rank: 'asc' } },
-        take: 5,
+        take: 8,
       },
     },
   })
 
-  if (leagues.length > 0) {
-    const randomLeague = leagues[Math.floor(Math.random() * leagues.length)]
+  if (conferences.length > 0) {
+    const randomConf = conferences[Math.floor(Math.random() * conferences.length)]
     topics.push({
-      topic: `${randomLeague.name} 시즌 중간 점검`,
+      topic: `${randomConf.name} 시즌 중간 점검`,
       data: {
-        type: 'league_review',
-        league: randomLeague.name,
-        topTeams: randomLeague.teams.map((t) => ({
+        type: 'conference_review',
+        conference: randomConf.name,
+        topTeams: randomConf.teams.map((t) => ({
           name: t.name,
           rank: t.seasonStats?.rank,
-          points: t.seasonStats?.points,
           wins: t.seasonStats?.wins,
-          draws: t.seasonStats?.draws,
           losses: t.seasonStats?.losses,
+          avgScored: t.seasonStats?.avgScored,
         })),
       },
     })
@@ -140,10 +134,8 @@ async function generateWeeklyTopics(prisma: PrismaClient): Promise<{ topic: stri
 }
 
 /**
- * GET /api/cron/generate-blog-analysis
- * 크론: 심층 분석 글 자동 생성 (DRAFT)
- * - 주간 자동: 팀 비교, 리그 점검
- * - 수동 트리거: topic 파라미터로 특정 주제 지정 가능
+ * GET /api/cron/generate-blog-analysis-basketball
+ * 크론: NBA 심층 분석 글 자동 생성 (DRAFT)
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -168,31 +160,28 @@ export async function GET(request: Request) {
     let topics: { topic: string; data: object }[] = []
 
     if (customTopic) {
-      // 수동 트리거: 커스텀 주제
       topics = [{
         topic: customTopic,
         data: customData ? JSON.parse(customData) : { type: 'custom', topic: customTopic },
       }]
     } else {
-      // 자동 생성: 주간 주제
-      topics = await generateWeeklyTopics(prisma)
+      topics = await generateNBATopics(prisma)
     }
 
     if (topics.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'No topics to analyze',
+        message: 'No NBA topics to analyze',
         duration: `${Date.now() - startTime}ms`,
         results: [],
       })
     }
 
-    // 최대 1개만 생성 (API 비용 절감)
+    // 최대 1개만 생성
     const topic = topics[0]
 
     try {
-      // AI 호출
-      const prompt = fillPrompt(BLOG_ANALYSIS_PROMPT, {
+      const prompt = fillPrompt(BLOG_ANALYSIS_PROMPT_BASKETBALL, {
         analysisData: JSON.stringify(topic.data, null, 2),
       })
 
@@ -217,7 +206,7 @@ export async function GET(request: Request) {
             data: {
               slug,
               category: 'ANALYSIS',
-              sportType: 'FOOTBALL',
+              sportType: 'BASKETBALL',
               authorId: SYSTEM_AUTHOR_ID,
               status: 'DRAFT',
               translations: {
@@ -238,7 +227,7 @@ export async function GET(request: Request) {
         }
       }
     } catch (error) {
-      console.error(`Error generating analysis for topic ${topic.topic}:`, error)
+      console.error(`Error generating NBA analysis for topic ${topic.topic}:`, error)
       results.push({
         topic: topic.topic,
         success: false,
@@ -251,12 +240,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Generated ${successCount} analysis posts`,
+      message: `Generated ${successCount} NBA analysis posts`,
       duration: `${duration}ms`,
       results,
     })
   } catch (error) {
-    console.error('Blog analysis generation failed:', error)
+    console.error('NBA blog analysis generation failed:', error)
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500 }

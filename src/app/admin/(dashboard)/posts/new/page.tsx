@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Save, Send, Image as ImageIcon, Eye } from 'lucide-react'
+import { Loader2, Save, Send, Image as ImageIcon, Eye, Languages } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
@@ -53,6 +53,7 @@ export default function NewPostPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [translating, setTranslating] = useState(false)
   const [activeTab, setActiveTab] = useState('ko')
   const [showPreview, setShowPreview] = useState(false)
 
@@ -60,6 +61,10 @@ export default function NewPostPage() {
   const [category, setCategory] = useState('ANALYSIS')
   const [sportType, setSportType] = useState('NONE')
   const [featuredImage, setFeaturedImage] = useState('')
+
+  // 번역 설정
+  const [sourceLocale, setSourceLocale] = useState('ko')
+  const [targetLocales, setTargetLocales] = useState<string[]>([])
 
   const [translations, setTranslations] = useState<Translations>({
     ko: { title: '', excerpt: '', content: '' },
@@ -197,6 +202,62 @@ export default function NewPostPage() {
       alert(`저장 중 오류가 발생했습니다: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleToggleTargetLocale = (locale: string) => {
+    setTargetLocales((prev) =>
+      prev.includes(locale)
+        ? prev.filter((l) => l !== locale)
+        : [...prev, locale]
+    )
+  }
+
+  const handleTranslate = async () => {
+    const sourceContent = translations[sourceLocale]
+    if (!sourceContent?.title && !sourceContent?.content) {
+      alert('번역할 원본 콘텐츠가 없습니다.')
+      return
+    }
+
+    if (targetLocales.length === 0) {
+      alert('번역할 언어를 선택해주세요.')
+      return
+    }
+
+    setTranslating(true)
+
+    try {
+      const response = await fetch('/api/admin/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceLocale,
+          targetLocales,
+          content: {
+            title: sourceContent.title,
+            excerpt: sourceContent.excerpt,
+            content: sourceContent.content,
+          },
+        }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.translations) {
+        setTranslations((prev) => ({
+          ...prev,
+          ...result.translations,
+        }))
+        alert(`${Object.keys(result.translations).length}개 언어로 번역이 완료되었습니다.`)
+      } else {
+        alert(result.error || '번역에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('Translation error:', error)
+      alert('번역 중 오류가 발생했습니다.')
+    } finally {
+      setTranslating(false)
     }
   }
 
@@ -440,6 +501,78 @@ export default function NewPostPage() {
                   </label>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* 번역 설정 */}
+          <Card className="bg-gray-900 border-gray-800">
+            <CardHeader>
+              <CardTitle className="text-white text-base flex items-center gap-2">
+                <Languages className="w-4 h-4" />
+                번역
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-gray-300">원본 언어</Label>
+                <Select value={sourceLocale} onValueChange={setSourceLocale}>
+                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700">
+                    {languages.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        {lang.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-gray-300">번역할 언어</Label>
+                <div className="space-y-2">
+                  {languages
+                    .filter((lang) => lang.code !== sourceLocale)
+                    .map((lang) => (
+                      <label
+                        key={lang.code}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={targetLocales.includes(lang.code)}
+                          onChange={() => handleToggleTargetLocale(lang.code)}
+                          className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
+                        />
+                        <span className="text-gray-300 text-sm">{lang.label}</span>
+                      </label>
+                    ))}
+                </div>
+              </div>
+
+              <Button
+                onClick={handleTranslate}
+                disabled={translating || targetLocales.length === 0}
+                variant="outline"
+                className="w-full border-gray-700"
+              >
+                {translating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    번역 중...
+                  </>
+                ) : (
+                  <>
+                    <Languages className="w-4 h-4 mr-2" />
+                    번역하기
+                  </>
+                )}
+              </Button>
+
+              <p className="text-xs text-gray-500">
+                원본 언어의 콘텐츠를 선택한 언어로 번역합니다.
+              </p>
             </CardContent>
           </Card>
         </div>
