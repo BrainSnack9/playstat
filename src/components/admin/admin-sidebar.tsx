@@ -9,7 +9,8 @@ import {
   FileText,
   LogOut,
   PenSquare,
-  Home
+  Home,
+  Clock
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -28,6 +29,11 @@ const menuItems = [
     label: '새 포스트',
     href: '/admin/posts/new',
     icon: PenSquare,
+  },
+  {
+    label: '크론 작업',
+    href: '/admin/cron',
+    icon: Clock,
   },
 ]
 
