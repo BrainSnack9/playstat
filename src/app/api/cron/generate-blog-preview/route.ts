@@ -15,7 +15,7 @@ const SYSTEM_AUTHOR_ID = 'system-auto-generator'
 const BIG_MATCH_LEAGUES = ['PL', 'PD', 'SA', 'BL1', 'FL1']
 
 // 빅매치 판별 기준: 양 팀 모두 상위권 (N위 이내)
-const TOP_RANK_THRESHOLD = 8
+const TOP_RANK_THRESHOLD = 15
 
 async function getPrisma(): Promise<PrismaClient> {
   const { prisma } = await import('@/lib/prisma')
