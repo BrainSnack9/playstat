@@ -7,13 +7,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Eye, ArrowRight } from 'lucide-react'
 import { format } from 'date-fns'
-import { ko, enUS, ja, de, es } from 'date-fns/locale'
+import { ko, enUS, ja, de, es, Locale as DateLocale } from 'date-fns/locale'
 
 interface Props {
   params: Promise<{ locale: string }>
 }
 
-const dateLocales: Record<string, Locale> = {
+const dateLocales: Record<string, DateLocale> = {
   ko,
   en: enUS,
   ja,

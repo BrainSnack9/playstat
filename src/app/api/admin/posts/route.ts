@@ -118,8 +118,8 @@ export async function POST(request: Request) {
     console.error('POST /api/admin/posts error:', error)
 
     if (error instanceof z.ZodError) {
-      // ZodError uses .issues in newer versions
-      const issues = error.issues || error.errors || []
+      // ZodError uses .issues property
+      const issues = error.issues || []
       console.log('ZodError detected, issues:', JSON.stringify(issues, null, 2))
       if (Array.isArray(issues) && issues.length > 0) {
         const errorMessages = issues.map(e => `${e.path?.join('.') || 'unknown'}: ${e.message}`).join(', ')

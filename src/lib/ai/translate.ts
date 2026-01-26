@@ -364,3 +364,111 @@ async function translateJsonObject(obj: any, targetLang: Locale): Promise<any> {
 
   return obj
 }
+
+/**
+ * 블로그 포스트의 누락된 번역본을 채웁니다 (한국어 → 다른 언어)
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function ensureBlogPostTranslations(post: any) {
+  if (!post) return post
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currentTranslations = (post.translations as any) || {}
+
+  // 한국어 데이터가 원본
+  const koreanData = currentTranslations.ko
+  if (!koreanData?.title) {
+    console.warn('[Translate] No Korean data available for blog post')
+    return post
+  }
+
+  let hasChanges = false
+  const updatedTranslations = { ...currentTranslations }
+
+  for (const lang of locales) {
+    if (lang === 'ko') continue
+
+    if (!currentTranslations[lang]?.title) {
+      hasChanges = true
+      console.log(`[Translate] Translating blog post to ${lang} using Google Translate...`)
+
+      try {
+        // 각 필드를 순차적으로 번역
+        const title = await translateWithGoogle(koreanData.title, 'ko', lang)
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        const excerpt = koreanData.excerpt
+          ? await translateWithGoogle(koreanData.excerpt, 'ko', lang)
+          : ''
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        // content는 길기 때문에 청크로 나눠서 번역
+        let content = koreanData.content || ''
+        if (content.length > 1000) {
+          const chunks = splitIntoChunks(content, 800)
+          const translatedChunks = []
+          for (const chunk of chunks) {
+            await new Promise(resolve => setTimeout(resolve, 800))
+            translatedChunks.push(await translateWithGoogle(chunk, 'ko', lang))
+          }
+          content = translatedChunks.join('\n\n')
+        } else if (content) {
+          content = await translateWithGoogle(content, 'ko', lang)
+        }
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        const metaTitle = koreanData.metaTitle
+          ? await translateWithGoogle(koreanData.metaTitle, 'ko', lang)
+          : title
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        const metaDescription = koreanData.metaDescription
+          ? await translateWithGoogle(koreanData.metaDescription, 'ko', lang)
+          : excerpt
+
+        updatedTranslations[lang] = {
+          title,
+          excerpt,
+          content,
+          metaTitle,
+          metaDescription,
+        }
+      } catch (error) {
+        console.error(`[Translate] Failed to translate blog post to ${lang}:`, error)
+      }
+    }
+  }
+
+  if (hasChanges) {
+    await prisma.blogPost.update({
+      where: { id: post.id },
+      data: { translations: updatedTranslations },
+    })
+    return { ...post, translations: updatedTranslations }
+  }
+
+  return post
+}
+
+/**
+ * 긴 텍스트를 청크로 분할합니다 (마크다운 섹션 구분자 기준)
+ */
+function splitIntoChunks(text: string, maxLength: number): string[] {
+  const chunks: string[] = []
+
+  // 마크다운 섹션 구분자 (---, ##, 빈 줄 2개) 기준으로 분할 시도
+  const sections = text.split(/(?=\n---\n|\n## |\n\n\n)/)
+
+  let currentChunk = ''
+  for (const section of sections) {
+    if (currentChunk.length + section.length <= maxLength) {
+      currentChunk += section
+    } else {
+      if (currentChunk) chunks.push(currentChunk.trim())
+      currentChunk = section
+    }
+  }
+  if (currentChunk) chunks.push(currentChunk.trim())
+
+  return chunks
+}

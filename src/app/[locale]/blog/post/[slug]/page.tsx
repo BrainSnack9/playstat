@@ -7,7 +7,7 @@ import { unstable_cache } from 'next/cache'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Eye, ArrowLeft, User } from 'lucide-react'
 import { format } from 'date-fns'
-import { ko, enUS, ja, de, es } from 'date-fns/locale'
+import { ko, enUS, ja, de, es, Locale as DateLocale } from 'date-fns/locale'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
@@ -16,7 +16,7 @@ interface Props {
   params: Promise<{ locale: string; slug: string }>
 }
 
-const dateLocales: Record<string, Locale> = {
+const dateLocales: Record<string, DateLocale> = {
   ko,
   en: enUS,
   ja,
