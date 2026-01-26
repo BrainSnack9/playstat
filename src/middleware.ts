@@ -84,8 +84,14 @@ export default async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || ''
   const { pathname } = request.nextUrl
 
-  // /admin 경로 보호 (로그인 페이지 제외)
-  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
+  // /admin 경로 처리 (i18n 미적용)
+  if (pathname.startsWith('/admin')) {
+    // 로그인 페이지는 그대로 통과
+    if (pathname.startsWith('/admin/login')) {
+      return NextResponse.next()
+    }
+
+    // 인증 확인
     const isAuthenticated = await checkAdminAuth(request)
 
     if (!isAuthenticated) {
@@ -93,6 +99,9 @@ export default async function middleware(request: NextRequest) {
       loginUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(loginUrl)
     }
+
+    // 인증됐으면 그대로 통과 (i18n 미들웨어 건너뜀)
+    return NextResponse.next()
   }
 
   // 서브도메인 체크 → 301 리다이렉트

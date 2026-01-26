@@ -10,6 +10,7 @@ import { format } from 'date-fns'
 import { ko, enUS, ja, de, es } from 'date-fns/locale'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 
 interface Props {
   params: Promise<{ locale: string; slug: string }>
@@ -23,13 +24,17 @@ const dateLocales: Record<string, Locale> = {
   es,
 }
 
+// 날짜를 ISO 문자열로 변환 (캐시에서 문자열로 올 수 있음)
+function toISOString(date: Date | string | null | undefined): string | undefined {
+  if (!date) return undefined
+  if (typeof date === 'string') return date
+  return date.toISOString()
+}
+
 const categoryLabels: Record<string, Record<string, string>> = {
   ANALYSIS: { ko: '분석', en: 'Analysis', ja: '分析', de: 'Analyse', es: 'Análisis' },
   PREVIEW: { ko: '프리뷰', en: 'Preview', ja: 'プレビュー', de: 'Vorschau', es: 'Vista previa' },
   REVIEW: { ko: '리뷰', en: 'Review', ja: 'レビュー', de: 'Rezension', es: 'Reseña' },
-  NEWS: { ko: '뉴스', en: 'News', ja: 'ニュース', de: 'Nachrichten', es: 'Noticias' },
-  GUIDE: { ko: '가이드', en: 'Guide', ja: 'ガイド', de: 'Leitfaden', es: 'Guía' },
-  ANNOUNCEMENT: { ko: '공지', en: 'Notice', ja: 'お知らせ', de: 'Ankündigung', es: 'Anuncio' },
 }
 
 const getPostBySlug = unstable_cache(
@@ -73,7 +78,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       type: 'article',
-      publishedTime: post.publishedAt?.toISOString(),
+      publishedTime: toISOString(post.publishedAt),
       images: post.featuredImage ? [post.featuredImage] : undefined,
     },
   }
@@ -108,8 +113,8 @@ export default async function BlogPostPage({ params }: Props) {
     headline: title,
     description: excerpt,
     image: post.featuredImage || undefined,
-    datePublished: post.publishedAt?.toISOString(),
-    dateModified: post.updatedAt.toISOString(),
+    datePublished: toISOString(post.publishedAt),
+    dateModified: toISOString(post.updatedAt),
     author: {
       '@type': 'Organization',
       name: 'PlayStat',
@@ -156,7 +161,7 @@ export default async function BlogPostPage({ params }: Props) {
         <header className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <Link href={`/${locale}/blog/${post.category.toLowerCase()}`}>
-              <Badge className="bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 transition-colors">
+              <Badge className="bg-blue-600 text-white hover:bg-blue-700 transition-colors">
                 {categoryName}
               </Badge>
             </Link>
@@ -200,7 +205,7 @@ export default async function BlogPostPage({ params }: Props) {
         {/* 본문 */}
         <div className="prose prose-invert prose-lg max-w-none">
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
+            remarkPlugins={[remarkGfm, remarkBreaks]}
             components={{
               h1: ({ children }) => <h1 className="text-2xl font-bold text-white mt-8 mb-4">{children}</h1>,
               h2: ({ children }) => <h2 className="text-xl font-bold text-white mt-8 mb-4">{children}</h2>,
@@ -233,6 +238,15 @@ export default async function BlogPostPage({ params }: Props) {
               ),
               img: ({ src, alt }) => (
                 <img src={src} alt={alt || ''} className="rounded-lg my-6 w-full" />
+              ),
+              hr: () => (
+                <hr className="my-8 border-t border-gray-700" />
+              ),
+              strong: ({ children }) => (
+                <strong className="font-bold text-white">{children}</strong>
+              ),
+              em: ({ children }) => (
+                <em className="italic text-gray-200">{children}</em>
               ),
               table: ({ children }) => (
                 <div className="overflow-x-auto my-6">

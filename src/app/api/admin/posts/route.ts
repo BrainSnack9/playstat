@@ -4,61 +4,88 @@ import { createClient } from '@supabase/supabase-js'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 // 인증 확인 헬퍼
 async function verifyAdmin() {
-  const cookieStore = await cookies()
-  const accessToken = cookieStore.get('sb-access-token')?.value
-
-  if (!accessToken) {
+  // 환경 변수 체크
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase environment variables')
     return null
   }
 
   try {
+    const cookieStore = await cookies()
+    const accessToken = cookieStore.get('sb-access-token')?.value
+
+    if (!accessToken) {
+      console.log('No access token found in cookies')
+      return null
+    }
+
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
     const { data: { user }, error } = await supabase.auth.getUser(accessToken)
 
-    if (error || !user?.email) {
+    if (error) {
+      console.error('Supabase auth error:', error.message)
+      return null
+    }
+
+    if (!user?.email) {
+      console.log('No user email found')
       return null
     }
 
     const adminEmail = process.env.ADMIN_EMAIL
-    if (user.email.toLowerCase() !== adminEmail?.toLowerCase()) {
+    if (!adminEmail) {
+      console.error('ADMIN_EMAIL environment variable not set')
+      return null
+    }
+
+    if (user.email.toLowerCase() !== adminEmail.toLowerCase()) {
+      console.log('User email does not match admin email')
       return null
     }
 
     return user
-  } catch {
+  } catch (error) {
+    console.error('verifyAdmin error:', error)
     return null
   }
 }
 
+// 번역 데이터 스키마
+const translationSchema = z.object({
+  title: z.string().default(''),
+  excerpt: z.string().default(''),
+  content: z.string().default(''),
+})
+
 // 포스트 생성 스키마
 const createPostSchema = z.object({
   slug: z.string().min(1).max(200),
-  category: z.enum(['ANALYSIS', 'PREVIEW', 'REVIEW', 'NEWS', 'GUIDE', 'ANNOUNCEMENT']),
+  category: z.enum(['ANALYSIS', 'PREVIEW', 'REVIEW']),
   sportType: z.enum(['FOOTBALL', 'BASKETBALL', 'BASEBALL']).nullable().optional(),
   featuredImage: z.string().nullable().optional(),
-  translations: z.record(z.object({
-    title: z.string(),
-    excerpt: z.string().optional(),
-    content: z.string().optional(),
-  })),
+  translations: z.record(z.string(), translationSchema),
   status: z.enum(['DRAFT', 'PUBLISHED']).default('DRAFT'),
 })
 
 // POST: 새 포스트 생성
 export async function POST(request: Request) {
-  const user = await verifyAdmin()
-  if (!user) {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 401 })
-  }
-
   try {
+    console.log('POST /api/admin/posts called')
+    const user = await verifyAdmin()
+    console.log('verifyAdmin result:', user ? 'authenticated' : 'not authenticated')
+    if (!user) {
+      return NextResponse.json({ error: '권한이 없습니다.' }, { status: 401 })
+    }
+
     const body = await request.json()
+    console.log('Request body received')
     const data = createPostSchema.parse(body)
+    console.log('Data validated')
 
     // 슬러그 중복 확인
     const existingPost = await prisma.blogPost.findUnique({
@@ -69,6 +96,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '이미 사용 중인 슬러그입니다.' }, { status: 400 })
     }
 
+    console.log('Creating post...')
     const post = await prisma.blogPost.create({
       data: {
         slug: data.slug,
@@ -81,15 +109,32 @@ export async function POST(request: Request) {
         translations: data.translations,
       },
     })
+    console.log('Post created:', post.id)
 
     return NextResponse.json({ success: true, post })
   } catch (error) {
+    console.error('POST /api/admin/posts error type:', typeof error)
+    console.error('POST /api/admin/posts error constructor:', error?.constructor?.name)
+    console.error('POST /api/admin/posts error:', error)
+
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: '잘못된 데이터 형식입니다.', details: error.errors }, { status: 400 })
+      // ZodError uses .issues in newer versions
+      const issues = error.issues || error.errors || []
+      console.log('ZodError detected, issues:', JSON.stringify(issues, null, 2))
+      if (Array.isArray(issues) && issues.length > 0) {
+        const errorMessages = issues.map(e => `${e.path?.join('.') || 'unknown'}: ${e.message}`).join(', ')
+        return NextResponse.json({ error: `데이터 검증 실패: ${errorMessages}`, details: issues }, { status: 400 })
+      }
+      return NextResponse.json({ error: '데이터 검증 실패' }, { status: 400 })
     }
 
-    console.error('Post creation error:', error)
-    return NextResponse.json({ error: '포스트 생성에 실패했습니다.' }, { status: 500 })
+    // Prisma errors often have a 'code' property
+    if (error && typeof error === 'object' && 'code' in error) {
+      console.error('Prisma error code:', (error as { code: string }).code)
+    }
+
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: `포스트 생성에 실패했습니다: ${errorMessage}` }, { status: 500 })
   }
 }
 

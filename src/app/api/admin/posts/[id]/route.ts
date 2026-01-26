@@ -35,17 +35,20 @@ async function verifyAdmin() {
   }
 }
 
+// 번역 데이터 스키마
+const translationSchema = z.object({
+  title: z.string(),
+  excerpt: z.string().optional(),
+  content: z.string().optional(),
+})
+
 // 포스트 수정 스키마
 const updatePostSchema = z.object({
   slug: z.string().min(1).max(200).optional(),
-  category: z.enum(['ANALYSIS', 'PREVIEW', 'REVIEW', 'NEWS', 'GUIDE', 'ANNOUNCEMENT']).optional(),
+  category: z.enum(['ANALYSIS', 'PREVIEW', 'REVIEW']).optional(),
   sportType: z.enum(['FOOTBALL', 'BASKETBALL', 'BASEBALL']).nullable().optional(),
   featuredImage: z.string().nullable().optional(),
-  translations: z.record(z.object({
-    title: z.string(),
-    excerpt: z.string().optional(),
-    content: z.string().optional(),
-  })).optional(),
+  translations: z.record(z.string(), translationSchema).optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
 })
 
@@ -136,7 +139,13 @@ export async function PUT(
     return NextResponse.json({ success: true, post })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: '잘못된 데이터 형식입니다.', details: error.errors }, { status: 400 })
+      const issues = error.issues || []
+      console.log('ZodError in PUT:', JSON.stringify(issues, null, 2))
+      if (Array.isArray(issues) && issues.length > 0) {
+        const errorMessages = issues.map(e => `${e.path?.join('.') || 'unknown'}: ${e.message}`).join(', ')
+        return NextResponse.json({ error: `데이터 검증 실패: ${errorMessages}`, details: issues }, { status: 400 })
+      }
+      return NextResponse.json({ error: '데이터 검증 실패' }, { status: 400 })
     }
 
     console.error('Post update error:', error)

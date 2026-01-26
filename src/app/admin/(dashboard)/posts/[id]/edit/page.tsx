@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,19 +18,17 @@ import {
 import { Loader2, Save, Send, Image as ImageIcon, Eye, ArrowLeft } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import Link from 'next/link'
 
 const categories = [
   { value: 'ANALYSIS', label: '분석' },
   { value: 'PREVIEW', label: '프리뷰' },
   { value: 'REVIEW', label: '리뷰' },
-  { value: 'NEWS', label: '뉴스' },
-  { value: 'GUIDE', label: '가이드' },
-  { value: 'ANNOUNCEMENT', label: '공지' },
 ]
 
 const sportTypes = [
-  { value: '', label: '전체 (스포츠 무관)' },
+  { value: 'NONE', label: '전체 (스포츠 무관)' },
   { value: 'FOOTBALL', label: '축구' },
   { value: 'BASKETBALL', label: '농구' },
   { value: 'BASEBALL', label: '야구' },
@@ -39,6 +37,9 @@ const sportTypes = [
 const languages = [
   { code: 'ko', label: '한국어' },
   { code: 'en', label: 'English' },
+  { code: 'es', label: 'Español' },
+  { code: 'ja', label: '日本語' },
+  { code: 'de', label: 'Deutsch' },
 ]
 
 interface TranslationData {
@@ -50,11 +51,11 @@ interface TranslationData {
 type Translations = Record<string, TranslationData>
 
 interface EditPostPageProps {
-  params: Promise<{ id: string }>
+  params: { id: string }
 }
 
 export default function EditPostPage({ params }: EditPostPageProps) {
-  const { id } = use(params)
+  const { id } = params
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
@@ -64,13 +65,16 @@ export default function EditPostPage({ params }: EditPostPageProps) {
 
   const [slug, setSlug] = useState('')
   const [category, setCategory] = useState('ANALYSIS')
-  const [sportType, setSportType] = useState('')
+  const [sportType, setSportType] = useState('NONE')
   const [featuredImage, setFeaturedImage] = useState('')
   const [currentStatus, setCurrentStatus] = useState('DRAFT')
 
   const [translations, setTranslations] = useState<Translations>({
     ko: { title: '', excerpt: '', content: '' },
     en: { title: '', excerpt: '', content: '' },
+    es: { title: '', excerpt: '', content: '' },
+    ja: { title: '', excerpt: '', content: '' },
+    de: { title: '', excerpt: '', content: '' },
   })
 
   useEffect(() => {
@@ -83,7 +87,7 @@ export default function EditPostPage({ params }: EditPostPageProps) {
           const post = data.post
           setSlug(post.slug)
           setCategory(post.category)
-          setSportType(post.sportType || '')
+          setSportType(post.sportType || 'NONE')
           setFeaturedImage(post.featuredImage || '')
           setCurrentStatus(post.status)
 
@@ -91,6 +95,9 @@ export default function EditPostPage({ params }: EditPostPageProps) {
             setTranslations({
               ko: post.translations.ko || { title: '', excerpt: '', content: '' },
               en: post.translations.en || { title: '', excerpt: '', content: '' },
+              es: post.translations.es || { title: '', excerpt: '', content: '' },
+              ja: post.translations.ja || { title: '', excerpt: '', content: '' },
+              de: post.translations.de || { title: '', excerpt: '', content: '' },
             })
           }
         }
@@ -194,7 +201,7 @@ export default function EditPostPage({ params }: EditPostPageProps) {
         body: JSON.stringify({
           slug,
           category,
-          sportType: sportType || null,
+          sportType: sportType === 'NONE' ? null : sportType,
           featuredImage: featuredImage || null,
           translations,
           status: newStatus || currentStatus,
@@ -342,7 +349,31 @@ export default function EditPostPage({ params }: EditPostPageProps) {
 
                       {showPreview ? (
                         <div className="prose prose-invert prose-sm max-w-none bg-gray-800 border border-gray-700 rounded-md p-4 min-h-[400px]">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm, remarkBreaks]}
+                            components={{
+                              h1: ({ children }) => <h1 className="text-xl font-bold text-white mt-6 mb-3">{children}</h1>,
+                              h2: ({ children }) => <h2 className="text-lg font-bold text-white mt-6 mb-3">{children}</h2>,
+                              h3: ({ children }) => <h3 className="text-base font-bold text-white mt-4 mb-2">{children}</h3>,
+                              p: ({ children }) => <p className="text-gray-300 mb-3 leading-relaxed">{children}</p>,
+                              blockquote: ({ children }) => (
+                                <blockquote className="border-l-4 border-blue-500 pl-4 py-2 my-4 bg-gray-900/50 text-gray-300 italic">
+                                  {children}
+                                </blockquote>
+                              ),
+                              hr: () => <hr className="my-6 border-t border-gray-600" />,
+                              strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                              em: ({ children }) => <em className="italic text-gray-200">{children}</em>,
+                              a: ({ href, children }) => (
+                                <a href={href} className="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">
+                                  {children}
+                                </a>
+                              ),
+                              ul: ({ children }) => <ul className="list-disc list-inside text-gray-300 mb-3 space-y-1">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal list-inside text-gray-300 mb-3 space-y-1">{children}</ol>,
+                              img: ({ src, alt }) => <img src={src} alt={alt || ''} className="rounded-lg my-4 max-w-full" />,
+                            }}
+                          >
                             {translations[lang.code]?.content || '*내용이 없습니다*'}
                           </ReactMarkdown>
                         </div>
@@ -405,7 +436,7 @@ export default function EditPostPage({ params }: EditPostPageProps) {
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 border-gray-700">
                     {sportTypes.map((sport) => (
-                      <SelectItem key={sport.value || 'none'} value={sport.value}>
+                      <SelectItem key={sport.value} value={sport.value}>
                         {sport.label}
                       </SelectItem>
                     ))}

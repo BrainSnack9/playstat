@@ -27,21 +27,15 @@ const categoryLabels: Record<string, Record<string, string>> = {
   ANALYSIS: { ko: '분석', en: 'Analysis', ja: '分析', de: 'Analyse', es: 'Análisis' },
   PREVIEW: { ko: '프리뷰', en: 'Preview', ja: 'プレビュー', de: 'Vorschau', es: 'Vista previa' },
   REVIEW: { ko: '리뷰', en: 'Review', ja: 'レビュー', de: 'Rezension', es: 'Reseña' },
-  NEWS: { ko: '뉴스', en: 'News', ja: 'ニュース', de: 'Nachrichten', es: 'Noticias' },
-  GUIDE: { ko: '가이드', en: 'Guide', ja: 'ガイド', de: 'Leitfaden', es: 'Guía' },
-  ANNOUNCEMENT: { ko: '공지', en: 'Notice', ja: 'お知らせ', de: 'Ankündigung', es: 'Anuncio' },
 }
 
-const validCategories = ['analysis', 'preview', 'review', 'news', 'guide', 'announcement']
+const validCategories = ['analysis', 'preview', 'review']
 
 function getCategoryFromSlug(slug: string): PostCategory | null {
   const mapping: Record<string, PostCategory> = {
     analysis: 'ANALYSIS',
     preview: 'PREVIEW',
     review: 'REVIEW',
-    news: 'NEWS',
-    guide: 'GUIDE',
-    announcement: 'ANNOUNCEMENT',
   }
   return mapping[slug.toLowerCase()] || null
 }
@@ -159,7 +153,7 @@ export default async function BlogCategoryPage({ params }: Props) {
                   )}
                   <CardContent className={post.featuredImage ? 'pt-4' : 'pt-6'}>
                     <div className="flex items-center gap-2 mb-3">
-                      <Badge variant="outline" className="text-xs">
+                      <Badge className="text-xs bg-blue-600 text-white">
                         {categoryLabels[post.category][locale] || categoryLabels[post.category].en}
                       </Badge>
                       {post.sportType && (

@@ -18,18 +18,16 @@ import {
 import { Loader2, Save, Send, Image as ImageIcon, Eye } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 
 const categories = [
   { value: 'ANALYSIS', label: '분석' },
   { value: 'PREVIEW', label: '프리뷰' },
   { value: 'REVIEW', label: '리뷰' },
-  { value: 'NEWS', label: '뉴스' },
-  { value: 'GUIDE', label: '가이드' },
-  { value: 'ANNOUNCEMENT', label: '공지' },
 ]
 
 const sportTypes = [
-  { value: '', label: '전체 (스포츠 무관)' },
+  { value: 'NONE', label: '전체 (스포츠 무관)' },
   { value: 'FOOTBALL', label: '축구' },
   { value: 'BASKETBALL', label: '농구' },
   { value: 'BASEBALL', label: '야구' },
@@ -38,6 +36,9 @@ const sportTypes = [
 const languages = [
   { code: 'ko', label: '한국어' },
   { code: 'en', label: 'English' },
+  { code: 'es', label: 'Español' },
+  { code: 'ja', label: '日本語' },
+  { code: 'de', label: 'Deutsch' },
 ]
 
 interface TranslationData {
@@ -57,12 +58,15 @@ export default function NewPostPage() {
 
   const [slug, setSlug] = useState('')
   const [category, setCategory] = useState('ANALYSIS')
-  const [sportType, setSportType] = useState('')
+  const [sportType, setSportType] = useState('NONE')
   const [featuredImage, setFeaturedImage] = useState('')
 
   const [translations, setTranslations] = useState<Translations>({
     ko: { title: '', excerpt: '', content: '' },
     en: { title: '', excerpt: '', content: '' },
+    es: { title: '', excerpt: '', content: '' },
+    ja: { title: '', excerpt: '', content: '' },
+    de: { title: '', excerpt: '', content: '' },
   })
 
   const updateTranslation = (lang: string, field: keyof TranslationData, value: string) => {
@@ -173,7 +177,7 @@ export default function NewPostPage() {
         body: JSON.stringify({
           slug,
           category,
-          sportType: sportType || null,
+          sportType: sportType === 'NONE' ? null : sportType,
           featuredImage: featuredImage || null,
           translations,
           status: publish ? 'PUBLISHED' : 'DRAFT',
@@ -188,8 +192,9 @@ export default function NewPostPage() {
       } else {
         alert(result.error || '저장에 실패했습니다.')
       }
-    } catch {
-      alert('저장 중 오류가 발생했습니다.')
+    } catch (error) {
+      console.error('Save error:', error)
+      alert(`저장 중 오류가 발생했습니다: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setLoading(false)
     }
@@ -301,7 +306,31 @@ export default function NewPostPage() {
 
                       {showPreview ? (
                         <div className="prose prose-invert prose-sm max-w-none bg-gray-800 border border-gray-700 rounded-md p-4 min-h-[400px]">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm, remarkBreaks]}
+                            components={{
+                              h1: ({ children }) => <h1 className="text-xl font-bold text-white mt-6 mb-3">{children}</h1>,
+                              h2: ({ children }) => <h2 className="text-lg font-bold text-white mt-6 mb-3">{children}</h2>,
+                              h3: ({ children }) => <h3 className="text-base font-bold text-white mt-4 mb-2">{children}</h3>,
+                              p: ({ children }) => <p className="text-gray-300 mb-3 leading-relaxed">{children}</p>,
+                              blockquote: ({ children }) => (
+                                <blockquote className="border-l-4 border-blue-500 pl-4 py-2 my-4 bg-gray-900/50 text-gray-300 italic">
+                                  {children}
+                                </blockquote>
+                              ),
+                              hr: () => <hr className="my-6 border-t border-gray-600" />,
+                              strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                              em: ({ children }) => <em className="italic text-gray-200">{children}</em>,
+                              a: ({ href, children }) => (
+                                <a href={href} className="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">
+                                  {children}
+                                </a>
+                              ),
+                              ul: ({ children }) => <ul className="list-disc list-inside text-gray-300 mb-3 space-y-1">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal list-inside text-gray-300 mb-3 space-y-1">{children}</ol>,
+                              img: ({ src, alt }) => <img src={src} alt={alt || ''} className="rounded-lg my-4 max-w-full" />,
+                            }}
+                          >
                             {translations[lang.code]?.content || '*내용이 없습니다*'}
                           </ReactMarkdown>
                         </div>
@@ -364,7 +393,7 @@ export default function NewPostPage() {
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 border-gray-700">
                     {sportTypes.map((sport) => (
-                      <SelectItem key={sport.value || 'none'} value={sport.value}>
+                      <SelectItem key={sport.value} value={sport.value}>
                         {sport.label}
                       </SelectItem>
                     ))}
