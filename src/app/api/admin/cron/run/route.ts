@@ -17,6 +17,8 @@ const ALLOWED_ENDPOINTS = [
   '/api/cron/generate-analysis',
   '/api/cron/generate-daily-report',
   '/api/cron/generate-blog-preview',
+  '/api/cron/generate-blog-review',
+  '/api/cron/generate-blog-analysis',
 ]
 
 // 인증 확인
