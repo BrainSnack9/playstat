@@ -75,6 +75,26 @@ interface Props {
 
 type MatchWithRelations = NonNullable<Awaited<ReturnType<typeof getCachedMatch>>>
 
+// 폼 문자열을 승/무/패 카운트로 변환
+function parseFormStats(form: string | null): { wins: number; draws: number; losses: number; total: number } {
+  if (!form) return { wins: 0, draws: 0, losses: 0, total: 0 }
+  const wins = (form.match(/W/g) || []).length
+  const draws = (form.match(/D/g) || []).length
+  const losses = (form.match(/L/g) || []).length
+  return { wins, draws, losses, total: wins + draws + losses }
+}
+
+// 폼을 읽기 쉬운 문자열로 변환
+function formatFormSummary(form: string | null, locale: string): string {
+  const stats = parseFormStats(form)
+  if (stats.total === 0) return ''
+
+  if (locale === 'ko') {
+    return `${stats.wins}승${stats.draws ? ` ${stats.draws}무` : ''}${stats.losses ? ` ${stats.losses}패` : ''}`
+  }
+  return `${stats.wins}W${stats.draws ? ` ${stats.draws}D` : ''}${stats.losses ? ` ${stats.losses}L` : ''}`
+}
+
 export async function generateMatchMetadata({ params, sport }: { params: Promise<{ locale: string; slug: string }>; sport: string }): Promise<Metadata> {
   const { slug, locale } = await params
   const host = headers().get('host')
@@ -86,22 +106,94 @@ export async function generateMatchMetadata({ params, sport }: { params: Promise
   }
 
   const t = await getTranslations({ locale, namespace: 'match' })
+  const tCommon = await getTranslations({ locale, namespace: 'common' })
   const dateFormatted = format(new Date(match.kickoffAt), 'yyyy-MM-dd')
 
+  // 팀 폼 데이터 추출
+  const homeForm = match.homeTeam.seasonStats?.form || null
+  const awayForm = match.awayTeam.seasonStats?.form || null
+  const homeFormSummary = formatFormSummary(homeForm, locale)
+  const awayFormSummary = formatFormSummary(awayForm, locale)
+  const homeRank = match.homeTeam.seasonStats?.rank
+  const awayRank = match.awayTeam.seasonStats?.rank
+
+  // 동적 타이틀 생성 - 팀 폼 정보 포함
+  let dynamicTitle = `${match.homeTeam.shortName || match.homeTeam.name} vs ${match.awayTeam.shortName || match.awayTeam.name}`
+
+  // 폼 정보가 있으면 타이틀에 추가
+  if (homeFormSummary || awayFormSummary) {
+    const formParts: string[] = []
+    if (homeFormSummary) formParts.push(homeFormSummary)
+    if (awayFormSummary) formParts.push(awayFormSummary)
+    dynamicTitle += ` | ${locale === 'ko' ? '최근' : 'Recent'} ${formParts.join(' vs ')}`
+  }
+
+  // 동적 디스크립션 생성 - 구체적인 데이터 포함
+  let dynamicDescription = ''
+  if (locale === 'ko') {
+    const parts: string[] = []
+    if (homeFormSummary) parts.push(`${match.homeTeam.shortName || match.homeTeam.name} 최근 5경기 ${homeFormSummary}`)
+    if (awayFormSummary) parts.push(`${match.awayTeam.shortName || match.awayTeam.name} ${awayFormSummary}`)
+    if (homeRank && awayRank) parts.push(`순위 ${homeRank}위 vs ${awayRank}위`)
+
+    dynamicDescription = parts.length > 0
+      ? `${parts.join('. ')}. ${match.league.name} AI 분석, 전술, 핵심 관전 포인트 확인`
+      : t('seo_description_with_analysis', { homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name })
+  } else if (locale === 'ja') {
+    const parts: string[] = []
+    if (homeFormSummary) parts.push(`${match.homeTeam.shortName || match.homeTeam.name} 直近5試合 ${homeFormSummary}`)
+    if (awayFormSummary) parts.push(`${match.awayTeam.shortName || match.awayTeam.name} ${awayFormSummary}`)
+    if (homeRank && awayRank) parts.push(`順位 ${homeRank}位 vs ${awayRank}位`)
+
+    dynamicDescription = parts.length > 0
+      ? `${parts.join('。')}。${match.league.name} AI分析、戦術、注目ポイントをチェック`
+      : t('seo_description_with_analysis', { homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name })
+  } else if (locale === 'es') {
+    const parts: string[] = []
+    if (homeFormSummary) parts.push(`${match.homeTeam.shortName || match.homeTeam.name} últimos 5: ${homeFormSummary}`)
+    if (awayFormSummary) parts.push(`${match.awayTeam.shortName || match.awayTeam.name}: ${awayFormSummary}`)
+    if (homeRank && awayRank) parts.push(`Posición ${homeRank}° vs ${awayRank}°`)
+
+    dynamicDescription = parts.length > 0
+      ? `${parts.join('. ')}. Análisis AI de ${match.league.name}, tácticas y puntos clave`
+      : t('seo_description_with_analysis', { homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name })
+  } else if (locale === 'de') {
+    const parts: string[] = []
+    if (homeFormSummary) parts.push(`${match.homeTeam.shortName || match.homeTeam.name} letzte 5: ${homeFormSummary}`)
+    if (awayFormSummary) parts.push(`${match.awayTeam.shortName || match.awayTeam.name}: ${awayFormSummary}`)
+    if (homeRank && awayRank) parts.push(`Platz ${homeRank} vs ${awayRank}`)
+
+    dynamicDescription = parts.length > 0
+      ? `${parts.join('. ')}. ${match.league.name} KI-Analyse, Taktik und wichtige Punkte`
+      : t('seo_description_with_analysis', { homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name })
+  } else {
+    // English (default)
+    const parts: string[] = []
+    if (homeFormSummary) parts.push(`${match.homeTeam.shortName || match.homeTeam.name} last 5: ${homeFormSummary}`)
+    if (awayFormSummary) parts.push(`${match.awayTeam.shortName || match.awayTeam.name}: ${awayFormSummary}`)
+    if (homeRank && awayRank) parts.push(`#${homeRank} vs #${awayRank}`)
+
+    dynamicDescription = parts.length > 0
+      ? `${parts.join('. ')}. ${match.league.name} AI analysis, tactics & key viewing points`
+      : t('seo_description_with_analysis', { homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name })
+  }
+
   return buildMetadata(
-    generateMatchSEO({
-      homeTeam: match.homeTeam.name,
-      awayTeam: match.awayTeam.name,
-      league: match.league.name,
-      date: dateFormatted,
-      hasAnalysis: Boolean(match.matchAnalysis),
-      translations: {
-        description: match.matchAnalysis
-          ? t('seo_description_with_analysis', { homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name })
-          : t('seo_description_no_analysis', { league: match.league.name, date: dateFormatted, homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name }),
-        keywords: [match.homeTeam.name, match.awayTeam.name, match.league.name, t('analysis'), t('preview'), t('tactics')],
-      },
-    }),
+    {
+      title: dynamicTitle,
+      description: dynamicDescription,
+      keywords: [
+        match.homeTeam.name,
+        match.awayTeam.name,
+        match.league.name,
+        t('analysis'),
+        t('preview'),
+        t('tactics'),
+        match.homeTeam.shortName || '',
+        match.awayTeam.shortName || '',
+      ].filter(Boolean),
+      type: 'article',
+    },
     { path: `/${sport}/match/${slug}`, locale: locale as Locale, baseUrl }
   )
 }
@@ -325,6 +417,56 @@ export default async function MatchPageContent({ params, searchParams, sport }: 
     awayScore: match.awayScore ?? undefined,
   })
 
+  // FAQ Schema for Rich Snippets - 팀 폼 데이터 활용
+  const homeFormStats = parseFormStats(match.homeTeam.seasonStats?.form || null)
+  const awayFormStats = parseFormStats(match.awayTeam.seasonStats?.form || null)
+  const homeFormText = match.homeTeam.seasonStats?.form
+    ? `${homeFormStats.wins}${t('win')} ${homeFormStats.draws}${t('draw')} ${homeFormStats.losses}${t('loss')}`
+    : t('no_data')
+  const awayFormText = match.awayTeam.seasonStats?.form
+    ? `${awayFormStats.wins}${t('win')} ${awayFormStats.draws}${t('draw')} ${awayFormStats.losses}${t('loss')}`
+    : t('no_data')
+
+  const faqJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: t('faq_when_match', { homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name }),
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `${kickoffDate} ${kickoffTime}`,
+        },
+      },
+      {
+        '@type': 'Question',
+        name: t('faq_recent_form'),
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `${match.homeTeam.name}: ${homeFormText}. ${match.awayTeam.name}: ${awayFormText}.`,
+        },
+      },
+      ...(match.homeTeam.seasonStats?.rank && match.awayTeam.seasonStats?.rank
+        ? [
+            {
+              '@type': 'Question',
+              name: t('faq_standings'),
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: t('faq_standings_answer', {
+                  homeTeam: match.homeTeam.name,
+                  homeRank: match.homeTeam.seasonStats.rank,
+                  awayTeam: match.awayTeam.name,
+                  awayRank: match.awayTeam.seasonStats.rank,
+                }),
+              },
+            },
+          ]
+        : []),
+    ],
+  }
+
   // 뒤로가기 경로 결정
   const backPath = from?.startsWith('/daily/') ? from : `/${sport}/matches`
 
@@ -334,6 +476,11 @@ export default async function MatchPageContent({ params, searchParams, sport }: 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      {/* FAQ Schema for Rich Snippets */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
       {/* Back Navigation */}
       <div className="mb-4">

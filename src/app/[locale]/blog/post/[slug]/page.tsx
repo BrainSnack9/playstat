@@ -160,7 +160,7 @@ export default async function BlogPostPage({ params }: Props) {
         {/* 헤더 */}
         <header className="mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <Link href={`/${locale}/blog/${post.category.toLowerCase()}`}>
+            <Link href={`/blog/${post.category.toLowerCase()}`}>
               <Badge className="bg-blue-600 text-white hover:bg-blue-700 transition-colors">
                 {categoryName}
               </Badge>

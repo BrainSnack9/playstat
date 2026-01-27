@@ -13,11 +13,24 @@ import {
 import { locales, localeNames, localeFlags, type Locale } from '@/i18n/config'
 import { Globe, Home } from 'lucide-react'
 
+// locale prefix를 제거하는 헬퍼 함수
+function stripLocalePrefix(path: string): string {
+  for (const loc of locales) {
+    if (path === `/${loc}` || path.startsWith(`/${loc}/`)) {
+      return path.slice(`/${loc}`.length) || '/'
+    }
+  }
+  return path
+}
+
 export function LanguageSwitcher() {
   const locale = useLocale() as Locale
   const router = useRouter()
-  const pathname = usePathname()
+  const rawPathname = usePathname()
   const t = useTranslations('footer')
+
+  // 이미 locale이 포함되어 있을 수 있으므로 제거
+  const pathname = stripLocalePrefix(rawPathname)
 
   const handleLocaleChange = (newLocale: Locale) => {
     router.replace(pathname, { locale: newLocale })

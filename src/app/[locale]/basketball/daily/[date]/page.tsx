@@ -343,9 +343,58 @@ async function JsonLd({
     description: `${match.league.name} ${match.matchday ? tMatch('round_value', { round: match.matchday }) : ''} ${tCommon('matches')}`,
   }))
 
+  // 리그별 경기 수 계산
+  const leagueCounts: Record<string, number> = {}
+  for (const match of matches) {
+    const leagueName = match.league.name
+    leagueCounts[leagueName] = (leagueCounts[leagueName] || 0) + 1
+  }
+  const topLeagues = Object.entries(leagueCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([name, count]) => `${name} ${count}${locale === 'ko' ? '경기' : locale === 'ja' ? '試合' : ''}`)
+    .join(', ')
+
+  // FAQ Schema for Rich Snippets
+  const faqJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: locale === 'ko' ? `${dateFormatted} 경기가 몇 개 있나요?` :
+              locale === 'ja' ? `${dateFormatted}の試合は何試合ありますか?` :
+              locale === 'es' ? `¿Cuántos partidos hay el ${dateFormatted}?` :
+              locale === 'de' ? `Wie viele Spiele gibt es am ${dateFormatted}?` :
+              `How many matches are on ${dateFormatted}?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: locale === 'ko' ? `총 ${matches.length}경기가 예정되어 있습니다. ${topLeagues}` :
+                locale === 'ja' ? `合計${matches.length}試合が予定されています。${topLeagues}` :
+                locale === 'es' ? `Hay ${matches.length} partidos programados. ${topLeagues}` :
+                locale === 'de' ? `Es sind ${matches.length} Spiele geplant. ${topLeagues}` :
+                `There are ${matches.length} matches scheduled. ${topLeagues}`,
+        },
+      },
+      ...(topLeagues ? [{
+        '@type': 'Question',
+        name: locale === 'ko' ? '어떤 리그 경기가 있나요?' :
+              locale === 'ja' ? 'どのリーグの試合がありますか?' :
+              locale === 'es' ? '¿Qué ligas juegan?' :
+              locale === 'de' ? 'Welche Ligen spielen?' :
+              'Which leagues are playing?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: topLeagues,
+        },
+      }] : []),
+    ],
+  }
+
   // 모든 JSON-LD 데이터를 하나의 배열로 합침
   const allJsonLd = [
     jsonLd,
+    faqJsonLd,
     ...sportsEvents
   ]
 

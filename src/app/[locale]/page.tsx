@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { TodayMatches } from '@/components/matches/today-matches'
 import { LatestNews, LatestNewsSkeleton } from '@/components/news/latest-news'
+import { LatestBlogPosts, LatestBlogPostsSkeleton } from '@/components/blog/latest-blog-posts'
 import { ArrowRight, Calendar, ChartBar } from 'lucide-react'
 import { headers } from 'next/headers'
 import { type Locale } from '@/i18n/config'
@@ -103,6 +104,21 @@ export default async function HomePage({ params }: Props) {
       ))}
 
       <Separator className="mb-12" />
+
+      {/* Latest Blog Posts - 최신 분석 */}
+      <section className="mb-12">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="section-title">{t('latest_analysis')}</h2>
+          <Button asChild variant="ghost">
+            <Link href="/blog">
+              {common('view_all')} <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+        <Suspense fallback={<LatestBlogPostsSkeleton />}>
+          <LatestBlogPosts locale={locale} />
+        </Suspense>
+      </section>
 
       {/* Latest News - 전체 스포츠 */}
       <section className="mb-12">

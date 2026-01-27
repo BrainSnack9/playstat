@@ -5,8 +5,8 @@ import { locales, defaultLocale } from './config'
 export const routing = defineRouting({
   locales,
   defaultLocale,
-  localePrefix: 'as-needed',
-  // 브라우저 Accept-Language 헤더 기반 자동 언어 감지
+  localePrefix: 'always',
+  // 쿠키 기반 언어 유지 (사용자가 선택한 언어 기억)
   localeDetection: true,
 })
 

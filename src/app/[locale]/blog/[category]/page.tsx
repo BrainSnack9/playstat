@@ -137,7 +137,7 @@ export default async function BlogCategoryPage({ params, searchParams }: Props) 
       {/* 헤더 */}
       <div className="mb-6 sm:mb-10">
         <Link
-          href={sport ? `/${locale}/blog?sport=${sport}` : `/blog`}
+          href={sport ? `/blog?sport=${sport}` : `/blog`}
           className="inline-flex items-center gap-1.5 sm:gap-2 text-gray-400 hover:text-white mb-3 sm:mb-4 transition-colors group text-sm"
         >
           <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:-translate-x-1 transition-transform" />
@@ -162,7 +162,7 @@ export default async function BlogCategoryPage({ params, searchParams }: Props) 
               const isActive = (filter.key === 'all' && !sport) || sport === filter.key
               const href = filter.key === 'all'
                 ? `/blog/${category}`
-                : `/${locale}/blog/${category}?sport=${filter.key}`
+                : `/blog/${category}?sport=${filter.key}`
 
               return (
                 <Link
@@ -194,7 +194,7 @@ export default async function BlogCategoryPage({ params, searchParams }: Props) 
           <span className="text-gray-500 text-xs sm:text-sm shrink-0">{locale === 'ko' ? '카테고리' : 'Category'}</span>
           <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
             <Link
-              href={sport ? `/${locale}/blog?sport=${sport}` : `/blog`}
+              href={sport ? `/blog?sport=${sport}` : `/blog`}
               className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm text-gray-400 hover:text-white transition-all"
             >
               {t('allPosts')}
@@ -216,7 +216,7 @@ export default async function BlogCategoryPage({ params, searchParams }: Props) 
                 <Link
                   key={cat}
                   href={sport
-                    ? `/${locale}/blog/${cat}?sport=${sport}`
+                    ? `/blog/${cat}?sport=${sport}`
                     : `/blog/${cat}`
                   }
                   className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm transition-all ${isActive ? activeStyle : inactiveStyle}`}
