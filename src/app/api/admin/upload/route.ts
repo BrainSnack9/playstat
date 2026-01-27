@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 // 인증 확인 헬퍼
 async function verifyAdmin() {
@@ -61,8 +62,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '파일 크기가 5MB를 초과합니다.' }, { status: 400 })
     }
 
-    // Supabase 클라이언트 생성
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    // Supabase 클라이언트 생성 (Service Role Key로 Storage 업로드 권한 확보)
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
     // 파일명 생성 (timestamp + random)
     const timestamp = Date.now()
