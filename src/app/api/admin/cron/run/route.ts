@@ -84,8 +84,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // 작업 실행
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3030'
+    // 작업 실행 - 요청 URL에서 baseUrl 자동 추출 (프로덕션/로컬 모두 지원)
+    const requestUrl = new URL(request.url)
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${requestUrl.protocol}//${requestUrl.host}`
     const targetUrl = `${baseUrl}${endpoint}`
     const method = isPostEndpoint ? 'POST' : 'GET'
 
