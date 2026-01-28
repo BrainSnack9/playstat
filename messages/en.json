@@ -28,7 +28,9 @@
     "date_short": "{month} {day}",
     "date_medium_format": "MMM d (EEE)",
     "date_full_format": "EEEE, MMMM d, yyyy",
-    "blog": "Blog"
+    "blog": "Blog",
+    "games": "Games",
+    "score_prediction": "Score Prediction"
   },
   "home": {
     "title": "PlayStat - AI Sports Analysis Platform",
@@ -478,5 +480,49 @@
     "views": "views",
     "categoryDescription": "All posts in {category} category",
     "categoryPostCount": "{count} posts"
+  },
+  "games": {
+    "title": "Games",
+    "description": "Make sports more fun with prediction games",
+    "badge": "GAME ZONE",
+    "play_now": "Play",
+    "coming_soon": "Coming Soon",
+    "note": "Game records are saved in your browser and will be reset if you change devices.",
+    "score-challenge": {
+      "title": "Score Challenge",
+      "description": "Predict match scores and earn points!",
+      "points": "Earn Points",
+      "streak": "Win Streak",
+      "select_match": "Select Match",
+      "your_prediction": "Your Prediction",
+      "confirm": "Confirm Prediction",
+      "change": "Change Prediction",
+      "match_starts": "Match Starts",
+      "predicted_at": "Predicted At",
+      "my_predictions": "My Predictions",
+      "results": "Result",
+      "no_matches": "No matches available for prediction",
+      "stats": {
+        "total_points": "Total Points",
+        "total_predictions": "Total Predictions",
+        "exact_matches": "Exact Matches",
+        "current_streak": "Current Streak",
+        "accuracy": "Accuracy"
+      },
+      "points": {
+        "exact": "Exact Match! (+3pts)",
+        "diff": "Goal Difference (+2pts)",
+        "winner": "Correct Winner (+1pt)",
+        "miss": "Better luck next time (0pts)"
+      },
+      "share": "Share",
+      "share_text": "PlayStat Score Challenge Result"
+    },
+    "guess-player": {
+      "title": "Guess the Player",
+      "description": "Guess today's mystery player from the hints",
+      "points": "Daily Challenge",
+      "streak": "Answer Streak"
+    }
   }
 }

@@ -28,7 +28,9 @@
     "date_short": "{month}월 {day}일",
     "date_medium_format": "M월 d일 (EEE)",
     "date_full_format": "yyyy년 MM월 dd일 (EEEE)",
-    "blog": "블로그"
+    "blog": "블로그",
+    "games": "게임",
+    "score_prediction": "승부 예측"
   },
   "home": {
     "title": "PlayStat - AI 스포츠 분석 플랫폼",
@@ -478,5 +480,49 @@
     "views": "조회",
     "categoryDescription": "{category} 카테고리의 모든 글",
     "categoryPostCount": "{count}개의 글"
+  },
+  "games": {
+    "title": "게임",
+    "description": "예측 게임으로 스포츠를 더 재밌게 즐기세요",
+    "badge": "GAME ZONE",
+    "play_now": "플레이",
+    "coming_soon": "준비 중",
+    "note": "게임 기록은 브라우저에 저장되며, 기기 변경 시 초기화됩니다.",
+    "score-challenge": {
+      "title": "스코어 챌린지",
+      "description": "경기 점수를 예측하고 포인트를 모으세요!",
+      "points": "포인트 획득",
+      "streak": "연속 적중",
+      "select_match": "경기 선택",
+      "your_prediction": "내 예측",
+      "confirm": "예측 확정",
+      "change": "예측 수정",
+      "match_starts": "경기 시작",
+      "predicted_at": "예측 시간",
+      "my_predictions": "내 예측 기록",
+      "results": "결과",
+      "no_matches": "예측 가능한 경기가 없습니다",
+      "stats": {
+        "total_points": "총 포인트",
+        "total_predictions": "총 예측",
+        "exact_matches": "정확 적중",
+        "current_streak": "연속 적중",
+        "accuracy": "적중률"
+      },
+      "points": {
+        "exact": "정확 적중! (+3점)",
+        "diff": "골차 적중 (+2점)",
+        "winner": "승무패 적중 (+1점)",
+        "miss": "아쉽네요 (0점)"
+      },
+      "share": "공유하기",
+      "share_text": "PlayStat 스코어 챌린지 결과"
+    },
+    "guess-player": {
+      "title": "선수 맞추기",
+      "description": "힌트를 보고 오늘의 선수를 맞춰보세요",
+      "points": "매일 도전",
+      "streak": "연속 정답"
+    }
   }
 }

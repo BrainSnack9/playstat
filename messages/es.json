@@ -28,7 +28,8 @@
     "date_short": "{day} de {month}",
     "date_medium_format": "d 'de' MMM (EEE)",
     "date_full_format": "EEEE, d 'de' MMMM 'de' yyyy",
-    "blog": "Blog"
+    "blog": "Blog",
+    "games": "Juegos"
   },
   "home": {
     "title": "PlayStat - Plataforma de Análisis Deportivo con IA",
@@ -462,5 +463,49 @@
     "views": "vistas",
     "categoryDescription": "Todas las publicaciones en la categoría {category}",
     "categoryPostCount": "{count} publicaciones"
+  },
+  "games": {
+    "title": "Juegos",
+    "description": "Haz el deporte más divertido con juegos de predicción",
+    "badge": "GAME ZONE",
+    "play_now": "Jugar",
+    "coming_soon": "Próximamente",
+    "note": "Los registros del juego se guardan en tu navegador y se restablecerán si cambias de dispositivo.",
+    "score-challenge": {
+      "title": "Desafío de Marcador",
+      "description": "¡Predice los resultados y gana puntos!",
+      "points": "Ganar Puntos",
+      "streak": "Racha de Victorias",
+      "select_match": "Seleccionar Partido",
+      "your_prediction": "Tu Predicción",
+      "confirm": "Confirmar Predicción",
+      "change": "Cambiar Predicción",
+      "match_starts": "Inicio del Partido",
+      "predicted_at": "Predicho en",
+      "my_predictions": "Mis Predicciones",
+      "results": "Resultado",
+      "no_matches": "No hay partidos disponibles para predicción",
+      "stats": {
+        "total_points": "Puntos Totales",
+        "total_predictions": "Total de Predicciones",
+        "exact_matches": "Aciertos Exactos",
+        "current_streak": "Racha Actual",
+        "accuracy": "Precisión"
+      },
+      "points": {
+        "exact": "¡Acierto Exacto! (+3pts)",
+        "diff": "Diferencia de Goles (+2pts)",
+        "winner": "Ganador Correcto (+1pt)",
+        "miss": "¡Mejor suerte la próxima! (0pts)"
+      },
+      "share": "Compartir",
+      "share_text": "Resultado del Desafío de Marcador de PlayStat"
+    },
+    "guess-player": {
+      "title": "Adivina el Jugador",
+      "description": "Adivina el jugador misterioso de hoy con las pistas",
+      "points": "Desafío Diario",
+      "streak": "Racha de Respuestas"
+    }
   }
 }

@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator'
 import { TodayMatches } from '@/components/matches/today-matches'
 import { LatestNews, LatestNewsSkeleton } from '@/components/news/latest-news'
 import { LatestBlogPosts, LatestBlogPostsSkeleton } from '@/components/blog/latest-blog-posts'
-import { ArrowRight, Calendar, ChartBar } from 'lucide-react'
+import { ArrowRight, Calendar, ChartBar, Target } from 'lucide-react'
 import { headers } from 'next/headers'
 import { type Locale } from '@/i18n/config'
 import { generateMetadata as buildMetadata, resolveBaseUrl } from '@/lib/seo'
@@ -78,6 +78,12 @@ export default async function HomePage({ params }: Props) {
               <Link href="/football/daily/today">
                 <ChartBar className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
                 {common('daily_report')}
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg" className="h-12 w-full px-8 text-base font-bold transition-all hover:bg-accent hover:scale-105 sm:h-14 sm:w-auto sm:text-lg">
+              <Link href="/games/score-challenge">
+                <Target className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-orange-500" />
+                {common('score_prediction')}
               </Link>
             </Button>
           </div>

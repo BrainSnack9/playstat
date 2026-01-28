@@ -28,7 +28,8 @@
     "date_short": "{month}月{day}日",
     "date_medium_format": "M月d日(EEE)",
     "date_full_format": "yyyy'年'M'月'd'日'(EEEE)",
-    "blog": "ブログ"
+    "blog": "ブログ",
+    "games": "ゲーム"
   },
   "home": {
     "title": "PlayStat - AIスポーツ分析プラットフォーム",
@@ -464,5 +465,49 @@
     "views": "閲覧",
     "categoryDescription": "{category}カテゴリのすべての投稿",
     "categoryPostCount": "{count}件の投稿"
+  },
+  "games": {
+    "title": "ゲーム",
+    "description": "予想ゲームでスポーツをもっと楽しく",
+    "badge": "GAME ZONE",
+    "play_now": "プレイ",
+    "coming_soon": "近日公開",
+    "note": "ゲーム記録はブラウザに保存され、端末を変更するとリセットされます。",
+    "score-challenge": {
+      "title": "スコアチャレンジ",
+      "description": "試合スコアを予想してポイントを獲得！",
+      "points": "ポイント獲得",
+      "streak": "連勝記録",
+      "select_match": "試合を選択",
+      "your_prediction": "あなたの予想",
+      "confirm": "予想を確定",
+      "change": "予想を変更",
+      "match_starts": "試合開始",
+      "predicted_at": "予想日時",
+      "my_predictions": "自分の予想",
+      "results": "結果",
+      "no_matches": "予想可能な試合がありません",
+      "stats": {
+        "total_points": "合計ポイント",
+        "total_predictions": "予想回数",
+        "exact_matches": "完全的中",
+        "current_streak": "現在の連勝",
+        "accuracy": "的中率"
+      },
+      "points": {
+        "exact": "完全的中！(+3pt)",
+        "diff": "得失点差的中(+2pt)",
+        "winner": "勝者的中(+1pt)",
+        "miss": "惜しい！(0pt)"
+      },
+      "share": "シェア",
+      "share_text": "PlayStat スコアチャレンジ結果"
+    },
+    "guess-player": {
+      "title": "選手当てクイズ",
+      "description": "ヒントから今日の謎の選手を当てよう",
+      "points": "デイリーチャレンジ",
+      "streak": "正解連続記録"
+    }
   }
 }

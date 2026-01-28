@@ -28,7 +28,8 @@
     "date_short": "{day}. {month}",
     "date_medium_format": "d. MMM (EEE)",
     "date_full_format": "EEEE, d. MMMM yyyy",
-    "blog": "Blog"
+    "blog": "Blog",
+    "games": "Spiele"
   },
   "home": {
     "title": "PlayStat - KI Sportanalyseplattform",
@@ -474,5 +475,49 @@
     "views": "Aufrufe",
     "categoryDescription": "Alle Beiträge in der Kategorie {category}",
     "categoryPostCount": "{count} Beiträge"
+  },
+  "games": {
+    "title": "Spiele",
+    "description": "Mehr Spaß am Sport mit Tippspielen",
+    "badge": "GAME ZONE",
+    "play_now": "Spielen",
+    "coming_soon": "Demnächst",
+    "note": "Spielstände werden im Browser gespeichert und beim Gerätewechsel zurückgesetzt.",
+    "score-challenge": {
+      "title": "Score Challenge",
+      "description": "Tippen Sie auf Spielergebnisse und sammeln Sie Punkte!",
+      "points": "Punkte sammeln",
+      "streak": "Siegesserie",
+      "select_match": "Spiel auswählen",
+      "your_prediction": "Ihre Vorhersage",
+      "confirm": "Vorhersage bestätigen",
+      "change": "Vorhersage ändern",
+      "match_starts": "Spielbeginn",
+      "predicted_at": "Getippt am",
+      "my_predictions": "Meine Tipps",
+      "results": "Ergebnis",
+      "no_matches": "Keine Spiele zum Tippen verfügbar",
+      "stats": {
+        "total_points": "Gesamtpunkte",
+        "total_predictions": "Gesamte Tipps",
+        "exact_matches": "Exakte Treffer",
+        "current_streak": "Aktuelle Serie",
+        "accuracy": "Genauigkeit"
+      },
+      "points": {
+        "exact": "Volltreffer! (+3Pkt)",
+        "diff": "Tordifferenz (+2Pkt)",
+        "winner": "Sieger richtig (+1Pkt)",
+        "miss": "Nächstes Mal! (0Pkt)"
+      },
+      "share": "Teilen",
+      "share_text": "PlayStat Score Challenge Ergebnis"
+    },
+    "guess-player": {
+      "title": "Spieler erraten",
+      "description": "Erraten Sie den heutigen Geheimnis-Spieler anhand der Hinweise",
+      "points": "Tägliche Herausforderung",
+      "streak": "Antwort-Serie"
+    }
   }
 }

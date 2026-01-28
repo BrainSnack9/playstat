@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter, usePathname } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { SportId } from '@/lib/sport'
@@ -38,6 +39,11 @@ export const SPORTS_CONFIG = [
   },
 ]
 
+// 스포츠 라벨 가져오기
+export function getSportLabel(sport: typeof SPORTS_CONFIG[number], locale: string) {
+  return locale === 'ko' ? sport.labelKo : sport.label
+}
+
 export const STORAGE_KEY = 'ps_preferred_sport'
 
 interface SportTabsProps {
@@ -48,6 +54,7 @@ interface SportTabsProps {
 export function SportTabs({ currentSport, basePath }: SportTabsProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const locale = useLocale()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -96,7 +103,7 @@ export function SportTabs({ currentSport, basePath }: SportTabsProps) {
                 : 'border-border bg-background text-muted-foreground'
             )}
           >
-            <span className="text-sm font-medium">{sport.label}</span>
+            <span className="text-sm font-medium">{getSportLabel(sport, locale)}</span>
           </div>
         ))}
       </div>
@@ -119,7 +126,7 @@ export function SportTabs({ currentSport, basePath }: SportTabsProps) {
                 : `border-border bg-background text-muted-foreground ${sport.hoverBg}`
             )}
           >
-            <span className="text-sm font-medium">{sport.label}</span>
+            <span className="text-sm font-medium">{getSportLabel(sport, locale)}</span>
           </button>
         )
       })}
@@ -131,4 +138,39 @@ export function SportTabs({ currentSport, basePath }: SportTabsProps) {
 export function getPreferredSport(): SportId {
   if (typeof window === 'undefined') return 'football'
   return (localStorage.getItem(STORAGE_KEY) as SportId) || 'football'
+}
+
+// 스포츠 선택기 (네비게이션 없이 상태만 변경) - Score Challenge 등에서 사용
+interface SportSelectorProps {
+  currentSport: SportId
+  onChange: (sport: SportId) => void
+  className?: string
+  centered?: boolean
+}
+
+export function SportSelector({ currentSport, onChange, className, centered = false }: SportSelectorProps) {
+  const locale = useLocale()
+
+  return (
+    <div className={cn('flex gap-2', centered && 'justify-center', className)}>
+      {SPORTS_CONFIG.map((sport) => {
+        const isActive = sport.id === currentSport
+
+        return (
+          <button
+            key={sport.id}
+            onClick={() => onChange(sport.id)}
+            className={cn(
+              'px-4 py-2 rounded-lg border transition-all text-sm font-medium',
+              isActive
+                ? `${sport.activeBg} ${sport.borderColor} ${sport.color}`
+                : `border-border bg-background text-muted-foreground ${sport.hoverBg}`
+            )}
+          >
+            {getSportLabel(sport, locale)}
+          </button>
+        )
+      })}
+    </div>
+  )
 }

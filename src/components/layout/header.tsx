@@ -16,7 +16,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import { Menu, Newspaper, Calendar, Users, ChartBar, Trophy, PenSquare } from 'lucide-react'
+import { Menu, Newspaper, Calendar, Users, ChartBar, Trophy, PenSquare, Gamepad2 } from 'lucide-react'
 import Image from 'next/image'
 import { LanguageSwitcher } from './language-switcher'
 import { spaceGrotesk } from '@/lib/fonts'
@@ -63,6 +63,11 @@ const getMainNav = (sport: SportId) => [
     key: 'blog',
     href: '/blog',
     icon: PenSquare,
+  },
+  {
+    key: 'games',
+    href: '/games',
+    icon: Gamepad2,
   },
 ]
 
