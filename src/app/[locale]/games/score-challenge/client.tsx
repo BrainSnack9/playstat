@@ -225,7 +225,7 @@ playstat.space/games/score-challenge`
             Back
           </Button>
           <span className="text-xs text-muted-foreground hidden md:block">
-            +/- 버튼으로 점수 예측
+            {selectedMatch.sportType === 'FOOTBALL' ? '+/- 버튼으로 점수 예측' : '점수를 직접 입력하세요'}
           </span>
         </div>
 
@@ -249,6 +249,7 @@ playstat.space/games/score-challenge`
           league={selectedMatch.league.name}
           leagueLogo={selectedMatch.league.logo}
           isLocked={false}
+          sportType={selectedMatch.sportType as 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL'}
         />
 
         {/* 확정 버튼 */}

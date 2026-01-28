@@ -19,6 +19,7 @@ interface ScoreboardProps {
   league?: string
   leagueLogo?: string | null
   isLocked?: boolean
+  sportType?: 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL'
 }
 
 // 순위별 배지 스타일
@@ -47,7 +48,11 @@ export function Scoreboard3D({
   league,
   leagueLogo,
   isLocked,
+  sportType = 'FOOTBALL',
 }: ScoreboardProps) {
+  // 축구: +/- 버튼, 농구/야구: 직접 입력
+  const isHighScoreSport = sportType === 'BASKETBALL' || sportType === 'BASEBALL'
+  const maxScore = isHighScoreSport ? 999 : 15
   return (
     <div className="w-full rounded-2xl overflow-hidden bg-gradient-to-b from-slate-900 via-slate-950 to-black relative border border-white/10">
       {/* 배경 글로우 효과 */}
@@ -116,20 +121,34 @@ export function Scoreboard3D({
           <div className="flex items-center gap-1 md:gap-3 px-2 md:px-4">
             {/* 홈 스코어 */}
             <div className="flex flex-col items-center gap-1 md:gap-2">
-              {!isLocked && (
+              {!isLocked && !isHighScoreSport && (
                 <button
-                  onClick={() => onHomeScoreChange(Math.min(homeScore + 1, 15))}
+                  onClick={() => onHomeScoreChange(Math.min(homeScore + 1, maxScore))}
                   className="w-7 h-5 md:w-10 md:h-7 bg-blue-500/30 hover:bg-blue-500/50 rounded text-blue-400 text-sm md:text-base font-bold transition-all active:scale-95"
                 >
                   +
                 </button>
               )}
-              <div className="w-12 h-16 md:w-20 md:h-28 bg-gradient-to-b from-[#1a1a4e] to-[#0a0a2a] rounded-lg md:rounded-xl flex items-center justify-center border-2 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.3)]">
-                <span className="text-3xl md:text-5xl font-black text-blue-400 font-mono tabular-nums">
-                  {homeScore}
-                </span>
-              </div>
-              {!isLocked && (
+              {isHighScoreSport && !isLocked ? (
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={homeScore || ''}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0
+                    onHomeScoreChange(Math.min(Math.max(val, 0), maxScore))
+                  }}
+                  className="w-16 h-16 md:w-24 md:h-28 bg-gradient-to-b from-[#1a1a4e] to-[#0a0a2a] rounded-lg md:rounded-xl text-center text-2xl md:text-4xl font-black text-blue-400 font-mono tabular-nums border-2 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.3)] focus:outline-none focus:border-blue-400"
+                  placeholder="0"
+                />
+              ) : (
+                <div className="w-12 h-16 md:w-20 md:h-28 bg-gradient-to-b from-[#1a1a4e] to-[#0a0a2a] rounded-lg md:rounded-xl flex items-center justify-center border-2 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                  <span className="text-3xl md:text-5xl font-black text-blue-400 font-mono tabular-nums">
+                    {homeScore}
+                  </span>
+                </div>
+              )}
+              {!isLocked && !isHighScoreSport && (
                 <button
                   onClick={() => onHomeScoreChange(Math.max(homeScore - 1, 0))}
                   className="w-7 h-5 md:w-10 md:h-7 bg-blue-500/30 hover:bg-blue-500/50 rounded text-blue-400 text-sm md:text-base font-bold transition-all active:scale-95"
@@ -144,20 +163,34 @@ export function Scoreboard3D({
 
             {/* 어웨이 스코어 */}
             <div className="flex flex-col items-center gap-1 md:gap-2">
-              {!isLocked && (
+              {!isLocked && !isHighScoreSport && (
                 <button
-                  onClick={() => onAwayScoreChange(Math.min(awayScore + 1, 15))}
+                  onClick={() => onAwayScoreChange(Math.min(awayScore + 1, maxScore))}
                   className="w-7 h-5 md:w-10 md:h-7 bg-red-500/30 hover:bg-red-500/50 rounded text-red-400 text-sm md:text-base font-bold transition-all active:scale-95"
                 >
                   +
                 </button>
               )}
-              <div className="w-12 h-16 md:w-20 md:h-28 bg-gradient-to-b from-[#4e1a1a] to-[#2a0a0a] rounded-lg md:rounded-xl flex items-center justify-center border-2 border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.3)]">
-                <span className="text-3xl md:text-5xl font-black text-red-400 font-mono tabular-nums">
-                  {awayScore}
-                </span>
-              </div>
-              {!isLocked && (
+              {isHighScoreSport && !isLocked ? (
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={awayScore || ''}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0
+                    onAwayScoreChange(Math.min(Math.max(val, 0), maxScore))
+                  }}
+                  className="w-16 h-16 md:w-24 md:h-28 bg-gradient-to-b from-[#4e1a1a] to-[#2a0a0a] rounded-lg md:rounded-xl text-center text-2xl md:text-4xl font-black text-red-400 font-mono tabular-nums border-2 border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.3)] focus:outline-none focus:border-red-400"
+                  placeholder="0"
+                />
+              ) : (
+                <div className="w-12 h-16 md:w-20 md:h-28 bg-gradient-to-b from-[#4e1a1a] to-[#2a0a0a] rounded-lg md:rounded-xl flex items-center justify-center border-2 border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.3)]">
+                  <span className="text-3xl md:text-5xl font-black text-red-400 font-mono tabular-nums">
+                    {awayScore}
+                  </span>
+                </div>
+              )}
+              {!isLocked && !isHighScoreSport && (
                 <button
                   onClick={() => onAwayScoreChange(Math.max(awayScore - 1, 0))}
                   className="w-7 h-5 md:w-10 md:h-7 bg-red-500/30 hover:bg-red-500/50 rounded text-red-400 text-sm md:text-base font-bold transition-all active:scale-95"
@@ -203,7 +236,9 @@ export function Scoreboard3D({
 
         {/* 모바일 안내 */}
         <div className="text-center mt-4 md:hidden">
-          <span className="text-[10px] text-gray-500">+/- 버튼으로 점수 예측</span>
+          <span className="text-[10px] text-gray-500">
+            {isHighScoreSport ? '점수를 직접 입력하세요' : '+/- 버튼으로 점수 예측'}
+          </span>
         </div>
       </div>
     </div>
