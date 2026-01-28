@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, ArrowRight, Eye, TrendingUp } from 'lucide-react'
+import { Calendar, ArrowRight, Eye } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import { ko, enUS, ja, de, es, Locale as DateLocale } from 'date-fns/locale'
 
@@ -73,7 +73,7 @@ export async function LatestBlogPosts({ locale }: Props) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {posts.map((post, index) => {
+      {posts.map((post) => {
         const translations = post.translations as Record<string, { title: string; excerpt?: string }> | null
         const content = translations?.[locale] || translations?.ko || translations?.en
         const title = content?.title || '(제목 없음)'
@@ -82,16 +82,7 @@ export async function LatestBlogPosts({ locale }: Props) {
 
         return (
           <Link key={post.id} href={`/blog/post/${post.slug}`} className="group">
-            <Card className="h-full bg-card/50 border-border/50 hover:border-primary/30 hover:bg-card transition-all duration-300 relative">
-              {/* 인기 순위 뱃지 */}
-              {index === 0 && (
-                <div className="absolute -top-2 -right-2 z-10">
-                  <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/90 text-yellow-950 text-[10px] font-bold rounded-full shadow-lg">
-                    <TrendingUp className="w-3 h-3" />
-                    HOT
-                  </span>
-                </div>
-              )}
+            <Card className="h-full bg-card/50 border-border/50 hover:border-primary/30 hover:bg-card transition-all duration-300">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Badge className={`text-xs ${categoryStyles[post.category] || 'bg-blue-500/15 text-blue-400 border border-blue-500/20'}`}>
