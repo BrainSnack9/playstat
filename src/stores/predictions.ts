@@ -3,11 +3,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export type SportType = 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL'
+
 export interface Prediction {
   matchId: string
   homeScore: number
   awayScore: number
   predictedAt: string // ISO date
+  sportType?: SportType
   // 경기 결과 (경기 종료 후 업데이트)
   actualHomeScore?: number
   actualAwayScore?: number
@@ -30,43 +33,73 @@ interface PredictionsState {
   stats: PredictionStats
 
   // Actions
-  addPrediction: (matchId: string, homeScore: number, awayScore: number) => void
+  addPrediction: (matchId: string, homeScore: number, awayScore: number, sportType?: SportType) => void
   updatePrediction: (matchId: string, homeScore: number, awayScore: number) => void
   removePrediction: (matchId: string) => void
   getPrediction: (matchId: string) => Prediction | undefined
   hasPrediction: (matchId: string) => boolean
 
   // 경기 결과 처리
-  settlePrediction: (matchId: string, actualHomeScore: number, actualAwayScore: number) => void
+  settlePrediction: (matchId: string, actualHomeScore: number, actualAwayScore: number, sportType?: SportType) => void
 
   // 통계 계산
   recalculateStats: () => void
 }
 
-// 점수 계산 함수
+// 점수 계산 결과 타입
+export type PointType = 'exact' | 'close5' | 'close10' | 'diff' | 'winner' | 'miss'
+
+// 점수 계산 함수 (스포츠 타입별 차등)
 function calculatePoints(
   predictedHome: number,
   predictedAway: number,
   actualHome: number,
-  actualAway: number
-): { points: number; type: 'exact' | 'diff' | 'winner' | 'miss' } {
-  // 정확히 맞춤: 3점
+  actualAway: number,
+  sportType: SportType = 'FOOTBALL'
+): { points: number; type: PointType } {
+  const isHighScoreSport = sportType === 'BASKETBALL' || sportType === 'BASEBALL'
+
+  // 정확히 맞춤
   if (predictedHome === actualHome && predictedAway === actualAway) {
-    return { points: 3, type: 'exact' }
+    return { points: isHighScoreSport ? 5 : 3, type: 'exact' }
   }
 
-  // 골차 맞춤: 2점
-  const predictedDiff = predictedHome - predictedAway
-  const actualDiff = actualHome - actualAway
-  if (predictedDiff === actualDiff) {
-    return { points: 2, type: 'diff' }
-  }
+  if (isHighScoreSport) {
+    // 농구/야구: 완화된 기준
+    const homeDiff = Math.abs(predictedHome - actualHome)
+    const awayDiff = Math.abs(predictedAway - actualAway)
 
-  // 승무패 맞춤: 1점
-  const predictedResult = predictedHome > predictedAway ? 'home' : predictedHome < predictedAway ? 'away' : 'draw'
-  const actualResult = actualHome > actualAway ? 'home' : actualHome < actualAway ? 'away' : 'draw'
-  if (predictedResult === actualResult) {
-    return { points: 1, type: 'winner' }
+    // 양팀 점수 각각 ±5점 이내: 3점
+    if (homeDiff <= 5 && awayDiff <= 5) {
+      return { points: 3, type: 'close5' }
+    }
+
+    // 양팀 점수 각각 ±10점 이내: 2점
+    if (homeDiff <= 10 && awayDiff <= 10) {
+      return { points: 2, type: 'close10' }
+    }
+
+    // 승패만 맞춤: 1점
+    const predictedResult = predictedHome > predictedAway ? 'home' : predictedHome < predictedAway ? 'away' : 'draw'
+    const actualResult = actualHome > actualAway ? 'home' : actualHome < actualAway ? 'away' : 'draw'
+    if (predictedResult === actualResult) {
+      return { points: 1, type: 'winner' }
+    }
+  } else {
+    // 축구: 기존 로직
+    // 골차 맞춤: 2점
+    const predictedDiff = predictedHome - predictedAway
+    const actualDiff = actualHome - actualAway
+    if (predictedDiff === actualDiff) {
+      return { points: 2, type: 'diff' }
+    }
+
+    // 승무패 맞춤: 1점
+    const predictedResult = predictedHome > predictedAway ? 'home' : predictedHome < predictedAway ? 'away' : 'draw'
+    const actualResult = actualHome > actualAway ? 'home' : actualHome < actualAway ? 'away' : 'draw'
+    if (predictedResult === actualResult) {
+      return { points: 1, type: 'winner' }
+    }
   }
 
   // 틀림: 0점
@@ -87,7 +120,7 @@ export const usePredictions = create<PredictionsState>()(
         bestStreak: 0,
       },
 
-      addPrediction: (matchId: string, homeScore: number, awayScore: number) => {
+      addPrediction: (matchId: string, homeScore: number, awayScore: number, sportType?: SportType) => {
         const existing = get().predictions.find(p => p.matchId === matchId)
         if (existing) {
           get().updatePrediction(matchId, homeScore, awayScore)
@@ -101,6 +134,7 @@ export const usePredictions = create<PredictionsState>()(
               matchId,
               homeScore,
               awayScore,
+              sportType,
               predictedAt: new Date().toISOString(),
             },
           ],
@@ -133,15 +167,16 @@ export const usePredictions = create<PredictionsState>()(
         return get().predictions.some((p) => p.matchId === matchId)
       },
 
-      settlePrediction: (matchId: string, actualHomeScore: number, actualAwayScore: number) => {
+      settlePrediction: (matchId: string, actualHomeScore: number, actualAwayScore: number, sportType?: SportType) => {
         const prediction = get().predictions.find((p) => p.matchId === matchId)
         if (!prediction || prediction.settled) return
 
-        const { points, type } = calculatePoints(
+        const { points } = calculatePoints(
           prediction.homeScore,
           prediction.awayScore,
           actualHomeScore,
-          actualAwayScore
+          actualAwayScore,
+          sportType || prediction.sportType || 'FOOTBALL'
         )
 
         set((state) => ({

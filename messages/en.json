@@ -510,10 +510,12 @@
         "accuracy": "Accuracy"
       },
       "points": {
-        "exact": "Exact Match! (+3pts)",
-        "diff": "Goal Difference (+2pts)",
-        "winner": "Correct Winner (+1pt)",
-        "miss": "Better luck next time (0pts)"
+        "exact": "Exact Match!",
+        "close5": "Within ±5 points!",
+        "close10": "Within ±10 points",
+        "diff": "Goal Difference",
+        "winner": "Correct Winner",
+        "miss": "Better luck next time"
       },
       "share": "Share",
       "share_text": "PlayStat Score Challenge Result"

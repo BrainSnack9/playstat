@@ -493,10 +493,12 @@
         "accuracy": "Precisión"
       },
       "points": {
-        "exact": "¡Acierto Exacto! (+3pts)",
-        "diff": "Diferencia de Goles (+2pts)",
-        "winner": "Ganador Correcto (+1pt)",
-        "miss": "¡Mejor suerte la próxima! (0pts)"
+        "exact": "¡Acierto Exacto!",
+        "close5": "¡Dentro de ±5 puntos!",
+        "close10": "Dentro de ±10 puntos",
+        "diff": "Diferencia de Goles",
+        "winner": "Ganador Correcto",
+        "miss": "¡Mejor suerte la próxima!"
       },
       "share": "Compartir",
       "share_text": "Resultado del Desafío de Marcador de PlayStat"

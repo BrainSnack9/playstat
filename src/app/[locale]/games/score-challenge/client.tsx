@@ -164,7 +164,7 @@ export function ScoreChallengeClient({
         match.homeScore !== null &&
         match.awayScore !== null
       ) {
-        settlePrediction(match.id, match.homeScore!, match.awayScore!)
+        settlePrediction(match.id, match.homeScore!, match.awayScore!, match.sportType as 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL')
       }
     }
     recalculateStats()
@@ -172,7 +172,7 @@ export function ScoreChallengeClient({
 
   const handleConfirmPrediction = () => {
     if (!selectedMatch) return
-    addPrediction(selectedMatch.id, homeScore, awayScore)
+    addPrediction(selectedMatch.id, homeScore, awayScore, selectedMatch.sportType as 'FOOTBALL' | 'BASKETBALL' | 'BASEBALL')
     setSelectedMatch(null)
   }
 

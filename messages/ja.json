@@ -495,10 +495,12 @@
         "accuracy": "的中率"
       },
       "points": {
-        "exact": "完全的中！(+3pt)",
-        "diff": "得失点差的中(+2pt)",
-        "winner": "勝者的中(+1pt)",
-        "miss": "惜しい！(0pt)"
+        "exact": "完全的中！",
+        "close5": "±5点以内的中！",
+        "close10": "±10点以内的中",
+        "diff": "得失点差的中",
+        "winner": "勝者的中",
+        "miss": "惜しい！"
       },
       "share": "シェア",
       "share_text": "PlayStat スコアチャレンジ結果"

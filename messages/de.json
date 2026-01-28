@@ -505,10 +505,12 @@
         "accuracy": "Genauigkeit"
       },
       "points": {
-        "exact": "Volltreffer! (+3Pkt)",
-        "diff": "Tordifferenz (+2Pkt)",
-        "winner": "Sieger richtig (+1Pkt)",
-        "miss": "Nächstes Mal! (0Pkt)"
+        "exact": "Volltreffer!",
+        "close5": "±5 Punkte Differenz!",
+        "close10": "±10 Punkte Differenz",
+        "diff": "Tordifferenz",
+        "winner": "Sieger richtig",
+        "miss": "Nächstes Mal!"
       },
       "share": "Teilen",
       "share_text": "PlayStat Score Challenge Ergebnis"
