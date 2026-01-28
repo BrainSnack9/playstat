@@ -4,3 +4,6 @@ export const CACHE_REVALIDATE = 3600
 
 // 데일리 리포트처럼 데이터가 거의 고정된 경우 더 긴 캐시 적용
 export const DAILY_REPORT_REVALIDATE = 86400 // 24시간
+
+// 데이터 수집 시작일 (이 날짜 이전에 데이터가 없으면 404 반환)
+export const DATA_COLLECTION_START_DATE = '2026-01-01'
