@@ -18,30 +18,26 @@ interface Props {
   params: Promise<{ locale: string }>
 }
 
-const getCachedMatches = (dateRange: 'past' | 'upcoming') =>
+const getCachedMatches = (dateRange: 'past' | 'upcoming' | 'live') =>
   unstable_cache(
     async () => {
       const now = new Date()
-      const dateFilter =
-        dateRange === 'past'
-          ? {
-              kickoffAt: {
-                gte: subDays(now, 7),
-                lte: now,
-              },
-            }
-          : {
-              kickoffAt: {
-                gte: now,
-                lte: addDays(now, 14),
-              },
-            }
+
+      const whereClause =
+        dateRange === 'live'
+          ? { sportType: 'BASKETBALL' as const, status: 'LIVE' as const }
+          : dateRange === 'past'
+            ? {
+                sportType: 'BASKETBALL' as const,
+                kickoffAt: { gte: subDays(now, 7), lte: now },
+              }
+            : {
+                sportType: 'BASKETBALL' as const,
+                kickoffAt: { gte: now, lte: addDays(now, 14) },
+              }
 
       return await prisma.match.findMany({
-        where: {
-          sportType: 'BASKETBALL',
-          ...dateFilter,
-        },
+        where: whereClause,
         include: {
           league: true,
           homeTeam: true,
@@ -53,11 +49,11 @@ const getCachedMatches = (dateRange: 'past' | 'upcoming') =>
         orderBy: {
           kickoffAt: dateRange === 'past' ? 'desc' : 'asc',
         },
-        take: 50,
+        take: dateRange === 'live' ? undefined : 50,
       })
     },
     [`basketball-matches-${dateRange}`],
-    { revalidate: CACHE_REVALIDATE, tags: ['matches'] }
+    { revalidate: dateRange === 'live' ? 60 : CACHE_REVALIDATE, tags: ['matches'] }
   )()
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -87,11 +83,32 @@ export default async function BasketballMatchesPage({ params }: Props) {
         <p className="text-muted-foreground">{t('subtitle')}</p>
       </div>
 
-      <Tabs defaultValue="upcoming" className="space-y-6">
+      <Tabs defaultValue="live" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="live" className="gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+            </span>
+            {t('live_matches')}
+          </TabsTrigger>
           <TabsTrigger value="upcoming">{t('upcoming_matches')}</TabsTrigger>
           <TabsTrigger value="past">{t('past_matches')}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="live" className="space-y-4">
+          <Suspense
+            fallback={
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={i} className="h-48 animate-pulse bg-muted" />
+                ))}
+              </div>
+            }
+          >
+            <LiveMatches locale={locale} />
+          </Suspense>
+        </TabsContent>
 
         <TabsContent value="upcoming" className="space-y-4">
           <Suspense
@@ -121,6 +138,27 @@ export default async function BasketballMatchesPage({ params }: Props) {
           </Suspense>
         </TabsContent>
       </Tabs>
+    </div>
+  )
+}
+
+async function LiveMatches({ locale }: { locale: string }) {
+  const matches = await getCachedMatches('live')
+  const t = await getTranslations({ locale, namespace: 'matches' })
+
+  if (matches.length === 0) {
+    return (
+      <Card className="p-12 text-center">
+        <p className="text-muted-foreground">{t('no_live_matches')}</p>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {matches.map((match) => (
+        <MatchCard key={match.id} match={{ ...match, slug: match.slug || match.id }} sport={SPORT_ID} locale={locale} />
+      ))}
     </div>
   )
 }

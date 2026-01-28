@@ -455,8 +455,10 @@
     "title": "Matches",
     "subtitle": "View upcoming matches",
     "description": "All sports match schedules and results",
+    "live_matches": "Live",
     "upcoming_matches": "Upcoming Matches",
     "past_matches": "Past Matches",
+    "no_live_matches": "No live matches",
     "no_upcoming_matches": "No upcoming matches",
     "no_past_matches": "No past matches"
   },

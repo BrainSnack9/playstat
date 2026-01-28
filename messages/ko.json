@@ -455,8 +455,10 @@
     "title": "경기 일정",
     "subtitle": "예정된 경기를 확인하세요",
     "description": "모든 스포츠 경기 일정 및 결과",
+    "live_matches": "진행 중",
     "upcoming_matches": "예정 경기",
     "past_matches": "지난 경기",
+    "no_live_matches": "진행 중인 경기가 없습니다",
     "no_upcoming_matches": "예정된 경기가 없습니다",
     "no_past_matches": "지난 경기가 없습니다"
   },
