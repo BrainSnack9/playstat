@@ -83,47 +83,32 @@ export default async function FootballMatchesPage({ params }: Props) {
         <p className="text-muted-foreground">{t('subtitle')}</p>
       </div>
 
-      <Tabs defaultValue="live" className="space-y-6">
+      {/* 진행 중인 경기 (있을 때만 표시) */}
+      <Suspense fallback={null}>
+        <LiveMatchesSection locale={locale} />
+      </Suspense>
+
+      {/* 예정 경기 */}
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold">{t('upcoming_matches')}</h2>
+        <Suspense
+          fallback={
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <Card key={i} className="h-48 animate-pulse bg-muted" />
+              ))}
+            </div>
+          }
+        >
+          <UpcomingMatches locale={locale} />
+        </Suspense>
+      </section>
+
+      {/* 지난 경기 (탭) */}
+      <Tabs defaultValue="past" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="live" className="gap-1.5">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-            </span>
-            {t('live_matches')}
-          </TabsTrigger>
-          <TabsTrigger value="upcoming">{t('upcoming_matches')}</TabsTrigger>
           <TabsTrigger value="past">{t('past_matches')}</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="live" className="space-y-4">
-          <Suspense
-            fallback={
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={i} className="h-48 animate-pulse bg-muted" />
-                ))}
-              </div>
-            }
-          >
-            <LiveMatches locale={locale} />
-          </Suspense>
-        </TabsContent>
-
-        <TabsContent value="upcoming" className="space-y-4">
-          <Suspense
-            fallback={
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <Card key={i} className="h-48 animate-pulse bg-muted" />
-                ))}
-              </div>
-            }
-          >
-            <UpcomingMatches locale={locale} />
-          </Suspense>
-        </TabsContent>
-
         <TabsContent value="past" className="space-y-4">
           <Suspense
             fallback={
@@ -142,24 +127,31 @@ export default async function FootballMatchesPage({ params }: Props) {
   )
 }
 
-async function LiveMatches({ locale }: { locale: string }) {
+async function LiveMatchesSection({ locale }: { locale: string }) {
   const matches = await getCachedMatches('live')
   const t = await getTranslations({ locale, namespace: 'matches' })
 
+  // 진행 중인 경기가 없으면 섹션 자체를 렌더링하지 않음
   if (matches.length === 0) {
-    return (
-      <Card className="p-12 text-center">
-        <p className="text-muted-foreground">{t('no_live_matches')}</p>
-      </Card>
-    )
+    return null
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {matches.map((match) => (
-        <MatchCard key={match.id} match={{ ...match, slug: match.slug || match.id }} sport={SPORT_ID} locale={locale} />
-      ))}
-    </div>
+    <section className="space-y-4">
+      <div className="flex items-center gap-2">
+        <span className="relative flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+        </span>
+        <h2 className="text-xl font-semibold">{t('live_matches')}</h2>
+        <span className="text-sm text-muted-foreground">({matches.length})</span>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {matches.map((match) => (
+          <MatchCard key={match.id} match={{ ...match, slug: match.slug || match.id }} sport={SPORT_ID} locale={locale} />
+        ))}
+      </div>
+    </section>
   )
 }
 
