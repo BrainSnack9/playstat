@@ -241,52 +241,27 @@ export function Scoreboard3D({
           </span>
         </div>
 
-        {/* 점수 가이드 */}
-        <div className="mt-6 px-4 py-3 bg-white/5 rounded-lg border border-white/10">
-          <div className="text-[10px] md:text-xs text-gray-400 font-medium mb-2 text-center">
-            {isHighScoreSport ? '🏀 점수 규칙' : '⚽ 점수 규칙'}
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] md:text-xs">
-            {isHighScoreSport ? (
-              <>
-                <div className="flex items-center gap-1.5 justify-center">
-                  <span className="w-5 h-5 rounded bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-bold">5</span>
-                  <span className="text-gray-400">정확히 맞춤</span>
-                </div>
-                <div className="flex items-center gap-1.5 justify-center">
-                  <span className="w-5 h-5 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">3</span>
-                  <span className="text-gray-400">±5점 이내</span>
-                </div>
-                <div className="flex items-center gap-1.5 justify-center">
-                  <span className="w-5 h-5 rounded bg-green-500/20 text-green-400 flex items-center justify-center font-bold">2</span>
-                  <span className="text-gray-400">±10점 이내</span>
-                </div>
-                <div className="flex items-center gap-1.5 justify-center">
-                  <span className="w-5 h-5 rounded bg-gray-500/20 text-gray-400 flex items-center justify-center font-bold">1</span>
-                  <span className="text-gray-400">승패 맞춤</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-1.5 justify-center">
-                  <span className="w-5 h-5 rounded bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-bold">3</span>
-                  <span className="text-gray-400">정확히 맞춤</span>
-                </div>
-                <div className="flex items-center gap-1.5 justify-center">
-                  <span className="w-5 h-5 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">2</span>
-                  <span className="text-gray-400">골차 맞춤</span>
-                </div>
-                <div className="flex items-center gap-1.5 justify-center">
-                  <span className="w-5 h-5 rounded bg-green-500/20 text-green-400 flex items-center justify-center font-bold">1</span>
-                  <span className="text-gray-400">승무패 맞춤</span>
-                </div>
-                <div className="flex items-center gap-1.5 justify-center">
-                  <span className="w-5 h-5 rounded bg-red-500/20 text-red-400 flex items-center justify-center font-bold">0</span>
-                  <span className="text-gray-400">틀림</span>
-                </div>
-              </>
-            )}
-          </div>
+        {/* 점수 가이드 - 심플 칩 스타일 */}
+        <div className="mt-4 flex items-center justify-center gap-2 md:gap-3 flex-wrap text-[10px] md:text-xs text-gray-500">
+          {isHighScoreSport ? (
+            <>
+              <span className="text-yellow-500">정확 +5</span>
+              <span className="text-gray-600">•</span>
+              <span className="text-blue-400">±5점 +3</span>
+              <span className="text-gray-600">•</span>
+              <span className="text-green-400">±10점 +2</span>
+              <span className="text-gray-600">•</span>
+              <span className="text-gray-400">승패 +1</span>
+            </>
+          ) : (
+            <>
+              <span className="text-yellow-500">정확 +3</span>
+              <span className="text-gray-600">•</span>
+              <span className="text-blue-400">골차 +2</span>
+              <span className="text-gray-600">•</span>
+              <span className="text-green-400">승무패 +1</span>
+            </>
+          )}
         </div>
       </div>
     </div>
