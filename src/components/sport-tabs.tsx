@@ -5,10 +5,11 @@ import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { SportId } from '@/lib/sport'
 
-const SPORTS_CONFIG = [
+export const SPORTS_CONFIG = [
   {
     id: 'football' as SportId,
     label: 'Football',
+    labelKo: '축구',
     color: 'text-lime-500',
     bgColor: 'bg-lime-500',
     hoverBg: 'hover:bg-lime-500/10',
@@ -18,6 +19,7 @@ const SPORTS_CONFIG = [
   {
     id: 'basketball' as SportId,
     label: 'Basketball',
+    labelKo: '농구',
     color: 'text-orange-500',
     bgColor: 'bg-orange-500',
     hoverBg: 'hover:bg-orange-500/10',
@@ -27,6 +29,7 @@ const SPORTS_CONFIG = [
   {
     id: 'baseball' as SportId,
     label: 'Baseball',
+    labelKo: '야구',
     color: 'text-emerald-500',
     bgColor: 'bg-emerald-500',
     hoverBg: 'hover:bg-emerald-500/10',
@@ -35,7 +38,7 @@ const SPORTS_CONFIG = [
   },
 ]
 
-const STORAGE_KEY = 'ps_preferred_sport'
+export const STORAGE_KEY = 'ps_preferred_sport'
 
 interface SportTabsProps {
   currentSport: SportId
@@ -49,7 +52,12 @@ export function SportTabs({ currentSport, basePath }: SportTabsProps) {
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    // 현재 스포츠를 로컬스토리지와 쿠키에 저장 (다른 페이지에서 참조할 수 있도록)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, currentSport)
+      document.cookie = `${STORAGE_KEY}=${currentSport};path=/;max-age=31536000`
+    }
+  }, [currentSport])
 
   const handleSportChange = (sportId: SportId) => {
     if (sportId === currentSport) return

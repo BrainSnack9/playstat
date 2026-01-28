@@ -1,15 +1,18 @@
 import { Metadata } from 'next'
 import { Link } from '@/i18n/routing'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Eye, ArrowRight, ArrowLeft, BarChart3 } from 'lucide-react'
+import { Calendar, Eye, ArrowRight, ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko, enUS, ja, de, es, Locale as DateLocale } from 'date-fns/locale'
 import { PostCategory, SportType } from '@prisma/client'
+import { BlogSportFilter } from '@/components/blog/blog-sport-filter'
+import { cookies } from 'next/headers'
+import type { SportId } from '@/lib/sport'
 
 interface Props {
   params: Promise<{ locale: string; category: string }>
@@ -75,7 +78,8 @@ function getCategoryFromSlug(slug: string): PostCategory | null {
 function getSportTypeFilter(sport?: string): SportType | undefined {
   if (sport === 'football') return 'FOOTBALL'
   if (sport === 'basketball') return 'BASKETBALL'
-  return undefined
+  if (sport === 'baseball') return 'BASEBALL'
+  return 'FOOTBALL' // 기본값
 }
 
 const getPostsByCategory = unstable_cache(
@@ -122,22 +126,27 @@ export default async function BlogCategoryPage({ params, searchParams }: Props) 
     notFound()
   }
 
-  const sportTypeFilter = getSportTypeFilter(sport)
+  // sport 파라미터가 없으면 쿠키에서 읽어서 리다이렉트
+  if (!sport) {
+    const cookieStore = await cookies()
+    const preferredSport = cookieStore.get('ps_preferred_sport')?.value as SportId | undefined
+    const defaultSport = preferredSport && ['football', 'basketball', 'baseball'].includes(preferredSport)
+      ? preferredSport
+      : 'football'
+    redirect(`/${locale}/blog/${category}?sport=${defaultSport}`)
+  }
+
+  const currentSport = sport as 'football' | 'basketball' | 'baseball'
+  const sportTypeFilter = getSportTypeFilter(currentSport)
   const posts = await getPostsByCategory(categoryKey, sportTypeFilter)
   const categoryName = categoryLabels[categoryKey][locale] || categoryLabels[categoryKey].en
-
-  const sportFilters = [
-    { key: 'all', label: locale === 'ko' ? '전체' : 'All' },
-    { key: 'football', label: locale === 'ko' ? '축구' : 'Football' },
-    { key: 'basketball', label: locale === 'ko' ? '농구' : 'Basketball' },
-  ]
 
   return (
     <div className="container mx-auto px-3 sm:px-4 pt-4 sm:pt-8 pb-20 sm:pb-32 max-w-6xl">
       {/* 헤더 */}
       <div className="mb-6 sm:mb-10">
         <Link
-          href={sport ? `/blog?sport=${sport}` : `/blog`}
+          href={`/blog?sport=${currentSport}`}
           className="inline-flex items-center gap-1.5 sm:gap-2 text-gray-400 hover:text-white mb-3 sm:mb-4 transition-colors group text-sm"
         >
           <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:-translate-x-1 transition-transform" />
@@ -157,34 +166,11 @@ export default async function BlogCategoryPage({ params, searchParams }: Props) 
         {/* 스포츠 타입 필터 */}
         <div className="flex items-center gap-2">
           <span className="text-gray-500 text-xs sm:text-sm shrink-0">{locale === 'ko' ? '스포츠' : 'Sport'}</span>
-          <div className="flex items-center gap-0.5 sm:gap-1">
-            {sportFilters.map((filter) => {
-              const isActive = (filter.key === 'all' && !sport) || sport === filter.key
-              const href = filter.key === 'all'
-                ? `/blog/${category}`
-                : `/blog/${category}?sport=${filter.key}`
-
-              return (
-                <Link
-                  key={filter.key}
-                  href={href}
-                  className={`
-                    px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm transition-all duration-200
-                    ${isActive
-                      ? filter.key === 'football'
-                        ? 'bg-emerald-600/20 text-emerald-400 font-medium'
-                        : filter.key === 'basketball'
-                        ? 'bg-orange-600/20 text-orange-400 font-medium'
-                        : 'bg-gray-700 text-white font-medium'
-                      : 'text-gray-400 hover:text-white'
-                    }
-                  `}
-                >
-                  {filter.label}
-                </Link>
-              )
-            })}
-          </div>
+          <BlogSportFilter
+            currentSport={currentSport}
+            basePath={`/blog/${category}`}
+            locale={locale}
+          />
         </div>
 
         <div className="hidden sm:block w-px h-5 bg-gray-700" />
@@ -194,7 +180,7 @@ export default async function BlogCategoryPage({ params, searchParams }: Props) 
           <span className="text-gray-500 text-xs sm:text-sm shrink-0">{locale === 'ko' ? '카테고리' : 'Category'}</span>
           <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
             <Link
-              href={sport ? `/blog?sport=${sport}` : `/blog`}
+              href={`/blog?sport=${currentSport}`}
               className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm text-gray-400 hover:text-white transition-all"
             >
               {t('allPosts')}
@@ -215,10 +201,7 @@ export default async function BlogCategoryPage({ params, searchParams }: Props) 
               return (
                 <Link
                   key={cat}
-                  href={sport
-                    ? `/blog/${cat}?sport=${sport}`
-                    : `/blog/${cat}`
-                  }
+                  href={`/blog/${cat}?sport=${currentSport}`}
                   className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm transition-all ${isActive ? activeStyle : inactiveStyle}`}
                 >
                   {categoryLabels[catKey][locale] || categoryLabels[catKey].en}

@@ -63,8 +63,12 @@ export function AdminSidebar() {
       {/* 메뉴 */}
       <nav className="flex-1 p-4 space-y-1">
         {menuItems.map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/admin/dashboard' && pathname.startsWith(item.href))
+          // 정확히 일치하거나, 하위 경로인데 다른 메뉴의 정확한 경로가 아닌 경우
+          const isExactMatch = pathname === item.href
+          const isSubPath = pathname.startsWith(item.href + '/')
+          // 포스트 관리는 /admin/posts/new가 아닌 경우에만 하위 경로 체크
+          const isActive = isExactMatch ||
+            (item.href === '/admin/posts' && isSubPath && !pathname.startsWith('/admin/posts/new'))
 
           return (
             <Link

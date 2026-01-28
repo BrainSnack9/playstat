@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, ArrowRight } from 'lucide-react'
-import { format } from 'date-fns'
+import { Calendar, ArrowRight, Eye, TrendingUp } from 'lucide-react'
+import { format, subDays } from 'date-fns'
 import { ko, enUS, ja, de, es, Locale as DateLocale } from 'date-fns/locale'
 
 interface Props {
@@ -46,20 +46,26 @@ const sportStyles: Record<string, { badge: string; label: Record<string, string>
   },
 }
 
-const getLatestPosts = unstable_cache(
+// 최근 7일 내 조회수 높은 포스트 3개
+const getPopularPosts = unstable_cache(
   async () => {
+    const sevenDaysAgo = subDays(new Date(), 7)
+
     return prisma.blogPost.findMany({
-      where: { status: 'PUBLISHED' },
-      orderBy: { publishedAt: 'desc' },
+      where: {
+        status: 'PUBLISHED',
+        publishedAt: { gte: sevenDaysAgo },
+      },
+      orderBy: { viewCount: 'desc' },
       take: 3,
     })
   },
-  ['latest-blog-posts'],
-  { revalidate: 3600, tags: ['blog'] }
+  ['popular-blog-posts-7d'],
+  { revalidate: 1800, tags: ['blog'] } // 30분마다 갱신
 )
 
 export async function LatestBlogPosts({ locale }: Props) {
-  const posts = await getLatestPosts()
+  const posts = await getPopularPosts()
 
   if (posts.length === 0) {
     return null
@@ -67,7 +73,7 @@ export async function LatestBlogPosts({ locale }: Props) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {posts.map((post) => {
+      {posts.map((post, index) => {
         const translations = post.translations as Record<string, { title: string; excerpt?: string }> | null
         const content = translations?.[locale] || translations?.ko || translations?.en
         const title = content?.title || '(제목 없음)'
@@ -76,7 +82,16 @@ export async function LatestBlogPosts({ locale }: Props) {
 
         return (
           <Link key={post.id} href={`/blog/post/${post.slug}`} className="group">
-            <Card className="h-full bg-card/50 border-border/50 hover:border-primary/30 hover:bg-card transition-all duration-300">
+            <Card className="h-full bg-card/50 border-border/50 hover:border-primary/30 hover:bg-card transition-all duration-300 relative">
+              {/* 인기 순위 뱃지 */}
+              {index === 0 && (
+                <div className="absolute -top-2 -right-2 z-10">
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/90 text-yellow-950 text-[10px] font-bold rounded-full shadow-lg">
+                    <TrendingUp className="w-3 h-3" />
+                    HOT
+                  </span>
+                </div>
+              )}
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Badge className={`text-xs ${categoryStyles[post.category] || 'bg-blue-500/15 text-blue-400 border border-blue-500/20'}`}>
@@ -100,14 +115,20 @@ export async function LatestBlogPosts({ locale }: Props) {
                 )}
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {format(
-                      new Date(post.publishedAt || post.createdAt),
-                      'MMM d',
-                      { locale: dateLocales[locale] || enUS }
-                    )}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {format(
+                        new Date(post.publishedAt || post.createdAt),
+                        'MMM d',
+                        { locale: dateLocales[locale] || enUS }
+                      )}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Eye className="w-3 h-3" />
+                      {post.viewCount.toLocaleString()}
+                    </span>
+                  </div>
                   <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                 </div>
               </CardContent>

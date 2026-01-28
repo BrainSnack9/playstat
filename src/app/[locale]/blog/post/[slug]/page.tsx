@@ -11,6 +11,7 @@ import { ko, enUS, ja, de, es, Locale as DateLocale } from 'date-fns/locale'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
+import { MatchCard } from '@/components/blog/match-card'
 
 interface Props {
   params: Promise<{ locale: string; slug: string }>
@@ -41,6 +42,15 @@ const getPostBySlug = unstable_cache(
   async (slug: string) => {
     return prisma.blogPost.findUnique({
       where: { slug },
+      include: {
+        match: {
+          include: {
+            homeTeam: true,
+            awayTeam: true,
+            league: true,
+          },
+        },
+      },
     })
   },
   ['blog-post'],
@@ -260,6 +270,13 @@ export default async function BlogPostPage({ params }: Props) {
             {bodyContent}
           </ReactMarkdown>
         </div>
+
+        {/* 관련 경기 카드 */}
+        {post.match && (
+          <div className="mt-10 pt-8 border-t border-gray-800">
+            <MatchCard match={post.match} locale={locale} />
+          </div>
+        )}
       </article>
     </>
   )

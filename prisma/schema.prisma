@@ -111,6 +111,7 @@ model Match {
   league        League         @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   matchAnalysis MatchAnalysis?
   matchStats    MatchStats?
+  blogPosts     BlogPost[]     // 연결된 블로그 포스트들 (프리뷰, 리뷰 등)
 
   @@unique([sportType, externalId])
   @@index([leagueId])
@@ -345,6 +346,7 @@ model BlogPost {
   slug          String       @unique
   category      PostCategory
   sportType     SportType?   // 특정 스포츠 관련 글인 경우 (null이면 전체)
+  matchId       String?      // 연결된 경기 ID (프리뷰/리뷰인 경우)
   featuredImage String?      // 대표 이미지 URL
   authorId      String       // 작성자 ID (Supabase Auth UID)
   status        PostStatus   @default(DRAFT)
@@ -354,8 +356,11 @@ model BlogPost {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
+  match         Match?       @relation(fields: [matchId], references: [id], onDelete: SetNull)
+
   @@index([status, publishedAt])
   @@index([category])
   @@index([sportType])
+  @@index([matchId])
   @@index([slug])
 }

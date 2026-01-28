@@ -16,6 +16,7 @@ import {
   Newspaper,
   Wrench
 } from 'lucide-react'
+import { BlogGenerator } from '@/components/admin/blog-generator'
 
 interface CronJob {
   id: string
@@ -248,6 +249,11 @@ export default function CronPage() {
         <p className="text-gray-400">
           데이터 수집 및 콘텐츠 생성 작업을 수동으로 실행할 수 있습니다.
         </p>
+      </div>
+
+      {/* 블로그 수동 생성 섹션 */}
+      <div className="mb-8">
+        <BlogGenerator />
       </div>
 
       {categories.map((category) => (

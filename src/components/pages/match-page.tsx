@@ -25,6 +25,7 @@ import { CACHE_REVALIDATE } from '@/lib/cache'
 import { generateMetadata as buildMetadata, generateMatchSEO, generateMatchJsonLd, resolveBaseUrl } from '@/lib/seo'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
+import { RelatedBlogPosts } from '@/components/match/related-blog-posts'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
 import { unstable_cache } from 'next/cache'
 import { getDateLocale } from '@/lib/utils'
@@ -52,6 +53,11 @@ export const getCachedMatch = (slug: string) => unstable_cache(
           },
           league: true,
           matchAnalysis: true,
+          blogPosts: {
+            where: { status: 'PUBLISHED' },
+            orderBy: { publishedAt: 'desc' },
+            take: 3,
+          },
         },
       })
     } catch {
@@ -59,7 +65,7 @@ export const getCachedMatch = (slug: string) => unstable_cache(
     }
   },
   [`match-detail-data-${slug}`],
-  { revalidate: CACHE_REVALIDATE, tags: ['match-detail'] }
+  { revalidate: CACHE_REVALIDATE, tags: ['match-detail', 'blog'] }
 )()
 
 // 마크다운 **bold** 텍스트를 일반 텍스트로 변환
@@ -706,6 +712,11 @@ export default async function MatchPageContent({ params, searchParams, sport }: 
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Related Blog Posts */}
+      {match.blogPosts && match.blogPosts.length > 0 && (
+        <RelatedBlogPosts posts={match.blogPosts} locale={locale} />
       )}
     </div>
   )

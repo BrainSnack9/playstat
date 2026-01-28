@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { revalidateTag } from 'next/cache'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
