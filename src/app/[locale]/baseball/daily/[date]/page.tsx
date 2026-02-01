@@ -21,7 +21,7 @@ import { getTimezoneFromCookies, getTimezoneOffsetAtDate } from '@/lib/timezone'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
-import { CACHE_REVALIDATE, DAILY_REPORT_REVALIDATE, DATA_COLLECTION_START_DATE } from '@/lib/cache'
+import { CACHE_REVALIDATE, DAILY_REPORT_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
 import { getDateLocale } from '@/lib/utils'
 import { sportIdToEnum } from '@/lib/sport'
@@ -445,8 +445,8 @@ export default async function DailyReportPage({ params }: Props) {
     ? await getCachedMatchesByIds(matchIdsFromReport)
     : await getCachedMatchesByDateRange(dateStr, SPORT_TYPE)
 
-  // 데이터 수집 시작일 이전 + 데이터 없음 = 404
-  if (!initialReport && matches.length === 0 && dateStr < DATA_COLLECTION_START_DATE) {
+  // 리포트도 없고 경기도 없으면 404
+  if (!initialReport && matches.length === 0) {
     notFound()
   }
 
