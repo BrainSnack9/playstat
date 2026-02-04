@@ -20,7 +20,7 @@ import { prisma } from '@/lib/prisma'
 import { getTimezoneFromCookies, getTimezoneOffsetAtDate } from '@/lib/timezone'
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
-import { MATCH_STATUS_KEYS } from '@/lib/constants'
+import { MATCH_STATUS_KEYS, isValidDailyReportDate } from '@/lib/constants'
 import { CACHE_REVALIDATE, DAILY_REPORT_REVALIDATE } from '@/lib/cache'
 import { unstable_cache } from 'next/cache'
 import { getDateLocale } from '@/lib/utils'
@@ -161,6 +161,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       alternates: {
         canonical: `/${SPORT_ID}/daily/${today}`,
       },
+    }
+  }
+
+  // 날짜 범위 검증 (DB 쿼리 전에 빠르게 체크)
+  if (!isValidDailyReportDate(dateStr)) {
+    return {
+      title: tDaily('not_found_title'),
+      robots: { index: false, follow: false },
     }
   }
 
@@ -421,6 +429,11 @@ export default async function DailyReportPage({ params }: Props) {
     redirect(`/${SPORT_ID}/daily/${today}`)
   }
 
+  // 날짜 범위 검증 (DB 쿼리 전에 빠르게 체크)
+  if (!isValidDailyReportDate(dateStr)) {
+    notFound()
+  }
+
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
   const utcBase = new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
   const cookieStore = await cookies()
@@ -533,9 +546,14 @@ export default async function DailyReportPage({ params }: Props) {
       <JsonLd report={report} dateStr={dateStr} matches={matches} locale={locale} sportType={SPORT_TYPE} />
 
       <div className="container px-4 py-8 md:px-8 overflow-x-hidden">
-        {/* 스포츠 선택 탭 */}
+        {/* 스포츠 선택 탭 + 날짜 선택기 */}
         <div className="max-w-6xl mx-auto">
-          <SportTabs currentSport={SPORT_ID} basePath={`/daily/${dateStr}`} />
+          <SportTabs
+            currentSport={SPORT_ID}
+            basePath={`/daily/${dateStr}`}
+            showDatePicker
+            currentDate={dateStr}
+          />
         </div>
 
         {/* Breadcrumb */}
@@ -548,7 +566,7 @@ export default async function DailyReportPage({ params }: Props) {
             </li>
             <ChevronRight className="h-3 w-3 opacity-50 rtl:-scale-x-100" />
             <li>
-              <Link href={`/${SPORT_ID}/daily/today`} className="hover:text-primary transition-colors">
+              <Link href={`/${SPORT_ID}/daily/${new Date().toISOString().slice(0, 10)}`} className="hover:text-primary transition-colors">
                 {tCommon('daily_report')}
               </Link>
             </li>
@@ -672,48 +690,10 @@ export default async function DailyReportPage({ params }: Props) {
 
               {/* Matches by League */}
               <section>
-                <div className="mb-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-xl font-bold flex items-center gap-2 text-start">
-                    <Trophy className="h-5 w-5 text-primary" />
-                    {tDaily('matches_by_league')}
-                  </h2>
-
-                  {/* Weekly Date Picker */}
-                  <div className="w-full sm:w-auto">
-                    <Card className="overflow-hidden border-primary/10 shadow-sm bg-background/50 backdrop-blur-sm">
-                      <CardContent className="p-1.5">
-                        <div className="flex justify-between gap-1">
-                          {[-3, -2, -1, 0, 1, 2, 3].map((offset) => {
-                            const d = addDays(utcBase, offset)
-                            const dStr = format(d, 'yyyy-MM-dd')
-                            const isCurrent = offset === 0
-                            
-                            const displayDay = new Date(d.getTime() + offsetMinutes * 60 * 1000)
-                            const dayName = format(displayDay, 'EEE', { locale: getDateLocale(locale) })
-                            const dayNum = format(displayDay, 'd')
-
-                            return (
-                              <Link
-                                key={offset}
-                                href={`/${SPORT_ID}/daily/${dStr}`}
-                                className={`flex min-w-[40px] flex-col items-center py-1.5 px-2 rounded-lg transition-all ${
-                                  isCurrent
-                                    ? 'bg-primary text-primary-foreground shadow-md'
-                                    : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                                }`}
-                              >
-                                <span className={`text-[9px] font-bold uppercase mb-0.5 ${isCurrent ? 'text-primary-foreground/80' : 'text-muted-foreground/60'}`}>
-                                  {dayName}
-                                </span>
-                                <span className="text-xs font-black">{dayNum}</span>
-                              </Link>
-                            )
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
+                <h2 className="text-xl font-bold flex items-center gap-2 text-start mb-6">
+                  <Trophy className="h-5 w-5 text-primary" />
+                  {tDaily('matches_by_league')}
+                </h2>
 
                 {Object.entries(matchesByLeague).map(([leagueName, leagueMatches]) => (
                   <div key={leagueName} className="mb-8">

@@ -29,7 +29,9 @@
     "date_medium_format": "d 'de' MMM (EEE)",
     "date_full_format": "EEEE, d 'de' MMMM 'de' yyyy",
     "blog": "Blog",
-    "games": "Juegos"
+    "games": "Juegos",
+    "available_date_range": "Fechas disponibles",
+    "select_date": "Seleccionar fecha"
   },
   "home": {
     "title": "PlayStat - Plataforma de Análisis Deportivo con IA",
@@ -329,7 +331,14 @@
     "no_keywords": "No se encontraron palabras clave relacionadas.",
     "football_analysis_title": "Análisis de fútbol del {date}",
     "basketball_analysis_title": "Vista previa de juegos NBA del {date}",
-    "baseball_analysis_title": "Vista previa de juegos MLB del {date}"
+    "baseball_analysis_title": "Vista previa de juegos MLB del {date}",
+    "not_found_title": "Informe no encontrado"
+  },
+  "error_page": {
+    "not_found_title": "Página no encontrada",
+    "not_found_description": "La página que busca no existe o no hay datos disponibles para esta fecha.",
+    "go_home": "Ir al inicio",
+    "view_today_report": "Ver informe de hoy"
   },
   "trends": {
     "winning_streak": "{value} victorias consecutivas",

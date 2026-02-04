@@ -29,7 +29,9 @@
     "date_medium_format": "M月d日(EEE)",
     "date_full_format": "yyyy'年'M'月'd'日'(EEEE)",
     "blog": "ブログ",
-    "games": "ゲーム"
+    "games": "ゲーム",
+    "available_date_range": "選択可能",
+    "select_date": "日付を選択"
   },
   "home": {
     "title": "PlayStat - AIスポーツ分析プラットフォーム",
@@ -331,7 +333,14 @@
     "no_keywords": "関連するキーワードは見つかりませんでした。",
     "football_analysis_title": "{date} サッカー試合分析",
     "basketball_analysis_title": "{date} NBA試合プレビュー",
-    "baseball_analysis_title": "{date} MLB試合プレビュー"
+    "baseball_analysis_title": "{date} MLB試合プレビュー",
+    "not_found_title": "レポートが見つかりません"
+  },
+  "error_page": {
+    "not_found_title": "ページが見つかりません",
+    "not_found_description": "お探しのページが存在しないか、この日付のデータがありません。",
+    "go_home": "ホームへ",
+    "view_today_report": "今日のレポートを見る"
   },
   "trends": {
     "winning_streak": "{value}連勝中",

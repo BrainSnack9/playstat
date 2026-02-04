@@ -5,6 +5,7 @@ import { useLocale } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { SportId } from '@/lib/sport'
+import { DailyDatePicker } from '@/components/daily-date-picker'
 
 export const SPORTS_CONFIG = [
   {
@@ -48,10 +49,13 @@ export const STORAGE_KEY = 'ps_preferred_sport'
 
 interface SportTabsProps {
   currentSport: SportId
-  basePath: string // 예: '/matches', '/leagues', '/teams'
+  basePath: string // 예: '/matches', '/leagues', '/teams', '/daily/2026-01-20'
+  // 날짜 선택기 표시 여부 (daily 페이지에서 사용)
+  showDatePicker?: boolean
+  currentDate?: string // YYYY-MM-DD 형식 (showDatePicker가 true일 때 필수)
 }
 
-export function SportTabs({ currentSport, basePath }: SportTabsProps) {
+export function SportTabs({ currentSport, basePath, showDatePicker, currentDate }: SportTabsProps) {
   const router = useRouter()
   const pathname = usePathname()
   const locale = useLocale()
@@ -92,44 +96,54 @@ export function SportTabs({ currentSport, basePath }: SportTabsProps) {
 
   if (!mounted) {
     return (
-      <div className="flex gap-2 mb-6">
-        {SPORTS_CONFIG.map((sport) => (
-          <div
-            key={sport.id}
-            className={cn(
-              'px-4 py-2 rounded-lg border transition-all',
-              sport.id === currentSport
-                ? `${sport.activeBg} ${sport.borderColor} ${sport.color}`
-                : 'border-border bg-background text-muted-foreground'
-            )}
-          >
-            <span className="text-sm font-medium">{getSportLabel(sport, locale)}</span>
-          </div>
-        ))}
+      <div className="flex items-center justify-between gap-2 mb-6">
+        <div className="flex gap-2">
+          {SPORTS_CONFIG.map((sport) => (
+            <div
+              key={sport.id}
+              className={cn(
+                'px-4 py-2 rounded-lg border transition-all',
+                sport.id === currentSport
+                  ? `${sport.activeBg} ${sport.borderColor} ${sport.color}`
+                  : 'border-border bg-background text-muted-foreground'
+              )}
+            >
+              <span className="text-sm font-medium">{getSportLabel(sport, locale)}</span>
+            </div>
+          ))}
+        </div>
+        {showDatePicker && currentDate && (
+          <div className="h-10 w-32 bg-muted/50 rounded-md animate-pulse" />
+        )}
       </div>
     )
   }
 
   return (
-    <div className="flex gap-2 mb-6">
-      {SPORTS_CONFIG.map((sport) => {
-        const isActive = sport.id === currentSport
+    <div className="flex items-center justify-between gap-2 mb-6">
+      <div className="flex gap-2">
+        {SPORTS_CONFIG.map((sport) => {
+          const isActive = sport.id === currentSport
 
-        return (
-          <button
-            key={sport.id}
-            onClick={() => handleSportChange(sport.id)}
-            className={cn(
-              'px-4 py-2 rounded-lg border transition-all',
-              isActive
-                ? `${sport.activeBg} ${sport.borderColor} ${sport.color} font-semibold`
-                : `border-border bg-background text-muted-foreground ${sport.hoverBg}`
-            )}
-          >
-            <span className="text-sm font-medium">{getSportLabel(sport, locale)}</span>
-          </button>
-        )
-      })}
+          return (
+            <button
+              key={sport.id}
+              onClick={() => handleSportChange(sport.id)}
+              className={cn(
+                'px-4 py-2 rounded-lg border transition-all',
+                isActive
+                  ? `${sport.activeBg} ${sport.borderColor} ${sport.color} font-semibold`
+                  : `border-border bg-background text-muted-foreground ${sport.hoverBg}`
+              )}
+            >
+              <span className="text-sm font-medium">{getSportLabel(sport, locale)}</span>
+            </button>
+          )
+        })}
+      </div>
+      {showDatePicker && currentDate && (
+        <DailyDatePicker currentDate={currentDate} sportId={currentSport} />
+      )}
     </div>
   )
 }

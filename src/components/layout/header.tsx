@@ -32,8 +32,8 @@ const SPORT_COLORS: Record<SportId, { color: string; bgColor: string }> = {
   baseball: { color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.2)' },      // emerald-500
 }
 
-// 스포츠별 네비게이션 생성
-const getMainNav = (sport: SportId) => [
+// 스포츠별 네비게이션 생성 (todayDate: UTC 기준 오늘 날짜)
+const getMainNav = (sport: SportId, todayDate: string) => [
   {
     key: 'matches',
     href: `/${sport}/matches`,
@@ -56,7 +56,7 @@ const getMainNav = (sport: SportId) => [
   },
   {
     key: 'daily_report',
-    href: `/${sport}/daily/today`,
+    href: `/${sport}/daily/${todayDate}`,
     icon: ChartBar,
   },
   {
@@ -79,8 +79,13 @@ export function Header({ variant = 'default' }: { variant?: 'default' | 'landing
 
   // 현재 경로에서 스포츠 감지 또는 로컬스토리지에서 가져오기
   const [currentSport, setCurrentSport] = useState<SportId>('football')
+  // 오늘 날짜 (UTC 기준) - SEO를 위해 실제 날짜 URL 사용
+  const [todayDate, setTodayDate] = useState(() => new Date().toISOString().slice(0, 10))
 
   useEffect(() => {
+    // 오늘 날짜 업데이트 (UTC 기준)
+    setTodayDate(new Date().toISOString().slice(0, 10))
+
     // 현재 경로에서 스포츠 감지
     const sportFromPath = pathname.match(/\/(football|basketball|baseball)\//)?.[1] as SportId | undefined
 
@@ -97,7 +102,7 @@ export function Header({ variant = 'default' }: { variant?: 'default' | 'landing
     }
   }, [pathname])
 
-  const mainNav = getMainNav(currentSport)
+  const mainNav = getMainNav(currentSport, todayDate)
 
   return (
     <header

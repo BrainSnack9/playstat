@@ -17,9 +17,14 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
   const [mounted, setMounted] = useState(false)
   const [currentSport, setCurrentSport] = useState<string>('football')
   const [legalBase, setLegalBase] = useState('')
+  // 오늘 날짜 (UTC 기준) - SEO를 위해 실제 날짜 URL 사용
+  const [todayDate, setTodayDate] = useState(() => new Date().toISOString().slice(0, 10))
 
   useEffect(() => {
     setMounted(true)
+
+    // 오늘 날짜 업데이트 (UTC 기준)
+    setTodayDate(new Date().toISOString().slice(0, 10))
 
     // Legal base URL 설정
     const hostname = window.location.hostname
@@ -70,7 +75,7 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
             <Link href={`/${currentSport}/leagues`} className="hover:text-primary transition-colors">
               {t('leagues')}
             </Link>
-            <Link href={`/${currentSport}/daily/today`} className="hover:text-primary transition-colors">
+            <Link href={`/${currentSport}/daily/${todayDate}`} className="hover:text-primary transition-colors">
               {t('daily_report')}
             </Link>
           </nav>

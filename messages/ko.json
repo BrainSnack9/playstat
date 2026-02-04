@@ -30,7 +30,9 @@
     "date_full_format": "yyyy년 MM월 dd일 (EEEE)",
     "blog": "블로그",
     "games": "게임",
-    "score_prediction": "승부 예측"
+    "score_prediction": "승부 예측",
+    "available_date_range": "선택 가능",
+    "select_date": "날짜 선택"
   },
   "home": {
     "title": "PlayStat - AI 스포츠 분석 플랫폼",
@@ -331,7 +333,14 @@
     "no_keywords": "관련 키워드가 없습니다.",
     "football_analysis_title": "{date} 축구 경기 분석",
     "basketball_analysis_title": "{date} NBA 경기 분석",
-    "baseball_analysis_title": "{date} MLB 경기 분석"
+    "baseball_analysis_title": "{date} MLB 경기 분석",
+    "not_found_title": "리포트를 찾을 수 없습니다"
+  },
+  "error_page": {
+    "not_found_title": "페이지를 찾을 수 없습니다",
+    "not_found_description": "요청하신 페이지가 존재하지 않거나 해당 날짜의 데이터가 없습니다.",
+    "go_home": "홈으로 가기",
+    "view_today_report": "오늘의 리포트 보기"
   },
   "trends": {
     "winning_streak": "{value}연승 중",

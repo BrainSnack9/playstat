@@ -47,6 +47,9 @@ export default async function HomePage({ params }: Props) {
   const common = await getTranslations({ locale, namespace: 'common' })
   const sports = await getTranslations({ locale, namespace: 'sports' })
 
+  // 오늘 날짜 (UTC 기준) - SEO를 위해 실제 날짜 URL 사용
+  const todayDate = new Date().toISOString().slice(0, 10)
+
   return (
     <div className="container px-4 py-6 md:px-6 md:py-12">
       {/* Hero Section */}
@@ -75,7 +78,7 @@ export default async function HomePage({ params }: Props) {
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="h-12 w-full px-8 text-base font-bold transition-all hover:bg-accent hover:scale-105 sm:h-14 sm:w-auto sm:text-lg">
-              <Link href="/football/daily/today">
+              <Link href={`/football/daily/${todayDate}`}>
                 <ChartBar className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
                 {common('daily_report')}
               </Link>

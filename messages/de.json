@@ -29,7 +29,9 @@
     "date_medium_format": "d. MMM (EEE)",
     "date_full_format": "EEEE, d. MMMM yyyy",
     "blog": "Blog",
-    "games": "Spiele"
+    "games": "Spiele",
+    "available_date_range": "Verfügbare Daten",
+    "select_date": "Datum auswählen"
   },
   "home": {
     "title": "PlayStat - KI Sportanalyseplattform",
@@ -328,7 +330,14 @@
     "no_keywords": "Keine verwandten Schlüsselwörter gefunden.",
     "football_analysis_title": "{date} Fußballanalyse",
     "basketball_analysis_title": "{date} NBA Spielvorschau",
-    "baseball_analysis_title": "{date} MLB Spielvorschau"
+    "baseball_analysis_title": "{date} MLB Spielvorschau",
+    "not_found_title": "Bericht nicht gefunden"
+  },
+  "error_page": {
+    "not_found_title": "Seite nicht gefunden",
+    "not_found_description": "Die angeforderte Seite existiert nicht oder es sind keine Daten für dieses Datum verfügbar.",
+    "go_home": "Zur Startseite",
+    "view_today_report": "Heutigen Bericht ansehen"
   },
   "trends": {
     "winning_streak": "{value} Spiele Siegesserie",
