@@ -1,9 +1,9 @@
 name: API Health Check
 
 on:
-  schedule:
-    # 매시간 헬스체크
-    - cron: '0 * * * *'
+  # schedule:
+  #   # 매시간 헬스체크 (비활성화 - CPU 절감)
+  #   - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:

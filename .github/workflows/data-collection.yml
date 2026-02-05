@@ -2,8 +2,8 @@ name: Data Collection Cron Jobs
 
 on:
   schedule:
-    # 매시간 실행 (이미 처리된 데이터는 스킵되므로 비용 영향 없음)
-    - cron: '0 * * * *'
+    # 3시간마다 실행 (CPU 사용량 절감)
+    - cron: '0 */3 * * *'
   workflow_dispatch:
     inputs:
       sport:
