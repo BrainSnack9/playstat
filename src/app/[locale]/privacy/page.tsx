@@ -26,7 +26,7 @@ export default async function PrivacyPage({ params }: Props) {
 
       <div className="prose prose-invert max-w-none">
         <p className="text-muted-foreground mb-8">
-          {t('privacy.last_updated')}: 2025-01-16
+          {t('privacy.last_updated')}: 2026-03-30
         </p>
 
         <section className="mb-8">
@@ -66,7 +66,50 @@ export default async function PrivacyPage({ params }: Props) {
 
         <section className="mb-8">
           <h2 className="text-xl font-semibold mb-4">{t('privacy.section6_title')}</h2>
-          <p className="text-muted-foreground">{t('privacy.section6_content')}</p>
+          <p className="text-muted-foreground mb-4">{t('privacy.section6_content')}</p>
+          <p className="text-sm font-medium text-foreground mb-2">{t('privacy.cookie_types_title')}</p>
+          <ul className="list-disc list-inside text-muted-foreground space-y-2">
+            <li>{t('privacy.cookie_essential')}</li>
+            <li>{t('privacy.cookie_analytics')}</li>
+            <li>{t('privacy.cookie_advertising')}</li>
+          </ul>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">{t('privacy.section7_title')}</h2>
+          <p className="text-muted-foreground mb-4">{t('privacy.section7_content')}</p>
+          <ul className="list-disc list-inside text-muted-foreground space-y-2">
+            <li>{t('privacy.right1')}</li>
+            <li>{t('privacy.right2')}</li>
+            <li>{t('privacy.right3')}</li>
+            <li>{t('privacy.right4')}</li>
+          </ul>
+          <p className="text-muted-foreground mt-4 text-sm">{t('privacy.right5')}</p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">{t('privacy.section8_title')}</h2>
+          <p className="text-muted-foreground">{t('privacy.section8_content')}</p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">{t('privacy.section9_title')}</h2>
+          <p className="text-muted-foreground mb-4">{t('privacy.section9_content')}</p>
+          <ul className="list-disc list-inside text-muted-foreground space-y-2">
+            <li>{t('privacy.security1')}</li>
+            <li>{t('privacy.security2')}</li>
+            <li>{t('privacy.security3')}</li>
+          </ul>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">{t('privacy.section10_title')}</h2>
+          <p className="text-muted-foreground">{t('privacy.section10_content')}</p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">{t('privacy.section11_title')}</h2>
+          <p className="text-muted-foreground">{t('privacy.section11_content')}</p>
         </section>
 
         <section className="mb-8">

@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChartBar, Shield, Users, Zap } from 'lucide-react'
+import { ChartBar, Shield, Users, Zap, Building2, Database } from 'lucide-react'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -56,6 +56,25 @@ export default async function AboutPage({ params }: Props) {
         <p className="text-muted-foreground leading-relaxed">{t('mission_content')}</p>
       </section>
 
+      {/* Operator Info Section */}
+      <section className="mb-12">
+        <h2 className="mb-4 text-2xl font-semibold flex items-center gap-2">
+          <Building2 className="h-6 w-6 text-primary" />
+          {t('operator_title')}
+        </h2>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="mb-4 space-y-1 text-sm">
+              <p className="font-medium">{t('operator_name')}</p>
+              <p className="text-muted-foreground">{t('operator_established')}</p>
+              <p className="text-muted-foreground">{t('operator_location')}</p>
+              <p className="text-muted-foreground">{t('operator_email')}</p>
+            </div>
+            <p className="text-muted-foreground leading-relaxed">{t('operator_desc')}</p>
+          </CardContent>
+        </Card>
+      </section>
+
       {/* Features Section */}
       <section className="mb-12">
         <h2 className="mb-6 text-2xl font-semibold">{t('features_title')}</h2>
@@ -72,6 +91,15 @@ export default async function AboutPage({ params }: Props) {
             </Card>
           ))}
         </div>
+      </section>
+
+      {/* Data Source Section */}
+      <section className="mb-12">
+        <h2 className="mb-4 text-2xl font-semibold flex items-center gap-2">
+          <Database className="h-6 w-6 text-primary" />
+          {t('data_title')}
+        </h2>
+        <p className="text-muted-foreground leading-relaxed">{t('data_desc')}</p>
       </section>
 
       {/* What We Offer Section */}
