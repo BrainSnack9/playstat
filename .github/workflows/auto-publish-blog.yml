@@ -1,0 +1,32 @@
+name: Auto Publish Blog
+
+on:
+  schedule:
+    # 매 1시간마다 실행 (KST 9-18시 필터는 API 내부에서 처리)
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  auto-publish:
+    name: Auto Publish Draft Posts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Auto Publish API
+        run: |
+          RESPONSE=$(curl -s -X GET "${{ secrets.SITE_URL }}/api/cron/auto-publish-blog" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 30)
+          echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+
+          ACTION=$(echo "$RESPONSE" | jq -r '.action // "unknown"')
+          if [ "$ACTION" = "published" ]; then
+            TITLE=$(echo "$RESPONSE" | jq -r '.post.title // "unknown"')
+            SLUG=$(echo "$RESPONSE" | jq -r '.post.slug // "unknown"')
+            echo "Published: $TITLE ($SLUG)"
+          elif [ "$ACTION" = "skipped" ]; then
+            REASON=$(echo "$RESPONSE" | jq -r '.reason // "unknown"')
+            echo "Skipped: $REASON"
+          else
+            echo "Unexpected response"
+          fi
