@@ -62,7 +62,15 @@
     "quick_links_teams": "Información de Equipos",
     "quick_links_teams_desc": "Consulta clasificaciones y estadísticas",
     "quick_links_leagues": "Información de Ligas",
-    "quick_links_leagues_desc": "Ver clasificaciones y calendarios de ligas"
+    "quick_links_leagues_desc": "Ver clasificaciones y calendarios de ligas",
+    "intro_title": "¿Qué es PlayStat?",
+    "intro_subtitle": "Una forma más inteligente de entender los datos deportivos",
+    "intro_feature1_title": "Análisis con IA",
+    "intro_feature1_desc": "Antes de cada partido, nuestra IA analiza la forma reciente, tácticas y puntos clave de ambos equipos.",
+    "intro_feature2_title": "Reportes Diarios",
+    "intro_feature2_desc": "Obtén resúmenes diarios e insights sobre los partidos más interesantes.",
+    "intro_feature3_title": "Multi-Deporte",
+    "intro_feature3_desc": "Cobertura de Fútbol, NBA y MLB con datos completos de partidos."
   },
   "landing": {
     "title": "PlayStat",
@@ -350,6 +358,26 @@
     "mismatch": "Mejor forma vs Gran bache",
     "high_scoring_match": "Ataque vs Defensa: Se espera marcador alto",
     "defensive_battle": "Se espera batalla defensiva"
+  },
+  "contact": {
+    "title": "Contáctenos",
+    "description": "Envíe sus consultas a PlayStat",
+    "email_title": "Correo electrónico",
+    "response_time_title": "Tiempo de respuesta",
+    "response_time_desc": "Generalmente respondemos dentro de 1-2 días hábiles.",
+    "inquiry_types_title": "Tipos de consulta",
+    "inquiry_general": "Consulta general",
+    "inquiry_general_desc": "Preguntas o comentarios sobre nuestro servicio",
+    "inquiry_ads": "Publicidad",
+    "inquiry_ads_desc": "Consultas sobre colocación de anuncios y asociaciones",
+    "inquiry_content": "Contenido",
+    "inquiry_content_desc": "Solicitudes de corrección de datos o consultas sobre contenido"
+  },
+  "cookie_consent": {
+    "message": "Este sitio web utiliza cookies para mejorar su experiencia y mostrar anuncios personalizados.",
+    "accept": "Aceptar",
+    "decline": "Rechazar",
+    "privacy_link": "Política de Privacidad"
   },
   "seo": {
     "site_name": "PlayStat",

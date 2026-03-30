@@ -62,7 +62,15 @@
     "quick_links_teams": "チーム情報",
     "quick_links_teams_desc": "チーム順位と統計を確認",
     "quick_links_leagues": "リーグ情報",
-    "quick_links_leagues_desc": "リーグ順位とスケジュールを確認"
+    "quick_links_leagues_desc": "リーグ順位とスケジュールを確認",
+    "intro_title": "PlayStatとは？",
+    "intro_subtitle": "スポーツデータをより簡単に、より深く理解する方法",
+    "intro_feature1_title": "AI試合分析",
+    "intro_feature1_desc": "毎試合前に、両チームの最近のフォーム、戦術、注目ポイントをAIが自動分析します。",
+    "intro_feature2_title": "デイリーレポート",
+    "intro_feature2_desc": "毎日注目すべき試合とインサイトを一目でまとめます。",
+    "intro_feature3_title": "マルチスポーツ",
+    "intro_feature3_desc": "サッカー、NBA、MLBまで幅広い競技の試合データを提供します。"
   },
   "landing": {
     "title": "PlayStat",
@@ -352,6 +360,26 @@
     "mismatch": "最高の勢い vs 最悪のスランプ",
     "high_scoring_match": "矛と盾：ハイスコアの予想",
     "defensive_battle": "激しい守備戦の予想"
+  },
+  "contact": {
+    "title": "お問い合わせ",
+    "description": "PlayStatへのお問い合わせ",
+    "email_title": "メール",
+    "response_time_title": "応答時間",
+    "response_time_desc": "通常1〜2営業日以内にご返信いたします。",
+    "inquiry_types_title": "お問い合わせの種類",
+    "inquiry_general": "一般的なお問い合わせ",
+    "inquiry_general_desc": "サービスに関するご質問やフィードバック",
+    "inquiry_ads": "広告のお問い合わせ",
+    "inquiry_ads_desc": "広告掲載やパートナーシップに関するお問い合わせ",
+    "inquiry_content": "コンテンツ関連",
+    "inquiry_content_desc": "データ修正リクエストやコンテンツに関するお問い合わせ"
+  },
+  "cookie_consent": {
+    "message": "このウェブサイトは、ユーザー体験の向上とパーソナライズされた広告の提供のためにCookieを使用しています。",
+    "accept": "同意する",
+    "decline": "拒否する",
+    "privacy_link": "プライバシーポリシー"
   },
   "seo": {
     "site_name": "PlayStat",

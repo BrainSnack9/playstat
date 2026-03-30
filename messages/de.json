@@ -62,7 +62,15 @@
     "quick_links_teams": "Team-Info",
     "quick_links_teams_desc": "Tabellen und Statistiken anzeigen",
     "quick_links_leagues": "Liga-Info",
-    "quick_links_leagues_desc": "Liga-Tabellen und Spielpläne anzeigen"
+    "quick_links_leagues_desc": "Liga-Tabellen und Spielpläne anzeigen",
+    "intro_title": "Was ist PlayStat?",
+    "intro_subtitle": "Eine smartere Art, Sportdaten zu verstehen",
+    "intro_feature1_title": "KI-Spielanalyse",
+    "intro_feature1_desc": "Vor jedem Spiel analysiert unsere KI die aktuelle Form, Taktiken und Schlüsselpunkte beider Teams.",
+    "intro_feature2_title": "Tagesberichte",
+    "intro_feature2_desc": "Tägliche Highlights und Einblicke zu den interessantesten Spielen.",
+    "intro_feature3_title": "Multi-Sport",
+    "intro_feature3_desc": "Abdeckung von Fußball, NBA und MLB mit umfassenden Spieldaten."
   },
   "landing": {
     "title": "PlayStat",
@@ -349,6 +357,26 @@
     "mismatch": "Topform vs Tiefes Tief",
     "high_scoring_match": "Speer vs Schild: Hohe Torzahl erwartet",
     "defensive_battle": "Defensives Duell erwartet"
+  },
+  "contact": {
+    "title": "Kontakt",
+    "description": "Senden Sie Ihre Anfragen an PlayStat",
+    "email_title": "E-Mail",
+    "response_time_title": "Antwortzeit",
+    "response_time_desc": "Wir antworten in der Regel innerhalb von 1-2 Werktagen.",
+    "inquiry_types_title": "Anfrage-Typen",
+    "inquiry_general": "Allgemeine Anfrage",
+    "inquiry_general_desc": "Fragen oder Feedback zu unserem Service",
+    "inquiry_ads": "Werbung",
+    "inquiry_ads_desc": "Anfragen zu Werbeplatzierung und Partnerschaften",
+    "inquiry_content": "Inhaltsbezogen",
+    "inquiry_content_desc": "Anfragen zur Datenkorrektur oder zu Inhalten"
+  },
+  "cookie_consent": {
+    "message": "Diese Website verwendet Cookies, um Ihre Erfahrung zu verbessern und personalisierte Werbung anzuzeigen.",
+    "accept": "Akzeptieren",
+    "decline": "Ablehnen",
+    "privacy_link": "Datenschutzerklärung"
   },
   "seo": {
     "site_name": "PlayStat",

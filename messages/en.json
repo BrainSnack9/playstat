@@ -63,7 +63,15 @@
     "quick_links_teams": "Team Info",
     "quick_links_teams_desc": "Check team standings and stats",
     "quick_links_leagues": "League Info",
-    "quick_links_leagues_desc": "View league standings and schedules"
+    "quick_links_leagues_desc": "View league standings and schedules",
+    "intro_title": "What is PlayStat?",
+    "intro_subtitle": "A smarter way to understand sports data",
+    "intro_feature1_title": "AI Match Analysis",
+    "intro_feature1_desc": "Before every match, our AI analyzes recent form, tactics, and key points for both teams.",
+    "intro_feature2_title": "Daily Reports",
+    "intro_feature2_desc": "Get daily highlights and insights on the most interesting matches to watch.",
+    "intro_feature3_title": "Multi-Sport",
+    "intro_feature3_desc": "Coverage across Football, NBA, and MLB with comprehensive match data."
   },
   "landing": {
     "title": "PlayStat",
@@ -352,6 +360,26 @@
     "mismatch": "Peak form vs Deep slump",
     "high_scoring_match": "Spear vs Shield: High scoring expected",
     "defensive_battle": "Defensive battle expected"
+  },
+  "contact": {
+    "title": "Contact Us",
+    "description": "Send your inquiries to PlayStat",
+    "email_title": "Email",
+    "response_time_title": "Response Time",
+    "response_time_desc": "We typically respond within 1-2 business days.",
+    "inquiry_types_title": "Inquiry Types",
+    "inquiry_general": "General Inquiry",
+    "inquiry_general_desc": "Questions or feedback about our service",
+    "inquiry_ads": "Advertising",
+    "inquiry_ads_desc": "Ad placement and partnership inquiries",
+    "inquiry_content": "Content Related",
+    "inquiry_content_desc": "Data correction requests or content inquiries"
+  },
+  "cookie_consent": {
+    "message": "This website uses cookies to improve your experience and serve personalized ads.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "privacy_link": "Privacy Policy"
   },
   "seo": {
     "site_name": "PlayStat",

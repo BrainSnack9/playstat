@@ -10,6 +10,7 @@ import { Footer } from '@/components/layout/footer'
 import { TimezoneDetector } from '@/components/timezone-detector'
 import { SportThemeSetter } from '@/components/sport-theme-setter'
 import { AdsenseScript } from '@/components/adsense'
+import { CookieConsent } from '@/components/cookie-consent'
 import { Analytics } from '@vercel/analytics/next'
 import { generateOrganizationJsonLd, generateWebsiteJsonLd, resolveBaseUrl } from '@/lib/seo'
 import '../globals.css'
@@ -136,6 +137,7 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
             <Header variant="default" />
             <main className="flex-1">{children}</main>
             <Footer variant="default" />
+            <CookieConsent />
           </div>
         </NextIntlClientProvider>
         <Analytics />

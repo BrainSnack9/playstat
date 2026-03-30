@@ -13,26 +13,13 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
   const pathname = usePathname()
   const isNeon = variant !== 'default'
 
-  // Hydration 에러 방지: 클라이언트에서만 계산
-  const [mounted, setMounted] = useState(false)
   const [currentSport, setCurrentSport] = useState<string>('football')
-  const [legalBase, setLegalBase] = useState('')
   // 오늘 날짜 (UTC 기준) - SEO를 위해 실제 날짜 URL 사용
   const [todayDate, setTodayDate] = useState(() => new Date().toISOString().slice(0, 10))
 
   useEffect(() => {
-    setMounted(true)
-
     // 오늘 날짜 업데이트 (UTC 기준)
     setTodayDate(new Date().toISOString().slice(0, 10))
-
-    // Legal base URL 설정
-    const hostname = window.location.hostname
-    setLegalBase(
-      hostname.endsWith('localhost') || hostname === 'localhost'
-        ? 'http://localhost:3030'
-        : window.location.origin
-    )
 
     // 스포츠 타입 감지 (경로 기반)
     if (pathname.includes('/football')) setCurrentSport('football')
@@ -91,13 +78,21 @@ export function Footer({ variant = 'default' }: { variant?: 'default' | 'landing
               {footer('main_hub')}
             </Link>
             <span className={cn(isNeon ? 'text-white/30' : 'text-muted-foreground/50')}>|</span>
-            <a href={mounted ? `${legalBase}/privacy` : '/privacy'} className="hover:text-primary transition-colors">
-              {footer('privacy')}
-            </a>
+            <Link href="/about" className="hover:text-primary transition-colors">
+              {footer('about')}
+            </Link>
             <span className={cn(isNeon ? 'text-white/30' : 'text-muted-foreground/50')}>|</span>
-            <a href={mounted ? `${legalBase}/terms` : '/terms'} className="hover:text-primary transition-colors">
+            <Link href="/contact" className="hover:text-primary transition-colors">
+              {footer('contact')}
+            </Link>
+            <span className={cn(isNeon ? 'text-white/30' : 'text-muted-foreground/50')}>|</span>
+            <Link href="/privacy" className="hover:text-primary transition-colors">
+              {footer('privacy')}
+            </Link>
+            <span className={cn(isNeon ? 'text-white/30' : 'text-muted-foreground/50')}>|</span>
+            <Link href="/terms" className="hover:text-primary transition-colors">
               {footer('terms')}
-            </a>
+            </Link>
           </nav>
 
           {/* Copyright */}
