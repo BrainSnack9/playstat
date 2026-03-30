@@ -33,6 +33,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: t('latest'),
     description: t('latest'),
+    robots: {
+      index: false,
+      follow: false,
+    },
   }
 }
 

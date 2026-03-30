@@ -12,6 +12,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import { MatchCard } from '@/components/blog/match-card'
+import { AdUnit } from '@/components/adsense'
 
 interface Props {
   params: Promise<{ locale: string; slug: string }>
@@ -270,6 +271,8 @@ export default async function BlogPostPage({ params }: Props) {
             {bodyContent}
           </ReactMarkdown>
         </div>
+
+        <AdUnit slot="blog-bottom" className="my-8" />
 
         {/* 관련 경기 카드 */}
         {post.match && (

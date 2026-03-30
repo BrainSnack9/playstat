@@ -3,7 +3,7 @@ import { Metadata } from 'next'
 import { Link } from '@/i18n/routing'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Target, Gamepad2 } from 'lucide-react'
+import { Target } from 'lucide-react'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -33,14 +33,6 @@ export default async function GamesPage({ params }: Props) {
       color: 'from-orange-500 to-red-500',
       bgGlow: 'bg-orange-500/20',
       available: true,
-    },
-    {
-      id: 'guess-player',
-      href: '/games/guess-player',
-      icon: Gamepad2,
-      color: 'from-purple-500 to-pink-500',
-      bgGlow: 'bg-purple-500/20',
-      available: false,
     },
   ]
 

@@ -26,6 +26,7 @@ import { generateMetadata as buildMetadata, generateMatchSEO, generateMatchJsonL
 import { FormBadge } from '@/components/form-badge'
 import { MatchStatusBadge } from '@/components/match-status-badge'
 import { RelatedBlogPosts } from '@/components/match/related-blog-posts'
+import { AdUnit } from '@/components/adsense'
 import { MATCH_STATUS_KEYS } from '@/lib/constants'
 import { unstable_cache } from 'next/cache'
 import { getDateLocale } from '@/lib/utils'
@@ -713,6 +714,8 @@ export default async function MatchPageContent({ params, searchParams, sport }: 
           </CardContent>
         </Card>
       )}
+
+      <AdUnit slot="match-bottom" className="my-8" />
 
       {/* Related Blog Posts */}
       {match.blogPosts && match.blogPosts.length > 0 && (

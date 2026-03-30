@@ -5,9 +5,11 @@ import { Link } from '@/i18n/routing'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { TodayMatches } from '@/components/matches/today-matches'
-import { LatestNews, LatestNewsSkeleton } from '@/components/news/latest-news'
+
 import { LatestBlogPosts, LatestBlogPostsSkeleton } from '@/components/blog/latest-blog-posts'
-import { ArrowRight, Calendar, ChartBar, Target } from 'lucide-react'
+import { ArrowRight, Calendar, ChartBar, Target, Sparkles, FileText, Globe } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { AdUnit } from '@/components/adsense'
 import { headers } from 'next/headers'
 import { type Locale } from '@/i18n/config'
 import { generateMetadata as buildMetadata, resolveBaseUrl } from '@/lib/seo'
@@ -93,6 +95,41 @@ export default async function HomePage({ params }: Props) {
         </div>
       </section>
 
+      {/* What is PlayStat - 소개 섹션 */}
+      <section className="mb-12">
+        <h2 className="mb-2 text-2xl font-bold">{t('intro_title')}</h2>
+        <p className="mb-6 text-muted-foreground">{t('intro_subtitle')}</p>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardContent className="flex items-start gap-3 pt-6">
+              <Sparkles className="mt-0.5 h-6 w-6 shrink-0 text-primary" />
+              <div>
+                <h3 className="mb-1 font-semibold">{t('intro_feature1_title')}</h3>
+                <p className="text-sm text-muted-foreground">{t('intro_feature1_desc')}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-start gap-3 pt-6">
+              <FileText className="mt-0.5 h-6 w-6 shrink-0 text-primary" />
+              <div>
+                <h3 className="mb-1 font-semibold">{t('intro_feature2_title')}</h3>
+                <p className="text-sm text-muted-foreground">{t('intro_feature2_desc')}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-start gap-3 pt-6">
+              <Globe className="mt-0.5 h-6 w-6 shrink-0 text-primary" />
+              <div>
+                <h3 className="mb-1 font-semibold">{t('intro_feature3_title')}</h3>
+                <p className="text-sm text-muted-foreground">{t('intro_feature3_desc')}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
       <Separator className="mb-12" />
 
       {/* 3개 스포츠 오늘의 경기 섹션 */}
@@ -112,6 +149,8 @@ export default async function HomePage({ params }: Props) {
         </section>
       ))}
 
+      <AdUnit slot="home-mid" className="my-8" />
+
       <Separator className="mb-12" />
 
       {/* Latest Blog Posts - 최신 분석 */}
@@ -129,20 +168,6 @@ export default async function HomePage({ params }: Props) {
         </Suspense>
       </section>
 
-      {/* Latest News - 전체 스포츠 */}
-      <section className="mb-12">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="section-title">{t('latest_news')}</h2>
-          <Button asChild variant="ghost">
-            <Link href="/news">
-              {common('view_all')} <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-        <Suspense fallback={<LatestNewsSkeleton />}>
-          <LatestNews locale={locale} />
-        </Suspense>
-      </section>
     </div>
   )
 }
