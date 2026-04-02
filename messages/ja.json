@@ -85,7 +85,7 @@
     "cta_football": "サッカーへ",
     "cta_racing": "競馬へ",
     "note": "競技ごとに分析画面が分かれます。",
-    "pill_one": "AI SIGNAL",
+    "pill_one": "DATA SIGNAL",
     "pill_two": "TACTICAL FLOW",
     "pill_three": "RISK DETECTOR",
     "about_point1_label": "FOCUS",
@@ -543,7 +543,7 @@
     "score-challenge": {
       "title": "スコアチャレンジ",
       "description": "試合スコアを予想してポイントを獲得！",
-      "points": "ポイント獲得",
+      "points_label": "ポイント獲得",
       "streak": "連勝記録",
       "select_match": "試合を選択",
       "your_prediction": "あなたの予想",

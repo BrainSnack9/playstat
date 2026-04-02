@@ -1,0 +1,44 @@
+name: Generate Blog Roundup
+
+on:
+  schedule:
+    # 매주 월요일 06:00 UTC (KST 15:00) - 주말 경기 후
+    - cron: '0 6 * * 1'
+    # 매주 화요일 06:00 UTC (KST 15:00) - 월요일 경기 보충
+    - cron: '0 6 * * 2'
+  workflow_dispatch:
+    inputs:
+      league:
+        description: 'Target league code (PL, PD, SA, BL1, FL1) - leave empty for all'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - PL
+          - PD
+          - SA
+          - BL1
+          - FL1
+
+jobs:
+  generate-roundup:
+    name: Generate Weekly League Roundup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Roundup Generation API
+        run: |
+          LEAGUE_PARAM=""
+          if [ -n "${{ github.event.inputs.league }}" ]; then
+            LEAGUE_PARAM="?league=${{ github.event.inputs.league }}"
+          fi
+
+          RESPONSE=$(curl -s -X GET "${{ secrets.SITE_URL }}/api/cron/generate-blog-roundup${LEAGUE_PARAM}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 120)
+          echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success // false')
+          MESSAGE=$(echo "$RESPONSE" | jq -r '.message // "unknown"')
+          echo "Result: $SUCCESS - $MESSAGE"

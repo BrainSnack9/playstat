@@ -23,12 +23,14 @@ const categoryLabels: Record<string, Record<string, string>> = {
   ANALYSIS: { ko: '분석', en: 'Analysis', ja: '分析', de: 'Analyse', es: 'Análisis' },
   PREVIEW: { ko: '프리뷰', en: 'Preview', ja: 'プレビュー', de: 'Vorschau', es: 'Vista previa' },
   REVIEW: { ko: '리뷰', en: 'Review', ja: 'レビュー', de: 'Rezension', es: 'Reseña' },
+  ROUNDUP: { ko: '라운드업', en: 'Roundup', ja: 'まとめ', de: 'Zusammenfassung', es: 'Resumen' },
 }
 
 const categoryStyles: Record<string, string> = {
   ANALYSIS: 'bg-purple-500/15 text-purple-400 border border-purple-500/20',
   PREVIEW: 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/20',
   REVIEW: 'bg-pink-500/15 text-pink-400 border border-pink-500/20',
+  ROUNDUP: 'bg-amber-500/15 text-amber-400 border border-amber-500/20',
 }
 
 const sportStyles: Record<string, { badge: string; label: Record<string, string> }> = {

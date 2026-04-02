@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
 
-export const alt = 'PlayStat - AI Sports Analysis Platform'
+export const alt = 'PlayStat - Sports Data & Analysis Platform'
 export const size = {
   width: 1200,
   height: 630,
@@ -67,7 +67,7 @@ export default async function Image() {
             lineHeight: 1.4,
           }}
         >
-          AI-powered Sports Analysis Platform
+          Sports Data & Analysis Platform
         </div>
         <div
           style={{

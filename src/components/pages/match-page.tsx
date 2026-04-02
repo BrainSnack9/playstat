@@ -144,7 +144,7 @@ export async function generateMatchMetadata({ params, sport }: { params: Promise
     if (homeRank && awayRank) parts.push(`순위 ${homeRank}위 vs ${awayRank}위`)
 
     dynamicDescription = parts.length > 0
-      ? `${parts.join('. ')}. ${match.league.name} AI 분석, 전술, 핵심 관전 포인트 확인`
+      ? `${parts.join('. ')}. ${match.league.name} 데이터 분석, 전술, 핵심 관전 포인트 확인`
       : t('seo_description_with_analysis', { homeTeam: match.homeTeam.name, awayTeam: match.awayTeam.name })
   } else if (locale === 'ja') {
     const parts: string[] = []

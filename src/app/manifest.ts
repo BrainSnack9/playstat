@@ -2,9 +2,9 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'PlayStat - AI Sports Analysis',
+    name: 'PlayStat - Sports Data & Analysis',
     short_name: 'PlayStat',
-    description: 'AI-powered sports analysis platform for Football, NBA, and MLB',
+    description: 'Sports data analysis platform for Football, NBA, and MLB — stats, form, H2H records and daily insights',
     start_url: '/',
     display: 'standalone',
     background_color: '#0a0a0a',

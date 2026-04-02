@@ -328,6 +328,7 @@ enum PostCategory {
   ANALYSIS     // 경기 분석
   PREVIEW      // 경기 프리뷰
   REVIEW       // 경기 리뷰
+  ROUNDUP      // 주간 리그 라운드업
   NEWS         // 뉴스
   GUIDE        // 가이드/팁
   ANNOUNCEMENT // 공지사항

@@ -37,6 +37,7 @@ const categoryLabels: Record<string, Record<string, string>> = {
   ANALYSIS: { ko: '분석', en: 'Analysis', ja: '分析', de: 'Analyse', es: 'Análisis' },
   PREVIEW: { ko: '프리뷰', en: 'Preview', ja: 'プレビュー', de: 'Vorschau', es: 'Vista previa' },
   REVIEW: { ko: '리뷰', en: 'Review', ja: 'レビュー', de: 'Rezension', es: 'Reseña' },
+  ROUNDUP: { ko: '라운드업', en: 'Roundup', ja: 'まとめ', de: 'Zusammenfassung', es: 'Resumen' },
 }
 
 const getPostBySlug = unstable_cache(

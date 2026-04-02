@@ -20,9 +20,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: {
     template: '%s | PlayStat',
-    default: 'PlayStat - AI Sports Analysis Platform',
+    default: 'PlayStat - Sports Data & Analysis Platform',
   },
-  description: 'AI-powered sports analysis platform for Football, NBA, and MLB',
+  description: 'Sports data analysis platform for Football, NBA, and MLB — stats, form, H2H records and daily insights',
   keywords: [
     'sports', 'analysis', 'AI', 'soccer', 'football',
     // Football Leagues

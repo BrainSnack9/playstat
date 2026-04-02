@@ -31,12 +31,14 @@ const categoryLabels: Record<string, Record<string, string>> = {
   ANALYSIS: { ko: '분석', en: 'Analysis', ja: '分析', de: 'Analyse', es: 'Análisis' },
   PREVIEW: { ko: '프리뷰', en: 'Preview', ja: 'プレビュー', de: 'Vorschau', es: 'Vista previa' },
   REVIEW: { ko: '리뷰', en: 'Review', ja: 'レビュー', de: 'Rezension', es: 'Reseña' },
+  ROUNDUP: { ko: '라운드업', en: 'Roundup', ja: 'まとめ', de: 'Zusammenfassung', es: 'Resumen' },
 }
 
 const categoryStyles: Record<string, string> = {
   ANALYSIS: 'bg-purple-500/15 text-purple-400 border border-purple-500/20',
   PREVIEW: 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/20',
   REVIEW: 'bg-pink-500/15 text-pink-400 border border-pink-500/20',
+  ROUNDUP: 'bg-amber-500/15 text-amber-400 border border-amber-500/20',
 }
 
 // 스포츠별 스타일 설정
@@ -64,13 +66,14 @@ const sportStyles = {
   },
 }
 
-const validCategories = ['analysis', 'preview', 'review']
+const validCategories = ['analysis', 'preview', 'review', 'roundup']
 
 function getCategoryFromSlug(slug: string): PostCategory | null {
   const mapping: Record<string, PostCategory> = {
     analysis: 'ANALYSIS',
     preview: 'PREVIEW',
     review: 'REVIEW',
+    roundup: 'ROUNDUP',
   }
   return mapping[slug.toLowerCase()] || null
 }
@@ -188,16 +191,20 @@ export default async function BlogCategoryPage({ params, searchParams }: Props) 
             {validCategories.map((cat) => {
               const catKey = getCategoryFromSlug(cat)!
               const isActive = cat === category.toLowerCase()
-              const activeStyle = catKey === 'ANALYSIS'
-                ? 'bg-purple-600/20 text-purple-400 font-medium'
-                : catKey === 'PREVIEW'
-                ? 'bg-cyan-600/20 text-cyan-400 font-medium'
-                : 'bg-pink-600/20 text-pink-400 font-medium'
-              const inactiveStyle = catKey === 'ANALYSIS'
-                ? 'text-purple-400 hover:bg-purple-500/10'
-                : catKey === 'PREVIEW'
-                ? 'text-cyan-400 hover:bg-cyan-500/10'
-                : 'text-pink-400 hover:bg-pink-500/10'
+              const activeStyleMap: Record<string, string> = {
+                ANALYSIS: 'bg-purple-600/20 text-purple-400 font-medium',
+                PREVIEW: 'bg-cyan-600/20 text-cyan-400 font-medium',
+                REVIEW: 'bg-pink-600/20 text-pink-400 font-medium',
+                ROUNDUP: 'bg-amber-600/20 text-amber-400 font-medium',
+              }
+              const inactiveStyleMap: Record<string, string> = {
+                ANALYSIS: 'text-purple-400 hover:bg-purple-500/10',
+                PREVIEW: 'text-cyan-400 hover:bg-cyan-500/10',
+                REVIEW: 'text-pink-400 hover:bg-pink-500/10',
+                ROUNDUP: 'text-amber-400 hover:bg-amber-500/10',
+              }
+              const activeStyle = activeStyleMap[catKey] || 'bg-gray-600/20 text-gray-400 font-medium'
+              const inactiveStyle = inactiveStyleMap[catKey] || 'text-gray-400 hover:bg-gray-500/10'
               return (
                 <Link
                   key={cat}

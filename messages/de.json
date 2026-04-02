@@ -553,7 +553,7 @@
     "score-challenge": {
       "title": "Score Challenge",
       "description": "Tippen Sie auf Spielergebnisse und sammeln Sie Punkte!",
-      "points": "Punkte sammeln",
+      "points_label": "Punkte sammeln",
       "streak": "Siegesserie",
       "select_match": "Spiel auswählen",
       "your_prediction": "Ihre Vorhersage",
